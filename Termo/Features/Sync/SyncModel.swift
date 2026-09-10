@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 enum SyncUIError: LocalizedError {
     case weakMaster

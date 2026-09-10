@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 /// 侧栏「同步」面板：WebDAV 配置 + 主密码 + 操作与状态。
@@ -6,6 +5,7 @@ import SwiftUI
 struct SyncPanel: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var sync = SyncModel.shared
+    @ObservedObject private var theme = ThemeManager.shared
 
     var body: some View {
         ScrollView {
@@ -134,6 +134,7 @@ private struct SyncConflictDialog: View {
     let onConfirm: ([String: Bool]) -> Void
     let onCancel: () -> Void
     @State private var choices: [String: Bool] = [:]
+    @ObservedObject private var theme = ThemeManager.shared
 
     var body: some View {
         ZStack {

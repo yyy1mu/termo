@@ -60,12 +60,6 @@ enum SyncCrypto {
         }
     }
 
-    /// 快速判断一段数据是否像 Termo 加密信封（用于导入前给友好提示）。
-    static func looksLikeEnvelope(_ data: Data) -> Bool {
-        guard let envelope = try? JSONDecoder().decode(SyncEnvelope.self, from: data) else { return false }
-        return envelope.isSupported
-    }
-
     private static func deriveKey(password: String, salt: Data, iterations: Int) throws -> SymmetricKey {
         var derived = [UInt8](repeating: 0, count: 32)
         let status = password.withCString { pwPtr in
