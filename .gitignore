@@ -30,3 +30,6 @@ docs/
 
 # russh/构建产物（scripts/build-russh.sh 输出；只保留未跟踪，不入库）
 /Build/
+
+# Rust 构建产物（cargo 默认 target 目录）
+Rust/**/target/
