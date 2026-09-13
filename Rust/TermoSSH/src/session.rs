@@ -80,6 +80,22 @@ pub struct ExecOutput {
 
 pub(crate) struct SessionInner {
     pub(crate) handle: russh::client::Handle<crate::handler::ProbeHandler>,
+    /// -R 转发路由槽（forward_open 安装/摘除）。
+    pub(crate) forward_slot: Arc<crate::handler::ForwardSlot>,
+}
+
+// forward 模块经 SessionInner 访问会话内部（Arc 共享）。
+impl RusshSession {
+    pub(crate) fn inner(&self) -> &Arc<SessionInner> {
+        &self.inner
+    }
+}
+
+impl SessionInner {
+    /// 会话是否已断开（转发监督轮询用）。
+    pub(crate) fn is_dead(&self) -> bool {
+        self.handle.is_closed()
+    }
 }
 
 impl SessionInner {
@@ -114,7 +130,7 @@ impl RusshSession {
         key_passphrase: Option<&str>,
         timeout: Duration,
     ) -> Result<Self, String> {
-        let (handle, fp_slot) = connect_and_auth(
+        let (handle, fp_slot, forward_slot) = connect_and_auth(
             host,
             port,
             user,
@@ -126,7 +142,10 @@ impl RusshSession {
         .await?;
         let fingerprint = fp_slot.lock().expect("fingerprint mutex").clone();
         Ok(Self {
-            inner: Arc::new(SessionInner { handle }),
+            inner: Arc::new(SessionInner {
+                handle,
+                forward_slot,
+            }),
             fingerprint,
             fp_cstring: OnceLock::new(),
             cancelled: AtomicBool::new(false),
@@ -210,6 +229,19 @@ impl RusshSession {
                 key_passphrase,
                 timeout,
             ))
+        }))
+        .unwrap_or_else(|_| Err("内部 panic（已被 FFI 边界拦截）".into()))
+    }
+
+    /// 阻塞开转发（供 C ABI / CLI；panic 隔离）。
+    pub fn forward_open_blocking(
+        &self,
+        spec: crate::forward::ForwardSpec,
+        on_state: crate::forward::ForwardStateCallback,
+        userdata: *mut std::ffi::c_void,
+    ) -> Result<crate::forward::RusshForward, String> {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            runtime().block_on(self.forward_open(spec, on_state, userdata))
         }))
         .unwrap_or_else(|_| Err("内部 panic（已被 FFI 边界拦截）".into()))
     }

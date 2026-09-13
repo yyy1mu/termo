@@ -5,6 +5,7 @@
 
 use std::ffi::c_char;
 
+use crate::forward::{ForwardKind, ForwardSpec, ForwardStateCallback, RusshForward};
 use crate::session::{clamp_timeout, ExecResult, RusshSession};
 use crate::shell::{RusshShell, ShellClosedCallback, ShellDataCallback};
 use crate::{copy_into, read_str, runtime};
@@ -327,6 +328,96 @@ pub unsafe extern "C" fn termo_russh_shell_close(sh: *mut RusshShell) {
         let shell = Box::from_raw(sh);
         shell.close();
         drop(shell);
+    }
+}
+
+// ── 端口转发（-L / -R / -D）─────────────────────────────────────────────────
+
+/// 开启转发。kind：0=本地(-L) 1=远程(-R) 2=动态 SOCKS5(-D)。
+/// -L/-D 在 bind_addr:listen_port 开本地监听（bind_addr 空 → 0.0.0.0）；
+/// -R 在服务器 bind_addr:listen_port 开远端监听，进来的连接转回本机 dest。
+/// 监听建立失败（端口占用等）立即返回 NULL 并写 err。
+/// on_state(ok=0) 表示连接断开/致命错误（上层据此重连/标记失败）。
+///
+/// # Safety
+/// s 须为有效会话；on_state 须为有效 C 函数指针；userdata 生命周期覆盖整个
+/// forward（close 之后不再回调）；字符串指针须为有效 NUL 结尾缓冲；
+/// err 可为 NULL，非 NULL 时保证 errlen 字节可写。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_forward_open(
+    s: *mut RusshSession,
+    kind: i32,
+    bind_addr: *const c_char,
+    listen_port: i32,
+    dest_host: *const c_char,
+    dest_port: i32,
+    on_state: Option<ForwardStateCallback>,
+    userdata: *mut std::ffi::c_void,
+    err: *mut c_char,
+    errlen: i32,
+) -> *mut RusshForward {
+    if s.is_null() {
+        copy_into(err, errlen, "参数无效（会话为空）");
+        return std::ptr::null_mut();
+    }
+    let kind = match kind {
+        0 => ForwardKind::Local,
+        1 => ForwardKind::Remote,
+        2 => ForwardKind::Dynamic,
+        _ => {
+            copy_into(err, errlen, "参数无效（kind 须为 0/1/2）");
+            return std::ptr::null_mut();
+        }
+    };
+    let Some(on_state) = on_state else {
+        copy_into(err, errlen, "参数无效（回调为空）");
+        return std::ptr::null_mut();
+    };
+    let bind_addr = read_str(bind_addr);
+    let dest_host = read_str(dest_host);
+    if kind != ForwardKind::Dynamic && (dest_host.is_empty() || !(1..=65535).contains(&dest_port)) {
+        copy_into(err, errlen, "参数无效（-L/-R 须提供 dest_host:dest_port）");
+        return std::ptr::null_mut();
+    }
+    if !(0..=65535).contains(&listen_port) {
+        copy_into(err, errlen, "参数无效（listen_port 越界）");
+        return std::ptr::null_mut();
+    }
+
+    let session = &*s;
+    let spec = ForwardSpec {
+        kind,
+        bind_addr,
+        listen_port: listen_port as u16,
+        dest_host,
+        dest_port: dest_port as u16,
+    };
+    let opened = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        runtime().block_on(session.forward_open(spec, on_state, userdata))
+    }));
+    match opened {
+        Ok(Ok(forward)) => Box::into_raw(Box::new(forward)),
+        Ok(Err(message)) => {
+            copy_into(err, errlen, &message);
+            std::ptr::null_mut()
+        }
+        Err(_) => {
+            copy_into(err, errlen, "内部 panic（已被 FFI 边界拦截）");
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// 停止转发并回收监督任务（close 返回后不再有 on_state 回调）。
+///
+/// # Safety
+/// f 须来自 termo_russh_forward_open，且只 close 一次。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_forward_close(f: *mut RusshForward) {
+    if !f.is_null() {
+        let forward = Box::from_raw(f);
+        forward.close();
+        drop(forward);
     }
 }
 

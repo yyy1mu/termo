@@ -13,12 +13,56 @@ use std::io::{Read, Write};
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
-use termo_ssh::{clamp_timeout, ExecResult, RusshSession, RusshShell};
+use termo_ssh::{clamp_timeout, ExecResult, ForwardKind, ForwardSpec, RusshSession, RusshShell};
 
 fn usage() {
     eprintln!(
-        "用法: russh-probe HOST PORT USER [--password PASS | --key PATH [PASSPHRASE]] [--exec CMD [--stdin-file PATH] | --shell] [--timeout MS]"
+        "用法: russh-probe HOST PORT USER [--password PASS | --key PATH [PASSPHRASE]] [--exec CMD [--stdin-file PATH] | --shell] [--forward L:port:host:dport | R:port:host:dport | D:port]... [--timeout MS]"
     );
+}
+
+/// 解析 --forward 规格："L:port:host:dport" / "R:port:host:dport" / "D:port"。
+fn parse_forward(s: &str) -> Result<ForwardSpec, String> {
+    let (kind, rest) = match s.split_at(s.find(':').ok_or("缺 ':'")?) {
+        ("L", r) | ("l", r) => (ForwardKind::Local, &r[1..]),
+        ("R", r) | ("r", r) => (ForwardKind::Remote, &r[1..]),
+        ("D", r) | ("d", r) => (ForwardKind::Dynamic, &r[1..]),
+        _ => return Err("kind 须为 L/R/D".into()),
+    };
+    let parts: Vec<&str> = rest.split(':').collect();
+    let (bind_addr, listen_port, dest_host, dest_port) = match (kind, parts.as_slice()) {
+        (ForwardKind::Dynamic, [port]) => (
+            "0.0.0.0".to_string(),
+            port.parse::<u16>().map_err(|_| "端口无效")?,
+            String::new(),
+            0,
+        ),
+        (_, [port, host, dport]) => (
+            "0.0.0.0".to_string(),
+            port.parse::<u16>().map_err(|_| "端口无效")?,
+            host.to_string(),
+            dport.parse::<u16>().map_err(|_| "目标端口无效")?,
+        ),
+        _ => return Err("格式须为 L:port:host:dport / R:port:host:dport / D:port".into()),
+    };
+    Ok(ForwardSpec {
+        kind,
+        bind_addr,
+        listen_port,
+        dest_host,
+        dest_port,
+    })
+}
+
+unsafe extern "C" fn cli_on_state(
+    _ud: *mut std::ffi::c_void,
+    ok: i32,
+    message: *const std::ffi::c_char,
+) {
+    if ok == 0 {
+        let msg = std::ffi::CStr::from_ptr(message).to_string_lossy();
+        eprintln!("[转发致命错误] {msg}");
+    }
 }
 
 /// --shell 桥：回调线程写 stdout，主线程把 stdin 喂给 PTY。
@@ -107,6 +151,7 @@ fn main() -> ExitCode {
     let mut command: Option<String> = None;
     let mut stdin_file: Option<String> = None;
     let mut shell_mode = false;
+    let mut forwards: Vec<ForwardSpec> = Vec::new();
     let mut timeout_ms = 20_000;
     while !args.is_empty() {
         match args.remove(0).as_str() {
@@ -120,6 +165,13 @@ fn main() -> ExitCode {
             "--exec" => command = Some(args.remove(0)),
             "--stdin-file" => stdin_file = Some(args.remove(0)),
             "--shell" => shell_mode = true,
+            "--forward" => match parse_forward(&args.remove(0)) {
+                Ok(spec) => forwards.push(spec),
+                Err(message) => {
+                    eprintln!("失败: --forward {message}");
+                    return ExitCode::FAILURE;
+                }
+            },
             "--timeout" => timeout_ms = args.remove(0).parse().unwrap_or(20_000),
             _ => {
                 usage();
@@ -146,6 +198,42 @@ fn main() -> ExitCode {
     };
 
     println!("主机指纹: {}", session.fingerprint().unwrap_or("(无)"));
+
+    // 开启转发规则；然后阻塞在 stdin（EOF 退出），期间隧道工作
+    if !forwards.is_empty() {
+        let mut active = Vec::new();
+        for (i, spec) in forwards.into_iter().enumerate() {
+            match session.forward_open_blocking(spec.clone(), cli_on_state, std::ptr::null_mut()) {
+                Ok(fwd) => {
+                    println!(
+                        "[转发 #{}] {:?} {}:{} → {}:{} 已建立",
+                        i,
+                        spec.kind,
+                        spec.bind_addr,
+                        spec.listen_port,
+                        spec.dest_host,
+                        spec.dest_port
+                    );
+                    active.push(fwd);
+                }
+                Err(message) => {
+                    eprintln!("[转发 #{}] 失败: {message}", i);
+                    for f in active {
+                        f.close();
+                    }
+                    session.close();
+                    return ExitCode::FAILURE;
+                }
+            }
+        }
+        let _ = std::io::stdin().read_to_end(&mut Vec::new());
+        for f in active {
+            f.close();
+        }
+        session.close();
+        println!("[转发已全部停止]");
+        return ExitCode::SUCCESS;
+    }
 
     if shell_mode {
         let code = run_shell(&session);

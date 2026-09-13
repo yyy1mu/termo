@@ -6,12 +6,14 @@
 //! tests.
 
 mod ffi;
+mod forward;
 mod handler;
 mod session;
 mod shell;
 
 use std::ffi::{c_char, CStr};
 
+pub use forward::{ForwardKind, ForwardSpec, ForwardStateCallback, RusshForward};
 pub use session::{clamp_timeout, ExecOutput, ExecResult, ProbeOutcome, RusshSession};
 pub use shell::{RusshShell, ShellClosedCallback, ShellDataCallback};
 

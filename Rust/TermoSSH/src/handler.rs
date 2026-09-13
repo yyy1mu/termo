@@ -6,11 +6,16 @@ use std::time::Duration;
 use russh::client::{self, AuthResult, Handle};
 use russh::keys::{HashAlg, PrivateKeyWithHashAlg};
 
+/// -R 转发路由槽：forward_open 安装发送端，Handler 回调投递服务器转来的通道。
+pub(crate) type ForwardSlot =
+    Mutex<Option<tokio::sync::mpsc::UnboundedSender<russh::Channel<russh::client::Msg>>>>;
+
 /// PoC 阶段对未知主机一律放行（与现有 libssh2 引擎的保守口径一致），
 /// 但把指纹带回给调用方；信任策略（known_hosts / 弹窗）后续在 Swift 侧接入。
 #[derive(Debug, Default)]
 pub(crate) struct ProbeHandler {
     pub fingerprint: Arc<Mutex<Option<String>>>,
+    pub forward_slot: Arc<ForwardSlot>,
 }
 
 impl client::Handler for ProbeHandler {
@@ -31,6 +36,25 @@ impl client::Handler for ProbeHandler {
         *self.fingerprint.lock().expect("fingerprint mutex") = Some(fp);
         Ok(true)
     }
+
+    /// -R：服务器转来的新连接通道。无激活的 -R 转发时 drop reply（自动 reject）。
+    async fn server_channel_open_forwarded_tcpip(
+        &mut self,
+        channel: russh::Channel<russh::client::Msg>,
+        _connected_address: &str,
+        _connected_port: u32,
+        _originator_address: &str,
+        _originator_port: u32,
+        reply: russh::client::ChannelOpenHandle,
+        _session: &mut russh::client::Session,
+    ) -> Result<(), Self::Error> {
+        let sender = self.forward_slot.lock().expect("forward slot").clone();
+        if sender.as_ref().is_some_and(|s| !s.is_closed()) {
+            reply.accept().await;
+            let _ = sender.expect("checked above").send(channel);
+        }
+        Ok(())
+    }
 }
 
 fn ensure_auth(result: AuthResult) -> Result<(), String> {
@@ -49,7 +73,14 @@ pub(crate) async fn connect_and_auth(
     key_path: Option<&str>,
     key_passphrase: Option<&str>,
     timeout: Duration,
-) -> Result<(Handle<ProbeHandler>, Arc<Mutex<Option<String>>>), String> {
+) -> Result<
+    (
+        Handle<ProbeHandler>,
+        Arc<Mutex<Option<String>>>,
+        Arc<ForwardSlot>,
+    ),
+    String,
+> {
     let config = Arc::new(client::Config {
         inactivity_timeout: Some(Duration::from_secs(30)),
         keepalive_interval: Some(Duration::from_secs(15)),
@@ -59,6 +90,7 @@ pub(crate) async fn connect_and_auth(
     });
     let handler = ProbeHandler::default();
     let fingerprint = handler.fingerprint.clone();
+    let handler_slot = handler.forward_slot.clone();
     let fut = async {
         let mut handle: Handle<ProbeHandler> =
             client::connect(config, format!("{host}:{port}"), handler)
@@ -94,5 +126,5 @@ pub(crate) async fn connect_and_auth(
         Err(_) => Err("连接/认证超时".into()),
     }?;
 
-    Ok((handle, fingerprint))
+    Ok((handle, fingerprint, handler_slot))
 }
