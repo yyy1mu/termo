@@ -8,6 +8,7 @@
 mod ffi;
 mod forward;
 mod handler;
+mod keys;
 mod session;
 mod sftp;
 mod shell;
@@ -15,6 +16,7 @@ mod shell;
 use std::ffi::{c_char, CStr};
 
 pub use forward::{ForwardKind, ForwardSpec, ForwardStateCallback, RusshForward};
+pub use keys::{fingerprint_of_public, generate, pubkey_from_private, GeneratedKey, PubkeyDerive};
 pub use session::{clamp_timeout, ExecOutput, ExecResult, ProbeOutcome, RusshSession};
 pub use sftp::{RusshSftp, RusshSftpFile, SftpAttrs, SftpOpError};
 pub use shell::{RusshShell, ShellClosedCallback, ShellDataCallback};

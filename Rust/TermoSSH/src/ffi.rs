@@ -794,6 +794,120 @@ pub unsafe extern "C" fn termo_russh_sftp_close(file: *mut RusshSftpFile) {
     }
 }
 
+// ── 密钥工具（替代 TermoKeyGen.c 的 OpenSSL 路径）───────────────────────────
+
+/// 生成密钥对。type：0=ed25519 1=rsa(4096)。
+/// out_priv=私钥文本（OpenSSH）、out_pub=公钥行、out_fp="SHA256:…"。
+/// passphrase 非空则加密私钥（AES-256-CTR + bcrypt KDF）。返回 0/-1(+err)。
+///
+/// # Safety
+/// 各 out 缓冲须保证对应 cap 字节可写（可为 NULL）；字符串指针须有效。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_key_generate(
+    key_type: i32,
+    comment: *const c_char,
+    passphrase: *const c_char,
+    out_priv: *mut c_char,
+    priv_cap: i32,
+    out_pub: *mut c_char,
+    pub_cap: i32,
+    out_fp: *mut c_char,
+    fp_cap: i32,
+    err: *mut c_char,
+    errlen: i32,
+) -> i32 {
+    let comment = read_str(comment);
+    let passphrase = read_str(passphrase);
+    let run = || crate::keys::generate(key_type, &comment, &passphrase);
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)) {
+        Ok(Ok(key)) => {
+            copy_into(out_priv, priv_cap, &key.private_openssh);
+            copy_into(out_pub, pub_cap, &key.public_line);
+            copy_into(out_fp, fp_cap, &key.fingerprint);
+            0
+        }
+        Ok(Err(message)) => write_err(err, errlen, -1, &message),
+        Err(_) => write_err(err, errlen, -1, "内部 panic（已被 FFI 边界拦截）"),
+    }
+}
+
+/// 从私钥文件派生公钥行（无注释时带容器注释）。
+/// 返回 0=成功（out_type 0=ed25519/1=rsa；out_encrypted=加密态）/
+/// 1=加密 PEM 且无口令无法派生 / -1=错误。
+///
+/// # Safety
+/// priv_path/passphrase 须为有效 NUL 结尾字符串；out_type/out_encrypted 可为 NULL。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_key_pubkey_from_private(
+    priv_path: *const c_char,
+    passphrase: *const c_char,
+    out_pub: *mut c_char,
+    pub_cap: i32,
+    out_type: *mut i32,
+    out_encrypted: *mut i32,
+) -> i32 {
+    if priv_path.is_null() {
+        return -1;
+    }
+    let path = read_str(priv_path);
+    let passphrase = read_str(passphrase);
+    let run = || crate::keys::pubkey_from_private(&path, &passphrase);
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)) {
+        Ok(Ok(crate::keys::PubkeyDerive::Ok {
+            public_line,
+            key_type,
+            encrypted,
+        })) => {
+            copy_into(out_pub, pub_cap, &public_line);
+            if !out_type.is_null() {
+                *out_type = key_type;
+            }
+            if !out_encrypted.is_null() {
+                *out_encrypted = encrypted as i32;
+            }
+            0
+        }
+        Ok(Ok(crate::keys::PubkeyDerive::EncryptedPemNoPassphrase)) => 1,
+        Ok(Err(message)) => write_err(std::ptr::null_mut(), 0, -1, &message),
+        Err(_) => write_err(
+            std::ptr::null_mut(),
+            0,
+            -1,
+            "内部 panic（已被 FFI 边界拦截）",
+        ),
+    }
+}
+
+/// 由公钥行算 "SHA256:…" 指纹。返回 0/-1。
+///
+/// # Safety
+/// pub_line 须为有效 NUL 结尾字符串；out_fp 须有 fp_cap 字节可写。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_key_fingerprint(
+    pub_line: *const c_char,
+    out_fp: *mut c_char,
+    fp_cap: i32,
+) -> i32 {
+    if pub_line.is_null() {
+        return -1;
+    }
+    let line = read_str(pub_line);
+    let run = || crate::keys::fingerprint_of_public(&line);
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)) {
+        Ok(Ok(fp)) => {
+            copy_into(out_fp, fp_cap, &fp);
+            0
+        }
+        Ok(Err(message)) => write_err(std::ptr::null_mut(), 0, -1, &message),
+        Err(_) => write_err(
+            std::ptr::null_mut(),
+            0,
+            -1,
+            "内部 panic（已被 FFI 边界拦截）",
+        ),
+    }
+}
+
 /// 把二进制缓冲拷进调用方缓冲（截断），写实际长度；cap<=0 或缓冲 NULL 时长度写 0。
 unsafe fn copy_bytes(dst: *mut c_char, cap: i32, written: *mut i32, src: &[u8]) {
     if dst.is_null() || cap <= 0 {

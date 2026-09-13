@@ -134,6 +134,41 @@ fn run_shell(session: &RusshSession) -> i32 {
 
 fn main() -> ExitCode {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
+
+    // 独立模式（无需 HOST PORT USER）：--key-gen / --key-info
+    if let Some(first) = args.first().cloned() {
+        match first.as_str() {
+            "--key-gen" => {
+                args.remove(0);
+                let Some(kind) = args.first().cloned() else {
+                    usage();
+                    return ExitCode::FAILURE;
+                };
+                args.remove(0);
+                let key_type = match kind.as_str() {
+                    "ed25519" => 0,
+                    "rsa" => 1,
+                    other => {
+                        eprintln!("失败: --key-gen 须为 ed25519|rsa，收到 {other}");
+                        return ExitCode::FAILURE;
+                    }
+                };
+                return key_gen(key_type);
+            }
+            "--key-info" => {
+                args.remove(0);
+                let Some(path) = args.first().cloned() else {
+                    usage();
+                    return ExitCode::FAILURE;
+                };
+                args.remove(0);
+                let passphrase = args.first().filter(|a| !a.starts_with("--")).cloned();
+                return key_info(&path, passphrase.as_deref());
+            }
+            _ => {}
+        }
+    }
+
     if args.len() < 3 {
         usage();
         return ExitCode::FAILURE;
@@ -440,4 +475,51 @@ fn run_sftp(
     }
 
     false
+}
+
+/// --key-gen：生成并打印（私钥文本属敏感信息，仅本地手工测试用）。
+fn key_gen(key_type: i32) -> ExitCode {
+    match termo_ssh::generate(key_type, "russh-probe", "") {
+        Ok(key) => {
+            println!("私钥:\n{}", key.private_openssh);
+            println!("公钥: {}", key.public_line);
+            println!("指纹: {}", key.fingerprint);
+            ExitCode::SUCCESS
+        }
+        Err(message) => {
+            eprintln!("失败: {message}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// --key-info PATH [PASSPHRASE]：派生公钥/类型/加密态。
+fn key_info(path: &str, passphrase: Option<&str>) -> ExitCode {
+    match termo_ssh::pubkey_from_private(path, passphrase.unwrap_or("")) {
+        Ok(termo_ssh::PubkeyDerive::Ok {
+            public_line,
+            key_type,
+            encrypted,
+        }) => {
+            let kind = if key_type == 1 { "rsa" } else { "ed25519" };
+            match termo_ssh::fingerprint_of_public(&public_line) {
+                Ok(fp) => {
+                    println!("类型: {kind}\n加密: {encrypted}\n公钥: {public_line}\n指纹: {fp}")
+                }
+                Err(message) => {
+                    eprintln!("失败: {message}");
+                    return ExitCode::FAILURE;
+                }
+            }
+            ExitCode::SUCCESS
+        }
+        Ok(termo_ssh::PubkeyDerive::EncryptedPemNoPassphrase) => {
+            eprintln!("失败: 加密 PEM 未提供口令");
+            ExitCode::FAILURE
+        }
+        Err(message) => {
+            eprintln!("失败: {message}");
+            ExitCode::FAILURE
+        }
+    }
 }
