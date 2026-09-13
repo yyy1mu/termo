@@ -212,7 +212,7 @@ static char *build_openssh_ed25519(const unsigned char *pubblob, size_t publen,
 }
 
 // ── 对外：生成 ──────────────────────────────────────────────────────────────
-int termo_key_generate(int type, const char *comment, const char *passphrase,
+int termo_key_legacy_generate(int type, const char *comment, const char *passphrase,
                        char *out_priv, int priv_cap,
                        char *out_pub, int pub_cap,
                        char *out_fp, int fp_cap,
@@ -259,7 +259,7 @@ int termo_key_generate(int type, const char *comment, const char *passphrase,
 // ── 对外：从私钥派生公钥（导入用）──────────────────────────────────────────
 // 返回 0=派生成功(out_pub 写无注释公钥行、*out_type 0/1、*out_encrypted 0/1)；1=私钥已加密无法派生；-1=错误。
 // 注：OpenSSH 格式的公钥在容器里是明文，即使加密也能派生（rc=0 且 *out_encrypted=1）。
-int termo_key_pubkey_from_private(const char *priv_path, const char *passphrase,
+int termo_key_legacy_pubkey_from_private(const char *priv_path, const char *passphrase,
                                   char *out_pub, int pub_cap, int *out_type, int *out_encrypted) {
     if (out_encrypted) *out_encrypted = 0;
     FILE *fp = fopen(priv_path, "rb");
@@ -364,7 +364,7 @@ static int kb64_decode_seg(const char *src, size_t srclen, unsigned char *out, s
 }
 
 // 由公钥行算指纹 "SHA256:..."。返回 0/-1。
-int termo_key_fingerprint(const char *pub_line, char *out_fp, int fp_cap) {
+int termo_key_legacy_fingerprint(const char *pub_line, char *out_fp, int fp_cap) {
     // 取第 2 字段（base64 blob）
     const char *s = pub_line;
     while (*s == ' ') s++;

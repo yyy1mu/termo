@@ -989,6 +989,9 @@ final class AppModel: ObservableObject {
     static let shared = AppModel()
 
     private init() {
+        // SSH 引擎后端：默认 russh（Rust）；可用 `defaults write com.cloudza.termo ssh.useLibssh2 -bool YES`
+        // 回退 libssh2 旧引擎（两套实现在 TermoSSHDispatch.c 共存，soak 稳定后移除旧引擎）。
+        termo_ssh_set_backend(UserDefaults.standard.bool(forKey: "ssh.useLibssh2") ? 0 : 1)
         // 从磁盘加载主机与会话历史
         hosts = HostStore.loadHosts()
         sessions = HostStore.loadSessions()

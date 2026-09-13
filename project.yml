@@ -92,9 +92,13 @@ targets:
           - $(SRCROOT)/Vendor/CFreeRDP.xcframework/macos-arm64/Headers/winpr3
           - $(SRCROOT)/Vendor/CSSH2.xcframework/macos-arm64/Headers              # libssh2.h / libssh2_sftp.h
           - $(SRCROOT)/Termo/Features/SSH/Engine                                # TermoSSHCore.h（桥接头按文件名引用）
+        LIBRARY_SEARCH_PATHS:
+          - $(SRCROOT)/Build/russh/aarch64-apple-darwin   # libtermo_ssh.a（russh 静态库，见 scripts/build-russh.sh）
         OTHER_LDFLAGS:
           - -lz          # FreeRDP/WinPR/OpenSSL 依赖 zlib（系统动态库）
           - -lresolv     # WinPR DNS/解析依赖
+          - -ltermo_ssh  # Rust SSH 引擎（russh 0.63.3 + ring；符号 termo_russh_*）
+          - -liconv      # ring/系统层依赖
         GENERATE_INFOPLIST_FILE: NO
         PRODUCT_NAME: Termo
         PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo
@@ -117,6 +121,14 @@ targets:
           ASSETCATALOG_COMPILER_OPTIMIZATION: space
           CODE_SIGN_ENTITLEMENTS: Termo-MAS.entitlements      # 开 App Sandbox
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: TERMO_MAS      # 编译期渠道开关（隐藏本地终端、私钥仅库）
+    # 编译前先产出 russh 静态库（cargo 增量构建，日常 <2s；产物 Build/ 不入库）。
+    preBuildScripts:
+      - name: "Build Rust SSH static library"
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"   # Xcode 脚本环境默认不含 Homebrew
+          "$SRCROOT/scripts/build-russh.sh"
     # MAS 渠道剥离 Sparkle：弱链接的 Sparkle.framework 已被「嵌入框架」阶段拷进包，这里在最终代码签名前删除它。
     # 运行脚本阶段晚于嵌入、早于 App 自身签名 ⟹ 删除后签名只覆盖剩余内容，签名自洽；弱链 + 全部调用 #if 隔离 ⟹ 缺失不崩。
     # Developer ID（Debug/Release）保留框架，自动更新正常。

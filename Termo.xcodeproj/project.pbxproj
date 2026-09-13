@@ -74,6 +74,7 @@
 		AAD4CE9760CC10DF42EB32D4 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = E34CDDD5377B936A4BD7074F /* AppIcon.icns */; };
 		AB040BAAE224C9A3DC34AC2A /* FileExtract.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD39E9CC2091D88B6C63B349 /* FileExtract.swift */; };
 		ABD40C5DF3AF425FC848A08B /* font-logos.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A67AE3D18D0C1243CFB8D557 /* font-logos.ttf */; };
+		AEF5C9FED582E0E87C101FE8 /* TermoSSHDispatch.c in Sources */ = {isa = PBXBuildFile; fileRef = A1239B55F5573C3CD7FCA137 /* TermoSSHDispatch.c */; };
 		B01DA0D4E8AD4CB41D738701 /* OSLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09193A7184944CAF7E27F8D3 /* OSLogo.swift */; };
 		B16D788B7D6327F2AFEB286A /* TermoSSHCore.c in Sources */ = {isa = PBXBuildFile; fileRef = F845B5037F1F9CD4FC3FFFB3 /* TermoSSHCore.c */; };
 		B239A88ECF733A6D9281BB9A /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022AEDEEEA2726ED9937BBC7 /* Components.swift */; };
@@ -137,6 +138,7 @@
 		1983EEAC0FFD7F2C8003C88B /* KeysPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeysPanel.swift; sourceTree = "<group>"; };
 		1C321CE8CC691865AB47896F /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		248097FC2A8FBA83A9E42874 /* RemoteFS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteFS.swift; sourceTree = "<group>"; };
+		28F358AF868EFC403DE5E8F5 /* TermoRusshCore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TermoRusshCore.h; sourceTree = "<group>"; };
 		2AEE9BE384D7D3E41A645BFD /* TermoSSHCore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TermoSSHCore.h; sourceTree = "<group>"; };
 		2CAFBC8380A693E6ED2162D0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		30E1CDC3F60325B41E91E2B0 /* RDPSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RDPSession.swift; sourceTree = "<group>"; };
@@ -164,6 +166,7 @@
 		708441330F807778E77B2B88 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		7197CFB2ABD4958688C7F12B /* WebDAVClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVClient.swift; sourceTree = "<group>"; };
 		75740BD11A4036590AF39490 /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
+		7B5A975E2D8D75ED4741CEB1 /* TermoSSHLegacy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TermoSSHLegacy.h; sourceTree = "<group>"; };
 		7C58FD31ED5D5CE9617AC55B /* TermoRDPSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TermoRDPSession.h; sourceTree = "<group>"; };
 		7F11BB7AEF9BDB198C9803A9 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		800B3BEE581D0FE8185ABEE1 /* FileTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTree.swift; sourceTree = "<group>"; };
@@ -179,6 +182,7 @@
 		984C300A771B216F5C348E38 /* FileViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileViewer.swift; sourceTree = "<group>"; };
 		9D5CEEB5CB2A48E9B52465C0 /* RDPCertTrustStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RDPCertTrustStore.swift; sourceTree = "<group>"; };
 		9DE0DE66B1418BAB8B1F0F73 /* AppIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppIcon.png; sourceTree = "<group>"; };
+		A1239B55F5573C3CD7FCA137 /* TermoSSHDispatch.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TermoSSHDispatch.c; sourceTree = "<group>"; };
 		A1C9C7C264181C1C658F930C /* SyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModels.swift; sourceTree = "<group>"; };
 		A67AE3D18D0C1243CFB8D557 /* font-logos.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "font-logos.ttf"; sourceTree = "<group>"; };
 		AAC2312DCEA8551862769851 /* RDPSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RDPSessionView.swift; sourceTree = "<group>"; };
@@ -383,8 +387,11 @@
 				D4B5B9D81EF862FBF852FF90 /* termo_blowfish.h */,
 				6F4476E180D2D0CC7A76231B /* TermoKeyGen_bcrypt.c */,
 				11A130EC1B7DFB2D5FC4ADA2 /* TermoKeyGen.c */,
+				28F358AF868EFC403DE5E8F5 /* TermoRusshCore.h */,
 				F845B5037F1F9CD4FC3FFFB3 /* TermoSSHCore.c */,
 				2AEE9BE384D7D3E41A645BFD /* TermoSSHCore.h */,
+				A1239B55F5573C3CD7FCA137 /* TermoSSHDispatch.c */,
+				7B5A975E2D8D75ED4741CEB1 /* TermoSSHLegacy.h */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -619,6 +626,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6D67467588D7309322003925 /* Build configuration list for PBXNativeTarget "Termo" */;
 			buildPhases = (
+				A7E93D2E3703EDBB09756FE8 /* Build Rust SSH static library */,
 				59222020EEE4F93E0902B6FE /* Sources */,
 				DE7CE6257800D3E8042EA1AD /* Resources */,
 				A8913E1563242FFFE5835373 /* Frameworks */,
@@ -714,6 +722,25 @@
 			shellPath = /bin/sh;
 			shellScript = "if [ \"${CONFIGURATION}\" = \"DebugMAS\" ] || [ \"${CONFIGURATION}\" = \"ReleaseMAS\" ]; then\n  FW=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework\"\n  if [ -d \"$FW\" ]; then\n    rm -rf \"$FW\"\n    echo \"note: 已为 MAS 渠道剥离 Sparkle.framework\"\n  fi\nfi\n";
 		};
+		A7E93D2E3703EDBB09756FE8 /* Build Rust SSH static library */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust SSH static library";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"   # Xcode 脚本环境默认不含 Homebrew\n\"$SRCROOT/scripts/build-russh.sh\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -797,6 +824,7 @@
 				83B88931B627C0C5A7971B1C /* TermoRDPCore.c in Sources */,
 				D64F14037725BC7EF22FDDEA /* TermoRDPSession.m in Sources */,
 				B16D788B7D6327F2AFEB286A /* TermoSSHCore.c in Sources */,
+				AEF5C9FED582E0E87C101FE8 /* TermoSSHDispatch.c in Sources */,
 				DD247A59BA9C0A9B8F8DECE0 /* TestConnectionView.swift in Sources */,
 				D64FA808A8F41212E30BD758 /* Theme.swift in Sources */,
 				791DFE9DEAD1061E2296BB15 /* Tooltip.swift in Sources */,
@@ -968,10 +996,15 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Build/russh/aarch64-apple-darwin",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"-lz",
 					"-lresolv",
+					"-ltermo_ssh",
+					"-liconv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo;
 				PRODUCT_NAME = Termo;
@@ -1006,10 +1039,15 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Build/russh/aarch64-apple-darwin",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"-lz",
 					"-lresolv",
+					"-ltermo_ssh",
+					"-liconv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo;
 				PRODUCT_NAME = Termo;
@@ -1043,10 +1081,15 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Build/russh/aarch64-apple-darwin",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"-lz",
 					"-lresolv",
+					"-ltermo_ssh",
+					"-liconv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo;
 				PRODUCT_NAME = Termo;
@@ -1080,10 +1123,15 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Build/russh/aarch64-apple-darwin",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"-lz",
 					"-lresolv",
+					"-ltermo_ssh",
+					"-liconv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo;
 				PRODUCT_NAME = Termo;

@@ -111,8 +111,10 @@ impl SessionInner {
 pub struct RusshSession {
     inner: Arc<SessionInner>,
     fingerprint: Option<String>,
+    host_info: Arc<crate::handler::HostKeyInfo>,
     /// C ABI 侧返回的稳定指针载体（close 前有效）。
     fp_cstring: OnceLock<CString>,
+    md5_cstring: OnceLock<CString>,
     cancelled: AtomicBool,
     poisoned: AtomicBool,
     /// 在飞的 exec 任务（同一会话约定单飞行；Swift 侧本就按会话串行）。
@@ -121,6 +123,7 @@ pub struct RusshSession {
 
 impl RusshSession {
     /// 连接 + 握手 + 认证。key_path 非空走公钥认证，否则密码认证。
+    #[allow(clippy::too_many_arguments)] // 参数与 libssh2 C ABI 对齐
     pub async fn connect(
         host: &str,
         port: u16,
@@ -129,8 +132,9 @@ impl RusshSession {
         key_path: Option<&str>,
         key_passphrase: Option<&str>,
         timeout: Duration,
+        policy: Option<crate::handler::HostPolicy>,
     ) -> Result<Self, String> {
-        let (handle, fp_slot, forward_slot) = connect_and_auth(
+        let (handle, fp_slot, forward_slot, host_info) = connect_and_auth(
             host,
             port,
             user,
@@ -138,6 +142,7 @@ impl RusshSession {
             key_path,
             key_passphrase,
             timeout,
+            policy,
         )
         .await?;
         let fingerprint = fp_slot.lock().expect("fingerprint mutex").clone();
@@ -147,7 +152,9 @@ impl RusshSession {
                 forward_slot,
             }),
             fingerprint,
+            host_info,
             fp_cstring: OnceLock::new(),
+            md5_cstring: OnceLock::new(),
             cancelled: AtomicBool::new(false),
             poisoned: AtomicBool::new(false),
             current: Mutex::new(None),
@@ -163,6 +170,13 @@ impl RusshSession {
     pub(crate) fn fingerprint_cstring(&self) -> &CString {
         self.fp_cstring.get_or_init(|| {
             CString::new(self.fingerprint.clone().unwrap_or_default()).unwrap_or_default()
+        })
+    }
+
+    /// MD5 指纹的稳定 C 字符串（close 前有效）。
+    pub(crate) fn md5_cstring(&self) -> &CString {
+        self.md5_cstring.get_or_init(|| {
+            CString::new(self.host_info.md5.lock().expect("md5").clone()).unwrap_or_default()
         })
     }
 
@@ -210,6 +224,7 @@ impl RusshSession {
     }
 
     /// 阻塞建立会话（供 C ABI / CLI；整体超时 + panic 隔离）。
+    #[allow(clippy::too_many_arguments)] // 参数与 libssh2 C ABI 对齐
     pub fn connect_blocking(
         host: &str,
         port: u16,
@@ -218,6 +233,7 @@ impl RusshSession {
         key_path: Option<&str>,
         key_passphrase: Option<&str>,
         timeout: Duration,
+        policy: Option<crate::handler::HostPolicy>,
     ) -> Result<Self, String> {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             runtime().block_on(Self::connect(
@@ -228,6 +244,7 @@ impl RusshSession {
                 key_path,
                 key_passphrase,
                 timeout,
+                policy,
             ))
         }))
         .unwrap_or_else(|_| Err("内部 panic（已被 FFI 边界拦截）".into()))
@@ -293,13 +310,15 @@ async fn exec2_task(
             .await
             .map_err(|e| format!("exec 失败: {e}"))?;
         if !stdin.is_empty() {
-            // &[u8] 实现 AsyncRead：一次写入全部 stdin，随后 send EOF。
+            // &[u8] 实现 AsyncRead：一次写入全部 stdin。
             channel
                 .data(stdin.as_slice())
                 .await
                 .map_err(|e| format!("stdin 写入失败: {e}"))?;
-            channel.eof().await.map_err(|e| format!("EOF 失败: {e}"))?;
         }
+        // 无论是否有 stdin 都 send EOF（对齐 OpenSSH 关闭 stdin 的行为）：
+        // 否则远端后台任务场景下 sshd 不关通道，exec 永不 EOF。
+        channel.eof().await.map_err(|e| format!("EOF 失败: {e}"))?;
 
         let mut stdout = Bounded::new(STDOUT_CAP);
         let mut stderr = Bounded::new(STDERR_CAP);
@@ -377,6 +396,7 @@ pub async fn probe(
         key_path,
         key_passphrase,
         timeout,
+        None,
     )
     .await?;
     let fingerprint = session.fingerprint().map(str::to_owned);

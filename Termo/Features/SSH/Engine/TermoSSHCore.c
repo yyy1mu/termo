@@ -175,7 +175,7 @@ struct TermoSSHSession {
     volatile int cancel;   // 流式读取的中止标志（另一线程置位）
 };
 
-TermoSSHSession *termo_ssh_open(const char *host, int port,
+TermoSSHSession *termo_ssh_legacy_open(const char *host, int port,
                                 const char *user, const char *password,
                                 const char *key_path, const char *key_passphrase,
                                 const char *real_known_hosts, const char *session_known_hosts,
@@ -246,10 +246,10 @@ fail:
     return NULL;
 }
 
-const char *termo_ssh_session_sha256(TermoSSHSession *s) { return s ? s->fp_sha256 : ""; }
-const char *termo_ssh_session_md5(TermoSSHSession *s) { return s ? s->fp_md5 : ""; }
+const char *termo_ssh_legacy_session_sha256(TermoSSHSession *s) { return s ? s->fp_sha256 : ""; }
+const char *termo_ssh_legacy_session_md5(TermoSSHSession *s) { return s ? s->fp_md5 : ""; }
 
-void termo_ssh_test(const char *host, int port, const char *user,
+void termo_ssh_legacy_test(const char *host, int port, const char *user,
                     const char *password, const char *key_path, const char *key_passphrase,
                     TermoSSHStageCallback on_stage, void *ud) {
     if (!on_stage) return;
@@ -328,7 +328,7 @@ void termo_ssh_test(const char *host, int port, const char *user,
     #undef STAGE
 }
 
-void termo_ssh_scan_hostkey(const char *host, int port,
+void termo_ssh_legacy_scan_hostkey(const char *host, int port,
                             const char *real_known_hosts, const char *session_known_hosts,
                             TermoHostKeyScan *out) {
     if (!out) return;
@@ -365,7 +365,7 @@ static void drain_stream(LIBSSH2_CHANNEL *ch, int stream_id, char *buf, int cap)
     buf[off] = '\0';
 }
 
-int termo_ssh_exec(TermoSSHSession *s, const char *command,
+int termo_ssh_legacy_exec(TermoSSHSession *s, const char *command,
                    char *out, int out_cap, char *errout, int errout_cap,
                    int *exit_code, char *err, int errlen) {
     if (!s || !s->session) { snprintf(err, (size_t)errlen, "会话无效"); return -1; }
@@ -395,7 +395,7 @@ static long termo_now_ms(void) {
     return ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
 }
 
-int termo_ssh_exec2(TermoSSHSession *s, const char *command,
+int termo_ssh_legacy_exec2(TermoSSHSession *s, const char *command,
                     const char *stdin_bytes, int stdin_len,
                     char *out, int out_cap, int *out_len,
                     char *errout, int errout_cap, int *err_len,
@@ -474,7 +474,7 @@ int termo_ssh_exec2(TermoSSHSession *s, const char *command,
     return result;
 }
 
-int termo_ssh_exec_upload(TermoSSHSession *s, const char *command,
+int termo_ssh_legacy_exec_upload(TermoSSHSession *s, const char *command,
                           TermoSSHPullCallback pull, void *ud,
                           int *exit_code, char *err, int errlen) {
     if (!s || !s->session) { snprintf(err, (size_t)errlen, "会话无效"); return -1; }
@@ -516,7 +516,7 @@ int termo_ssh_exec_upload(TermoSSHSession *s, const char *command,
     return result;
 }
 
-int termo_ssh_exec_stream(TermoSSHSession *s, const char *command,
+int termo_ssh_legacy_exec_stream(TermoSSHSession *s, const char *command,
                           TermoSSHDataCallback on_data, void *userdata,
                           char *err, int errlen) {
     if (!s || !s->session) { snprintf(err, (size_t)errlen, "会话无效"); return -1; }
@@ -551,11 +551,11 @@ int termo_ssh_exec_stream(TermoSSHSession *s, const char *command,
     return rc;
 }
 
-void termo_ssh_cancel(TermoSSHSession *s) {
+void termo_ssh_legacy_cancel(TermoSSHSession *s) {
     if (s) s->cancel = 1;
 }
 
-void termo_ssh_close(TermoSSHSession *s) {
+void termo_ssh_legacy_close(TermoSSHSession *s) {
     if (!s) return;
     if (s->session) {
         libssh2_session_disconnect(s->session, "termo close");
@@ -648,7 +648,7 @@ static void *shell_pump(void *arg) {
     return NULL;
 }
 
-TermoSSHShell *termo_ssh_shell_open(TermoSSHSession *s, int cols, int rows,
+TermoSSHShell *termo_ssh_legacy_shell_open(TermoSSHSession *s, int cols, int rows,
                                     TermoSSHDataCallback on_data,
                                     TermoSSHClosedCallback on_closed, void *userdata,
                                     char *err, int errlen) {
@@ -690,7 +690,7 @@ TermoSSHShell *termo_ssh_shell_open(TermoSSHSession *s, int cols, int rows,
     return sh;
 }
 
-long termo_ssh_shell_write(TermoSSHShell *sh, const char *buf, int len) {
+long termo_ssh_legacy_shell_write(TermoSSHShell *sh, const char *buf, int len) {
     if (!sh || !buf || len <= 0) return 0;
     pthread_mutex_lock(&sh->lock);
     if (sh->wlen + (size_t)len > sh->wcap) {
@@ -707,14 +707,14 @@ long termo_ssh_shell_write(TermoSSHShell *sh, const char *buf, int len) {
     return len;
 }
 
-int termo_ssh_shell_resize(TermoSSHShell *sh, int cols, int rows) {
+int termo_ssh_legacy_shell_resize(TermoSSHShell *sh, int cols, int rows) {
     if (!sh) return -1;
     sh->cols = cols; sh->rows = rows; sh->resize_pending = 1;
     shell_wake(sh);
     return 0;
 }
 
-void termo_ssh_shell_close(TermoSSHShell *sh) {
+void termo_ssh_legacy_shell_close(TermoSSHShell *sh) {
     if (!sh) return;
     sh->stop = 1;
     shell_wake(sh);
@@ -998,7 +998,7 @@ static void *forward_pump(void *arg) {
     return NULL;
 }
 
-TermoSSHForward *termo_ssh_forward_open(TermoSSHSession *s, int kind,
+TermoSSHForward *termo_ssh_legacy_forward_open(TermoSSHSession *s, int kind,
                                         const char *bind_addr, int listen_port,
                                         const char *dest_host, int dest_port,
                                         TermoSSHForwardStateCallback on_state, void *ud,
@@ -1044,7 +1044,7 @@ fail:
     return NULL;
 }
 
-void termo_ssh_forward_close(TermoSSHForward *f) {
+void termo_ssh_legacy_forward_close(TermoSSHForward *f) {
     if (!f) return;
     f->stop = 1;
     fwd_wake(f);
@@ -1075,20 +1075,20 @@ static void attrs_fill(TermoSFTPAttrs *out, const LIBSSH2_SFTP_ATTRIBUTES *a) {
     out->mtime = (unsigned int)a->mtime;
 }
 
-void *termo_sftp_init(TermoSSHSession *s) {
+void *termo_sftp_legacy_init(TermoSSHSession *s) {
     if (!s || !s->session) return NULL;
     return libssh2_sftp_init(s->session);
 }
 
-void termo_sftp_shutdown(void *sftp) {
+void termo_sftp_legacy_shutdown(void *sftp) {
     if (sftp) libssh2_sftp_shutdown((LIBSSH2_SFTP *)sftp);
 }
 
-int termo_sftp_last_errno(void *sftp) {
+int termo_sftp_legacy_last_errno(void *sftp) {
     return sftp ? (int)libssh2_sftp_last_error((LIBSSH2_SFTP *)sftp) : 0;
 }
 
-int termo_sftp_stat(TermoSSHSession *s, void *sftp, const char *path, int follow, TermoSFTPAttrs *out) {
+int termo_sftp_legacy_stat(TermoSSHSession *s, void *sftp, const char *path, int follow, TermoSFTPAttrs *out) {
     if (!s || !sftp) return 0xF000;
     LIBSSH2_SFTP_ATTRIBUTES a;
     memset(&a, 0, sizeof(a));
@@ -1098,7 +1098,7 @@ int termo_sftp_stat(TermoSSHSession *s, void *sftp, const char *path, int follow
     return sftp_map((LIBSSH2_SFTP *)sftp, rc);
 }
 
-int termo_sftp_setstat_perm(TermoSSHSession *s, void *sftp, const char *path, unsigned int mode) {
+int termo_sftp_legacy_setstat_perm(TermoSSHSession *s, void *sftp, const char *path, unsigned int mode) {
     if (!s || !sftp) return 0xF000;
     LIBSSH2_SFTP_ATTRIBUTES a;
     memset(&a, 0, sizeof(a));
@@ -1109,25 +1109,25 @@ int termo_sftp_setstat_perm(TermoSSHSession *s, void *sftp, const char *path, un
     return sftp_map((LIBSSH2_SFTP *)sftp, rc);
 }
 
-int termo_sftp_mkdir(TermoSSHSession *s, void *sftp, const char *path) {
+int termo_sftp_legacy_mkdir(TermoSSHSession *s, void *sftp, const char *path) {
     if (!s || !sftp) return 0xF000;
     int rc = libssh2_sftp_mkdir_ex((LIBSSH2_SFTP *)sftp, path, (unsigned)strlen(path), 0755);
     return sftp_map((LIBSSH2_SFTP *)sftp, rc);
 }
 
-int termo_sftp_rmdir(TermoSSHSession *s, void *sftp, const char *path) {
+int termo_sftp_legacy_rmdir(TermoSSHSession *s, void *sftp, const char *path) {
     if (!s || !sftp) return 0xF000;
     int rc = libssh2_sftp_rmdir_ex((LIBSSH2_SFTP *)sftp, path, (unsigned)strlen(path));
     return sftp_map((LIBSSH2_SFTP *)sftp, rc);
 }
 
-int termo_sftp_unlink(TermoSSHSession *s, void *sftp, const char *path) {
+int termo_sftp_legacy_unlink(TermoSSHSession *s, void *sftp, const char *path) {
     if (!s || !sftp) return 0xF000;
     int rc = libssh2_sftp_unlink_ex((LIBSSH2_SFTP *)sftp, path, (unsigned)strlen(path));
     return sftp_map((LIBSSH2_SFTP *)sftp, rc);
 }
 
-int termo_sftp_rename(TermoSSHSession *s, void *sftp, const char *from, const char *to, int overwrite) {
+int termo_sftp_legacy_rename(TermoSSHSession *s, void *sftp, const char *from, const char *to, int overwrite) {
     if (!s || !sftp) return 0xF000;
     long flags = overwrite ? (LIBSSH2_SFTP_RENAME_OVERWRITE | LIBSSH2_SFTP_RENAME_ATOMIC |
                               LIBSSH2_SFTP_RENAME_NATIVE) : 0;
@@ -1136,27 +1136,27 @@ int termo_sftp_rename(TermoSSHSession *s, void *sftp, const char *from, const ch
     return sftp_map((LIBSSH2_SFTP *)sftp, rc);
 }
 
-int termo_sftp_realpath(TermoSSHSession *s, void *sftp, const char *path, char *out, int out_cap) {
+int termo_sftp_legacy_realpath(TermoSSHSession *s, void *sftp, const char *path, char *out, int out_cap) {
     if (!s || !sftp || !out || out_cap <= 0) return 0xF000;
     int rc = libssh2_sftp_realpath((LIBSSH2_SFTP *)sftp, path, out, (unsigned)out_cap - 1);
     if (rc >= 0) { out[rc < out_cap ? rc : out_cap - 1] = '\0'; return 0; }
     return sftp_map((LIBSSH2_SFTP *)sftp, rc);
 }
 
-void *termo_sftp_open(TermoSSHSession *s, void *sftp, const char *path, unsigned int pflags) {
+void *termo_sftp_legacy_open(TermoSSHSession *s, void *sftp, const char *path, unsigned int pflags) {
     if (!s || !sftp) return NULL;
     // mode 仅在含 CREAT 时用于新文件权限；给 0644 合理默认（落地后由 setstat 继承原权限）。
     return libssh2_sftp_open_ex((LIBSSH2_SFTP *)sftp, path, (unsigned)strlen(path),
                                 pflags, 0644, LIBSSH2_SFTP_OPENFILE);
 }
 
-void *termo_sftp_opendir(TermoSSHSession *s, void *sftp, const char *path) {
+void *termo_sftp_legacy_opendir(TermoSSHSession *s, void *sftp, const char *path) {
     if (!s || !sftp) return NULL;
     return libssh2_sftp_open_ex((LIBSSH2_SFTP *)sftp, path, (unsigned)strlen(path),
                                 0, 0, LIBSSH2_SFTP_OPENDIR);
 }
 
-int termo_sftp_fstat(void *handle, TermoSFTPAttrs *out) {
+int termo_sftp_legacy_fstat(void *handle, TermoSFTPAttrs *out) {
     if (!handle) return 0xF000;
     LIBSSH2_SFTP_ATTRIBUTES a;
     memset(&a, 0, sizeof(a));
@@ -1165,14 +1165,14 @@ int termo_sftp_fstat(void *handle, TermoSFTPAttrs *out) {
     return 0xF000;
 }
 
-long termo_sftp_read(void *handle, unsigned long long offset, char *buf, int len) {
+long termo_sftp_legacy_read(void *handle, unsigned long long offset, char *buf, int len) {
     if (!handle || !buf || len <= 0) return -1;
     libssh2_sftp_seek64((LIBSSH2_SFTP_HANDLE *)handle, offset);
     ssize_t n = libssh2_sftp_read((LIBSSH2_SFTP_HANDLE *)handle, buf, (size_t)len);
     return (long)n;   // >0 字节 / 0 EOF / <0 错误
 }
 
-long termo_sftp_write(void *handle, unsigned long long offset, const char *buf, int len) {
+long termo_sftp_legacy_write(void *handle, unsigned long long offset, const char *buf, int len) {
     if (!handle || !buf || len < 0) return -1;
     libssh2_sftp_seek64((LIBSSH2_SFTP_HANDLE *)handle, offset);
     size_t off = 0;
@@ -1184,7 +1184,7 @@ long termo_sftp_write(void *handle, unsigned long long offset, const char *buf, 
     return (long)off;
 }
 
-int termo_sftp_readdir(void *handle, char *name_buf, int name_cap, TermoSFTPAttrs *out) {
+int termo_sftp_legacy_readdir(void *handle, char *name_buf, int name_cap, TermoSFTPAttrs *out) {
     if (!handle || !name_buf || name_cap <= 0) return -1;
     LIBSSH2_SFTP_ATTRIBUTES a;
     memset(&a, 0, sizeof(a));
@@ -1197,7 +1197,7 @@ int termo_sftp_readdir(void *handle, char *name_buf, int name_cap, TermoSFTPAttr
     return rc;   // >0 名长 / 0 EOF / <0 错误
 }
 
-void termo_sftp_close(void *handle) {
+void termo_sftp_legacy_close(void *handle) {
     if (handle) libssh2_sftp_close_handle((LIBSSH2_SFTP_HANDLE *)handle);
 }
 

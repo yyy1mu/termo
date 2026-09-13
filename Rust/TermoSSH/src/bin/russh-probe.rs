@@ -117,7 +117,15 @@ fn run_shell(session: &RusshSession) -> i32 {
         }
         match std::io::stdin().read(&mut buf) {
             Ok(0) | Err(_) => {
-                shell.close(); // stdin EOF：close 返回后 on_closed 已触发
+                // stdin EOF：不立即 close，给远端 10s 宽限跑完命令并回传退出码
+                // （交互场景无 EOF；管道场景用于命令批处理）
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+                while std::time::Instant::now() < deadline
+                    && !unsafe { (*bridge_ptr).exited.load(Ordering::SeqCst) }
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+                shell.close();
                 break;
             }
             Ok(n) => {
@@ -187,6 +195,7 @@ fn main() -> ExitCode {
     let mut stdin_file: Option<String> = None;
     let mut shell_mode = false;
     let mut forwards: Vec<ForwardSpec> = Vec::new();
+    let mut kh: Option<String> = None;
     let mut sftp_ls: Option<String> = None;
     let mut sftp_get: Option<(String, String)> = None;
     let mut sftp_put: Option<(String, String)> = None;
@@ -210,6 +219,7 @@ fn main() -> ExitCode {
                     return ExitCode::FAILURE;
                 }
             },
+            "--kh" => kh = Some(args.remove(0)),
             "--sftp-ls" => sftp_ls = Some(args.remove(0)),
             "--sftp-get" => {
                 let remote = args.remove(0);
@@ -238,6 +248,12 @@ fn main() -> ExitCode {
         key_path.as_deref(),
         key_passphrase.as_deref(),
         timeout,
+        kh.as_ref().map(|path| termo_ssh::HostPolicy {
+            host: host.clone(),
+            port,
+            real_known_hosts: path.clone(),
+            session_known_hosts: path.clone(),
+        }),
     ) {
         Ok(session) => session,
         Err(message) => {

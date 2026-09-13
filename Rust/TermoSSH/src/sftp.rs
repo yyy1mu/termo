@@ -53,6 +53,8 @@ fn map_error(e: RawSftpError) -> SftpOpError {
 /// 已初始化的 SFTP 子系统会话（对应 libssh2 侧 `LIBSSH2_SFTP*`）。
 pub struct RusshSftp {
     raw: Arc<RawSftpSession>,
+    /// 最近一次失败的状态码（对齐 libssh2 last_errno；open/opendir 返回 NULL 时供上层取因）。
+    last_code: std::sync::atomic::AtomicI32,
 }
 
 /// 打开的文件/目录句柄（对应 libssh2 侧文件句柄；持有会话 Arc → 句柄级操作无需会话）。
@@ -116,7 +118,10 @@ impl RusshSession {
             raw.init()
                 .await
                 .map_err(|e| format!("SFTP 初始化失败: {e}"))?;
-            Ok(RusshSftp { raw: Arc::new(raw) })
+            Ok(RusshSftp {
+                raw: Arc::new(raw),
+                last_code: std::sync::atomic::AtomicI32::new(0),
+            })
         };
         match tokio::time::timeout(INIT_TIMEOUT, setup).await {
             Ok(Ok(sftp)) => Ok(sftp),
@@ -141,7 +146,23 @@ impl RusshSftp {
         &self,
         fut: impl std::future::Future<Output = Result<T, RawSftpError>>,
     ) -> SftpResult<T> {
-        fut.await.map_err(map_error)
+        fut.await.map_err(|e| {
+            let mapped = map_error(e);
+            self.last_code
+                .store(mapped.code, std::sync::atomic::Ordering::SeqCst);
+            mapped
+        })
+    }
+
+    /// 最近一次失败的状态码（对齐 libssh2 last_errno）。
+    pub fn last(&self) -> i32 {
+        self.last_code.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// 显式记录状态码（open/opendir 失败路径由 FFI 写入）。
+    pub fn set_last(&self, code: i32) {
+        self.last_code
+            .store(code, std::sync::atomic::Ordering::SeqCst);
     }
 
     pub async fn stat(&self, path: &str, follow: bool) -> SftpResult<SftpAttrs> {

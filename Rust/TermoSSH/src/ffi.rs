@@ -6,6 +6,8 @@
 use std::ffi::c_char;
 
 use crate::forward::{ForwardKind, ForwardSpec, ForwardStateCallback, RusshForward};
+use crate::handler::HostPolicy;
+use crate::scan::{scan_hostkey_blocking, ExecPullCallback};
 use crate::session::{clamp_timeout, ExecResult, RusshSession};
 use crate::sftp::{RusshSftp, RusshSftpFile, SftpAttrs};
 use crate::shell::{RusshShell, ShellClosedCallback, ShellDataCallback};
@@ -75,13 +77,15 @@ pub unsafe extern "C" fn termo_russh_probe(
 }
 
 /// 建立已认证会话。key_path 非空走公钥认证，否则密码认证。
-/// 成功返回会话句柄；失败返回 NULL 并写 err（认证被拒同样为 NULL+err，由文案区分）。
-/// 指纹形如 "SHA256:base64"（可为 NULL 缓冲）。超时 ms ≤0 用 20s。
+/// real/session known_hosts 非空时在认证前校验主机密钥（仅明确不匹配拒绝，
+/// 错误文案以 HOSTKEY_MISMATCH 开头，与 libssh2 版一致）。
+/// 成功返回会话句柄；失败返回 NULL 并写 err。指纹形如 "SHA256:base64"。超时 ms ≤0 用 20s。
 ///
 /// # Safety
 /// 字符串指针须指向有效 NUL 结尾缓冲；fingerprint_out/err 可为 NULL，
 /// 非 NULL 时保证 fingerprint_cap/errlen 字节可写。
 #[no_mangle]
+#[allow(clippy::too_many_arguments)] // 与 libssh2 C ABI 对齐
 pub unsafe extern "C" fn termo_russh_session_open(
     host: *const c_char,
     port: i32,
@@ -89,6 +93,8 @@ pub unsafe extern "C" fn termo_russh_session_open(
     password: *const c_char,
     key_path: *const c_char,
     key_passphrase: *const c_char,
+    real_known_hosts: *const c_char,
+    session_known_hosts: *const c_char,
     fingerprint_out: *mut c_char,
     fingerprint_cap: i32,
     timeout_ms: i32,
@@ -100,6 +106,8 @@ pub unsafe extern "C" fn termo_russh_session_open(
     let password = read_str(password);
     let key_path = read_str(key_path);
     let key_passphrase = read_str(key_passphrase);
+    let real = read_str(real_known_hosts);
+    let session = read_str(session_known_hosts);
     if host.is_empty() || user.is_empty() || !(1..=65535).contains(&port) {
         copy_into(err, errlen, "参数无效（host/user 为空或端口越界）");
         return std::ptr::null_mut();
@@ -107,6 +115,12 @@ pub unsafe extern "C" fn termo_russh_session_open(
     let pass = (!password.is_empty()).then_some(password.as_str());
     let key = (!key_path.is_empty()).then_some(key_path.as_str());
     let key_pass = (!key_passphrase.is_empty()).then_some(key_passphrase.as_str());
+    let policy = (!real.is_empty() || !session.is_empty()).then_some(HostPolicy {
+        host: host.clone(),
+        port: port as u16,
+        real_known_hosts: real,
+        session_known_hosts: session,
+    });
     let timeout = clamp_timeout(timeout_ms);
 
     let opened = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -118,6 +132,7 @@ pub unsafe extern "C" fn termo_russh_session_open(
             key,
             key_pass,
             timeout,
+            policy,
         ))
     }));
     match opened {
@@ -406,6 +421,137 @@ pub unsafe extern "C" fn termo_russh_forward_open(
             copy_into(err, errlen, "内部 panic（已被 FFI 边界拦截）");
             std::ptr::null_mut()
         }
+    }
+}
+
+/// 主机指纹（MD5，"aa:bb:…"）。指向会话内部缓冲，close 后失效；无则空串。
+///
+/// # Safety
+/// s 必须来自 termo_russh_session_open 且未经 close。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_session_md5(s: *mut RusshSession) -> *const c_char {
+    static EMPTY: &[u8] = b"\0";
+    if s.is_null() {
+        return EMPTY.as_ptr() as *const c_char;
+    }
+    (*s).md5_cstring().as_ptr()
+}
+
+/// 主机密钥扫描结果（与 libssh2 版 TermoHostKeyScan 字段一一对应）。
+#[repr(C)]
+pub struct TermoRusshHostKeyScan {
+    pub status: i32,
+    pub sha256: [u8; 80],
+    pub md5: [u8; 64],
+    pub line: [u8; 1024],
+}
+
+/// 扫描 host:port 的主机密钥（不认证、不发密码）；结果写 *out。
+///
+/// # Safety
+/// host/known_hosts 路径须为有效 NUL 结尾字符串；out 非空且可写。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_scan_hostkey(
+    host: *const c_char,
+    port: i32,
+    real_known_hosts: *const c_char,
+    session_known_hosts: *const c_char,
+    out: *mut TermoRusshHostKeyScan,
+) -> i32 {
+    if host.is_null() || out.is_null() {
+        return -1;
+    }
+    let host = read_str(host);
+    let real = read_str(real_known_hosts);
+    let session = read_str(session_known_hosts);
+    match scan_hostkey_blocking(&host, port as u16, &real, &session) {
+        Ok(scan) => {
+            *out = TermoRusshHostKeyScan {
+                status: scan.status,
+                sha256: scan.sha256,
+                md5: scan.md5,
+                line: scan.line,
+            };
+            0
+        }
+        Err(_) => -1,
+    }
+}
+
+/// 流式上传 exec（pull 回调喂 stdin）：返回 0=完成 / 1=被取消 / -1=错误。
+///
+/// # Safety
+/// s 须为有效会话；command 须为有效 NUL 结尾字符串；pull 须为有效 C 函数指针；
+/// err 可为 NULL，非 NULL 时保证 errlen 字节可写。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_exec_upload(
+    s: *mut RusshSession,
+    command: *const c_char,
+    pull: Option<ExecPullCallback>,
+    userdata: *mut std::ffi::c_void,
+    _exit_code: *mut i32,
+    err: *mut c_char,
+    errlen: i32,
+) -> i32 {
+    let (Some(pull), false) = (pull, s.is_null() || command.is_null()) else {
+        return write_err(err, errlen, -1, "参数无效");
+    };
+    let command = read_str(command);
+    let fut = (*s).exec_upload(&command, pull, userdata);
+    let run = || runtime().block_on(fut);
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)) {
+        Ok(Ok(code)) => code,
+        Ok(Err(message)) => write_err(err, errlen, -1, &message),
+        Err(_) => write_err(err, errlen, -1, "内部 panic（已被 FFI 边界拦截）"),
+    }
+}
+
+/// 流式 exec：stdout 增量回调直到 EOF/错误/被取消。返回 0=结束/被取消、-1=错误。
+///
+/// # Safety
+/// s 须为有效会话；command 须为有效 NUL 结尾字符串；on_data 须为有效 C 函数指针。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_exec_stream(
+    s: *mut RusshSession,
+    command: *const c_char,
+    on_data: Option<ShellDataCallback>,
+    userdata: *mut std::ffi::c_void,
+    err: *mut c_char,
+    errlen: i32,
+) -> i32 {
+    let (Some(on_data), false) = (on_data, s.is_null() || command.is_null()) else {
+        return write_err(err, errlen, -1, "参数无效");
+    };
+    let command = read_str(command);
+    let fut = (*s).exec_stream(&command, on_data, userdata);
+    let run = || runtime().block_on(fut);
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)) {
+        Ok(Ok(())) => 0,
+        Ok(Err(message)) => write_err(err, errlen, -1, &message),
+        Err(_) => write_err(err, errlen, -1, "内部 panic（已被 FFI 边界拦截）"),
+    }
+}
+
+/// SFTP：最近一次失败的状态码（对齐 libssh2 last_errno）。
+///
+/// # Safety
+/// sftp 须来自 termo_russh_sftp_init 且未经 shutdown。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_last_errno(sftp: *mut RusshSftp) -> i32 {
+    if sftp.is_null() {
+        return 0;
+    }
+    (*sftp).last()
+}
+
+/// SFTP：显式记录状态码（open/opendir 失败路径由适配层写入）。
+///
+/// # Safety
+/// sftp 须有效。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_set_last(sftp: *mut RusshSftp, code: i32) {
+    if !sftp.is_null() {
+        (*sftp).set_last(code);
     }
 }
 
