@@ -6,6 +6,7 @@
 use std::ffi::c_char;
 
 use crate::session::{clamp_timeout, ExecResult, RusshSession};
+use crate::shell::{RusshShell, ShellClosedCallback, ShellDataCallback};
 use crate::{copy_into, read_str, runtime};
 
 /// 返回 russh 后端版本（静态字符串，调用方勿释放）。
@@ -234,6 +235,98 @@ pub unsafe extern "C" fn termo_russh_session_close(s: *mut RusshSession) {
         let session = Box::from_raw(s);
         session.close();
         drop(session);
+    }
+}
+
+// ── 交互式 shell（PTY）──────────────────────────────────────────────────────
+
+/// 开 PTY(xterm-256color, cols×rows) + shell 并启动泵任务（非法尺寸默认 80×24）。
+/// 成功返回句柄；失败返回 NULL 并写 err。
+/// on_data 在泵任务线程增量回调；on_closed 结束时回调一次（退出码；掉线=255）。
+///
+/// # Safety
+/// s 须为有效会话且未经 close；on_data/on_closed 必须为有效的 C 函数指针；
+/// userdata 生命周期须覆盖整个 shell（close 之后不再回调）；
+/// err 可为 NULL，非 NULL 时保证 errlen 字节可写。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_shell_open(
+    s: *mut RusshSession,
+    cols: i32,
+    rows: i32,
+    on_data: Option<ShellDataCallback>,
+    on_closed: Option<ShellClosedCallback>,
+    userdata: *mut std::ffi::c_void,
+    err: *mut c_char,
+    errlen: i32,
+) -> *mut RusshShell {
+    if s.is_null() {
+        copy_into(err, errlen, "参数无效（会话为空）");
+        return std::ptr::null_mut();
+    }
+    let (Some(on_data), Some(on_closed)) = (on_data, on_closed) else {
+        copy_into(err, errlen, "参数无效（回调为空）");
+        return std::ptr::null_mut();
+    };
+    let session = &*s;
+    let opened = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        runtime().block_on(session.shell_open(cols, rows, on_data, on_closed, userdata))
+    }));
+    match opened {
+        Ok(Ok(shell)) => Box::into_raw(Box::new(shell)),
+        Ok(Err(message)) => {
+            copy_into(err, errlen, &message);
+            std::ptr::null_mut()
+        }
+        Err(_) => {
+            copy_into(err, errlen, "内部 panic（已被 FFI 边界拦截）");
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// 写入远端 PTY（线程安全：入队立即返回）。返回入队字节数或 -1。
+///
+/// # Safety
+/// sh 须来自 termo_russh_shell_open 且未经 close；buf 须有 len 字节可读。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_shell_write(
+    sh: *mut RusshShell,
+    buf: *const c_char,
+    len: i32,
+) -> std::ffi::c_long {
+    if sh.is_null() || buf.is_null() || len < 0 {
+        return -1;
+    }
+    let bytes = std::slice::from_raw_parts(buf as *const u8, len as usize);
+    (*sh).write(bytes)
+}
+
+/// 通知 PTY 尺寸变化（线程安全）。返回 0=成功 / -1=泵已退出。
+///
+/// # Safety
+/// sh 须来自 termo_russh_shell_open 且未经 close。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_shell_resize(
+    sh: *mut RusshShell,
+    cols: i32,
+    rows: i32,
+) -> i32 {
+    if sh.is_null() {
+        return -1;
+    }
+    (*sh).resize(cols, rows)
+}
+
+/// 停泵 + 关闭/释放句柄（close 返回后不再有回调；不关底层会话）。
+///
+/// # Safety
+/// sh 须来自 termo_russh_shell_open，且只 close 一次。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_shell_close(sh: *mut RusshShell) {
+    if !sh.is_null() {
+        let shell = Box::from_raw(sh);
+        shell.close();
+        drop(shell);
     }
 }
 

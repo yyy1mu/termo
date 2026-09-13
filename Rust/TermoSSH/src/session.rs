@@ -79,7 +79,16 @@ pub struct ExecOutput {
 }
 
 pub(crate) struct SessionInner {
-    handle: russh::client::Handle<crate::handler::ProbeHandler>,
+    pub(crate) handle: russh::client::Handle<crate::handler::ProbeHandler>,
+}
+
+impl SessionInner {
+    /// 在该会话上开一个 session channel（shell 等模块复用）。
+    pub(crate) async fn channel_open(
+        inner: &RusshSession,
+    ) -> Result<russh::Channel<russh::client::Msg>, russh::Error> {
+        inner.inner.handle.channel_open_session().await
+    }
 }
 
 /// 已认证的 russh 会话句柄（对应 libssh2 侧 `TermoSSHSession*`）。
@@ -201,6 +210,21 @@ impl RusshSession {
                 key_passphrase,
                 timeout,
             ))
+        }))
+        .unwrap_or_else(|_| Err("内部 panic（已被 FFI 边界拦截）".into()))
+    }
+
+    /// 阻塞开 PTY shell（供 C ABI / CLI；panic 隔离）。
+    pub fn shell_open_blocking(
+        &self,
+        cols: i32,
+        rows: i32,
+        on_data: crate::shell::ShellDataCallback,
+        on_closed: crate::shell::ShellClosedCallback,
+        userdata: *mut std::ffi::c_void,
+    ) -> Result<crate::shell::RusshShell, String> {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            runtime().block_on(self.shell_open(cols, rows, on_data, on_closed, userdata))
         }))
         .unwrap_or_else(|_| Err("内部 panic（已被 FFI 边界拦截）".into()))
     }

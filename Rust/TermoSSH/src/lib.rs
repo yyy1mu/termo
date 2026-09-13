@@ -8,10 +8,12 @@
 mod ffi;
 mod handler;
 mod session;
+mod shell;
 
 use std::ffi::{c_char, CStr};
 
 pub use session::{clamp_timeout, ExecOutput, ExecResult, ProbeOutcome, RusshSession};
+pub use shell::{RusshShell, ShellClosedCallback, ShellDataCallback};
 
 /// 整个进程共用一个 multi-thread runtime，避免每条 SSH 连接各建一套调度器。
 pub(crate) fn runtime() -> &'static tokio::runtime::Runtime {
