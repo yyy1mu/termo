@@ -1,0 +1,11 @@
+[package]
+name = "termo-ssh"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+russh = { version = "=0.63.3", default-features = false, features = ["flate2", "ring", "rsa"] }
