@@ -9,12 +9,14 @@ mod ffi;
 mod forward;
 mod handler;
 mod session;
+mod sftp;
 mod shell;
 
 use std::ffi::{c_char, CStr};
 
 pub use forward::{ForwardKind, ForwardSpec, ForwardStateCallback, RusshForward};
 pub use session::{clamp_timeout, ExecOutput, ExecResult, ProbeOutcome, RusshSession};
+pub use sftp::{RusshSftp, RusshSftpFile, SftpAttrs, SftpOpError};
 pub use shell::{RusshShell, ShellClosedCallback, ShellDataCallback};
 
 /// 整个进程共用一个 multi-thread runtime，避免每条 SSH 连接各建一套调度器。
@@ -27,6 +29,12 @@ pub(crate) fn runtime() -> &'static tokio::runtime::Runtime {
             .build()
             .expect("build tokio runtime")
     })
+}
+
+/// 在共享 runtime 上阻塞执行一个 future（供 CLI 等非 runtime 线程使用；
+/// 禁止在回调线程内调用——会与 runtime 冲突）。
+pub fn block_on<T: std::future::Future>(fut: T) -> T::Output {
+    runtime().block_on(fut)
 }
 
 /// 读入 C 字符串（NULL → 空串）。

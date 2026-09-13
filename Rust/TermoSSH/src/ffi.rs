@@ -7,6 +7,7 @@ use std::ffi::c_char;
 
 use crate::forward::{ForwardKind, ForwardSpec, ForwardStateCallback, RusshForward};
 use crate::session::{clamp_timeout, ExecResult, RusshSession};
+use crate::sftp::{RusshSftp, RusshSftpFile, SftpAttrs};
 use crate::shell::{RusshShell, ShellClosedCallback, ShellDataCallback};
 use crate::{copy_into, read_str, runtime};
 
@@ -418,6 +419,378 @@ pub unsafe extern "C" fn termo_russh_forward_close(f: *mut RusshForward) {
         let forward = Box::from_raw(f);
         forward.close();
         drop(forward);
+    }
+}
+
+// ── SFTP（russh-sftp Raw API；语义对齐 libssh2 版）──────────────────────────
+// 约定同 libssh2 头：返回 int 的函数 0=成功；>0 且 <0xF000=SFTP 状态码（如 2=无此文件）；
+// ≥0xF000=传输/内部错误。open/opendir/init 失败返回 NULL。
+
+/// SFTP 属性（对齐 TermoSFTPAttrs）。
+#[repr(C)]
+pub struct TermoRusshSFTPAttrs {
+    pub has_size: i32,
+    pub has_perm: i32,
+    pub has_mtime: i32,
+    pub size: u64,
+    pub permissions: u32,
+    pub mtime: u32,
+}
+
+impl TermoRusshSFTPAttrs {
+    fn from(a: SftpAttrs) -> Self {
+        Self {
+            has_size: a.has_size as i32,
+            has_perm: a.has_perm as i32,
+            has_mtime: a.has_mtime as i32,
+            size: a.size,
+            permissions: a.permissions,
+            mtime: a.mtime,
+        }
+    }
+}
+
+/// SFTP 调用统一入口：block_on + panic 隔离；Err 供各导出写 err 并返回状态码。
+fn sftp_run<T>(
+    fut: impl std::future::Future<Output = Result<T, crate::sftp::SftpOpError>>,
+) -> Result<T, (i32, String)> {
+    let run = || runtime().block_on(fut);
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(run))
+        .unwrap_or_else(|_| {
+            Err(crate::sftp::SftpOpError {
+                code: 0xF001,
+                message: "内部 panic（已被 FFI 边界拦截）".to_owned(),
+            })
+        })
+        .map_err(|e| (e.code, e.message))
+}
+
+unsafe fn write_err(err: *mut c_char, errlen: i32, code: i32, message: &str) -> i32 {
+    copy_into(err, errlen, message);
+    code
+}
+
+/// 在已认证会话上初始化 SFTP 子系统。
+///
+/// # Safety
+/// s 须为有效会话；err 可为 NULL，非 NULL 时保证 errlen 字节可写。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_init(
+    s: *mut RusshSession,
+    err: *mut c_char,
+    errlen: i32,
+) -> *mut RusshSftp {
+    if s.is_null() {
+        copy_into(err, errlen, "参数无效（会话为空）");
+        return std::ptr::null_mut();
+    }
+    match (*s).sftp_init_blocking() {
+        Ok(sftp) => Box::into_raw(Box::new(sftp)),
+        Err(message) => {
+            copy_into(err, errlen, &message);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// 关闭 SFTP 子系统（不关底层会话）。
+///
+/// # Safety
+/// sftp 须来自 termo_russh_sftp_init，且只 shutdown 一次。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_shutdown(sftp: *mut RusshSftp) {
+    if !sftp.is_null() {
+        drop(Box::from_raw(sftp));
+    }
+}
+
+/// stat（follow=1）/ lstat（follow=0）。返回 0=成功（attrs 已写）或状态码。
+///
+/// # Safety
+/// sftp 须有效；path 须为有效 NUL 结尾字符串；attrs 可为 NULL。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_stat(
+    sftp: *mut RusshSftp,
+    path: *const c_char,
+    follow: i32,
+    attrs: *mut TermoRusshSFTPAttrs,
+) -> i32 {
+    if sftp.is_null() || path.is_null() {
+        return 0xF001;
+    }
+    let path = read_str(path);
+    let fut = (*sftp).stat(&path, follow != 0);
+    match sftp_run(fut) {
+        Ok(a) => {
+            if !attrs.is_null() {
+                *attrs = TermoRusshSFTPAttrs::from(a);
+            }
+            0
+        }
+        Err((code, message)) => write_err(std::ptr::null_mut(), 0, code, &message),
+    }
+}
+
+/// 设权限位（mode & 07777）。
+///
+/// # Safety
+/// sftp 须有效；path 须为有效 NUL 结尾字符串。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_setstat_perm(
+    sftp: *mut RusshSftp,
+    path: *const c_char,
+    mode: u32,
+) -> i32 {
+    if sftp.is_null() || path.is_null() {
+        return 0xF001;
+    }
+    let path = read_str(path);
+    match sftp_run((*sftp).set_permissions(&path, mode)) {
+        Ok(()) => 0,
+        Err((code, message)) => write_err(std::ptr::null_mut(), 0, code, &message),
+    }
+}
+
+/// # Safety
+/// sftp 须有效；path 须为有效 NUL 结尾字符串。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_mkdir(sftp: *mut RusshSftp, path: *const c_char) -> i32 {
+    if sftp.is_null() || path.is_null() {
+        return 0xF001;
+    }
+    let path = read_str(path);
+    match sftp_run((*sftp).mkdir(&path)) {
+        Ok(()) => 0,
+        Err((code, message)) => write_err(std::ptr::null_mut(), 0, code, &message),
+    }
+}
+
+/// # Safety
+/// sftp 须有效；path 须为有效 NUL 结尾字符串。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_rmdir(sftp: *mut RusshSftp, path: *const c_char) -> i32 {
+    if sftp.is_null() || path.is_null() {
+        return 0xF001;
+    }
+    let path = read_str(path);
+    match sftp_run((*sftp).rmdir(&path)) {
+        Ok(()) => 0,
+        Err((code, message)) => write_err(std::ptr::null_mut(), 0, code, &message),
+    }
+}
+
+/// # Safety
+/// sftp 须有效；path 须为有效 NUL 结尾字符串。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_unlink(sftp: *mut RusshSftp, path: *const c_char) -> i32 {
+    if sftp.is_null() || path.is_null() {
+        return 0xF001;
+    }
+    let path = read_str(path);
+    match sftp_run((*sftp).remove(&path)) {
+        Ok(()) => 0,
+        Err((code, message)) => write_err(std::ptr::null_mut(), 0, code, &message),
+    }
+}
+
+/// 重命名；overwrite=1 → posix-rename 原子覆盖（不支持的服务器回退删+改）。
+///
+/// # Safety
+/// sftp 须有效；from/to 须为有效 NUL 结尾字符串。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_rename(
+    sftp: *mut RusshSftp,
+    from: *const c_char,
+    to: *const c_char,
+    overwrite: i32,
+) -> i32 {
+    if sftp.is_null() || from.is_null() || to.is_null() {
+        return 0xF001;
+    }
+    let (from, to) = (read_str(from), read_str(to));
+    let result = if overwrite != 0 {
+        sftp_run((*sftp).posix_rename(&from, &to))
+    } else {
+        sftp_run((*sftp).rename(&from, &to))
+    };
+    match result {
+        Ok(()) => 0,
+        Err((code, message)) => write_err(std::ptr::null_mut(), 0, code, &message),
+    }
+}
+
+/// 解析绝对路径写入 out（截断到 out_cap-1，NUL 结尾）。
+///
+/// # Safety
+/// sftp 须有效；out 须有 out_cap 字节可写。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_realpath(
+    sftp: *mut RusshSftp,
+    path: *const c_char,
+    out: *mut c_char,
+    out_cap: i32,
+) -> i32 {
+    if sftp.is_null() || path.is_null() {
+        return 0xF001;
+    }
+    let path = read_str(path);
+    match sftp_run((*sftp).realpath(&path)) {
+        Ok(real) => {
+            copy_into(out, out_cap, &real);
+            0
+        }
+        Err((code, message)) => write_err(std::ptr::null_mut(), 0, code, &message),
+    }
+}
+
+/// 打开文件；pflags 直接透传 SSH_FXF_* 线上值（与 SFTPFlag 同值）。
+///
+/// # Safety
+/// sftp 须有效；path 须为有效 NUL 结尾字符串。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_open(
+    sftp: *mut RusshSftp,
+    path: *const c_char,
+    pflags: u32,
+) -> *mut RusshSftpFile {
+    if sftp.is_null() || path.is_null() {
+        return std::ptr::null_mut();
+    }
+    let path = read_str(path);
+    match sftp_run((*sftp).open(&path, pflags)) {
+        Ok(file) => Box::into_raw(Box::new(file)),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// 打开目录。
+///
+/// # Safety
+/// sftp 须有效；path 须为有效 NUL 结尾字符串。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_opendir(
+    sftp: *mut RusshSftp,
+    path: *const c_char,
+) -> *mut RusshSftpFile {
+    if sftp.is_null() || path.is_null() {
+        return std::ptr::null_mut();
+    }
+    let path = read_str(path);
+    match sftp_run((*sftp).opendir(&path)) {
+        Ok(file) => Box::into_raw(Box::new(file)),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// 句柄 fstat。
+///
+/// # Safety
+/// file 须来自 open/opendir 且未经 close。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_fstat(
+    file: *mut RusshSftpFile,
+    attrs: *mut TermoRusshSFTPAttrs,
+) -> i32 {
+    if file.is_null() {
+        return 0xF001;
+    }
+    match sftp_run((*file).fstat()) {
+        Ok(a) => {
+            if !attrs.is_null() {
+                *attrs = TermoRusshSFTPAttrs::from(a);
+            }
+            0
+        }
+        Err((code, message)) => write_err(std::ptr::null_mut(), 0, code, &message),
+    }
+}
+
+/// 从 offset 读一块：返回字节数 / 0=EOF / 负=错误（-状态码或 -0xF001）。
+///
+/// # Safety
+/// file 须有效；buf 须有 len 字节可写。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_read(
+    file: *mut RusshSftpFile,
+    offset: u64,
+    buf: *mut c_char,
+    len: i32,
+) -> i64 {
+    if file.is_null() || buf.is_null() || len <= 0 {
+        return -0xF001;
+    }
+    let fut = (*file).read(offset, len as u32);
+    match sftp_run(fut) {
+        Ok(data) => {
+            let n = data.len().min(len as usize);
+            std::ptr::copy_nonoverlapping(data.as_ptr() as *const c_char, buf, n);
+            n as i64
+        }
+        Err((code, _)) => -i64::from(code.max(1)),
+    }
+}
+
+/// 从 offset 写整块：返回已写字节 / 负=错误。
+///
+/// # Safety
+/// file 须有效；buf 须有 len 字节可读。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_write(
+    file: *mut RusshSftpFile,
+    offset: u64,
+    buf: *const c_char,
+    len: i32,
+) -> i64 {
+    if file.is_null() || buf.is_null() || len <= 0 {
+        return -0xF001;
+    }
+    let data = std::slice::from_raw_parts(buf as *const u8, len as usize).to_vec();
+    match sftp_run((*file).write(offset, &data)) {
+        Ok(n) => n as i64,
+        Err((code, _)) => -i64::from(code.max(1)),
+    }
+}
+
+/// 读一个目录项：name 写 name_buf（NUL 结尾）。返回名字长度 / 0=EOF / 负=错误。
+/// EOF 后句柄已自动关闭。
+///
+/// # Safety
+/// file 须来自 opendir 且未经 close；name_buf 须有 cap 字节可写；attrs 可为 NULL。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_readdir(
+    file: *mut RusshSftpFile,
+    name_buf: *mut c_char,
+    cap: i32,
+    attrs: *mut TermoRusshSFTPAttrs,
+) -> i32 {
+    if file.is_null() || name_buf.is_null() || cap <= 0 {
+        return -0xF001;
+    }
+    let fut = (*file).readdir();
+    match sftp_run(fut) {
+        Ok(Some((name, a))) => {
+            copy_into(name_buf, cap, &name);
+            if !attrs.is_null() {
+                *attrs = TermoRusshSFTPAttrs::from(a);
+            }
+            name.len() as i32
+        }
+        Ok(None) => 0,
+        Err((code, _)) => -code,
+    }
+}
+
+/// 关闭文件/目录句柄。
+///
+/// # Safety
+/// file 须来自 open/opendir，且只 close 一次。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_sftp_close(file: *mut RusshSftpFile) {
+    if !file.is_null() {
+        let mut f = Box::from_raw(file);
+        let run = || runtime().block_on(f.close());
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(run));
+        drop(f);
     }
 }
 

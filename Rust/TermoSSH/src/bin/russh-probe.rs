@@ -17,7 +17,7 @@ use termo_ssh::{clamp_timeout, ExecResult, ForwardKind, ForwardSpec, RusshSessio
 
 fn usage() {
     eprintln!(
-        "用法: russh-probe HOST PORT USER [--password PASS | --key PATH [PASSPHRASE]] [--exec CMD [--stdin-file PATH] | --shell] [--forward L:port:host:dport | R:port:host:dport | D:port]... [--timeout MS]"
+        "用法: russh-probe HOST PORT USER [--password PASS | --key PATH [PASSPHRASE]] [--exec CMD [--stdin-file PATH] | --shell] [--forward L:port:host:dport | R:port:host:dport | D:port]... [--sftp-ls PATH | --sftp-get REMOTE LOCAL | --sftp-put LOCAL REMOTE] [--timeout MS]"
     );
 }
 
@@ -152,6 +152,9 @@ fn main() -> ExitCode {
     let mut stdin_file: Option<String> = None;
     let mut shell_mode = false;
     let mut forwards: Vec<ForwardSpec> = Vec::new();
+    let mut sftp_ls: Option<String> = None;
+    let mut sftp_get: Option<(String, String)> = None;
+    let mut sftp_put: Option<(String, String)> = None;
     let mut timeout_ms = 20_000;
     while !args.is_empty() {
         match args.remove(0).as_str() {
@@ -172,6 +175,17 @@ fn main() -> ExitCode {
                     return ExitCode::FAILURE;
                 }
             },
+            "--sftp-ls" => sftp_ls = Some(args.remove(0)),
+            "--sftp-get" => {
+                let remote = args.remove(0);
+                let local = args.remove(0);
+                sftp_get = Some((remote, local));
+            }
+            "--sftp-put" => {
+                let local = args.remove(0);
+                let remote = args.remove(0);
+                sftp_put = Some((local, remote));
+            }
             "--timeout" => timeout_ms = args.remove(0).parse().unwrap_or(20_000),
             _ => {
                 usage();
@@ -198,6 +212,30 @@ fn main() -> ExitCode {
     };
 
     println!("主机指纹: {}", session.fingerprint().unwrap_or("(无)"));
+
+    // SFTP 手动回归：ls / get / put
+    if sftp_ls.is_some() || sftp_get.is_some() || sftp_put.is_some() {
+        let sftp = match session.sftp_init_blocking() {
+            Ok(sftp) => sftp,
+            Err(message) => {
+                eprintln!("失败: {message}");
+                session.close();
+                return ExitCode::FAILURE;
+            }
+        };
+        let ok = run_sftp(
+            &sftp,
+            sftp_ls.as_deref(),
+            sftp_get.as_ref(),
+            sftp_put.as_ref(),
+        );
+        session.close();
+        return if ok {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::FAILURE
+        };
+    }
 
     // 开启转发规则；然后阻塞在 stdin（EOF 退出），期间隧道工作
     if !forwards.is_empty() {
@@ -286,4 +324,120 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// SFTP 手动回归：ls / get / put（32 KiB 分块，对齐 Swift 侧行为口径）。
+fn run_sftp(
+    sftp: &termo_ssh::RusshSftp,
+    ls: Option<&str>,
+    get: Option<&(String, String)>,
+    put: Option<&(String, String)>,
+) -> bool {
+    use std::io::{Read, Write};
+
+    if let Some(path) = ls {
+        let mut dir = match termo_ssh::block_on(sftp.opendir(path)) {
+            Ok(dir) => dir,
+            Err(e) => {
+                eprintln!("失败: opendir {path}: code={} {}", e.code, e.message);
+                return false;
+            }
+        };
+        loop {
+            match termo_ssh::block_on(dir.readdir()) {
+                Ok(Some((name, attrs))) => {
+                    let is_dir = (attrs.permissions & 0o170000) == 0o040000;
+                    let size = if is_dir {
+                        String::from("<dir>")
+                    } else {
+                        attrs.size.to_string()
+                    };
+                    println!("{size:>12}  {name}");
+                }
+                Ok(None) => break,
+                Err(e) => {
+                    eprintln!("失败: readdir: code={} {}", e.code, e.message);
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    if let Some((remote, local)) = get {
+        let file = match termo_ssh::block_on(sftp.open(remote, 0x1)) {
+            Ok(file) => file,
+            Err(e) => {
+                eprintln!("失败: open {remote}: code={} {}", e.code, e.message);
+                return false;
+            }
+        };
+        let mut out = match std::fs::File::create(local) {
+            Ok(out) => out,
+            Err(e) => {
+                eprintln!("失败: 创建 {local}: {e}");
+                return false;
+            }
+        };
+        let mut offset = 0u64;
+        loop {
+            match termo_ssh::block_on(file.read(offset, 32 * 1024)) {
+                Ok(data) => {
+                    if data.is_empty() {
+                        break;
+                    }
+                    if out.write_all(&data).is_err() {
+                        eprintln!("失败: 本地写入");
+                        return false;
+                    }
+                    offset += data.len() as u64;
+                }
+                Err(e) => {
+                    eprintln!("失败: read @{offset}: code={} {}", e.code, e.message);
+                    return false;
+                }
+            }
+        }
+        println!("[get] {remote} → {local}（{offset} 字节）");
+        return true;
+    }
+
+    if let Some((local, remote)) = put {
+        let mut input = match std::fs::File::open(local) {
+            Ok(input) => input,
+            Err(e) => {
+                eprintln!("失败: 打开 {local}: {e}");
+                return false;
+            }
+        };
+        let file = match termo_ssh::block_on(sftp.open(remote, 0x2 | 0x8 | 0x10)) {
+            Ok(file) => file,
+            Err(e) => {
+                eprintln!("失败: open {remote}: code={} {}", e.code, e.message);
+                return false;
+            }
+        };
+        let mut offset = 0u64;
+        let mut buf = vec![0u8; 32 * 1024];
+        loop {
+            match input.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    if let Err(e) = termo_ssh::block_on(file.write(offset, &buf[..n])) {
+                        eprintln!("失败: write @{offset}: code={} {}", e.code, e.message);
+                        return false;
+                    }
+                    offset += n as u64;
+                }
+                Err(e) => {
+                    eprintln!("失败: 本地读取: {e}");
+                    return false;
+                }
+            }
+        }
+        println!("[put] {local} → {remote}（{offset} 字节）");
+        return true;
+    }
+
+    false
 }
