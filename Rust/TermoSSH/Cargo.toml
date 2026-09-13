@@ -5,7 +5,9 @@ edition = "2021"
 publish = false
 
 [lib]
-crate-type = ["staticlib"]
+# rlib 供同包 bin/测试使用；staticlib 供 Xcode 链接
+crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 russh = { version = "=0.63.3", default-features = false, features = ["flate2", "ring", "rsa"] }
+tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "net", "time"] }
