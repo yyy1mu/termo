@@ -21,8 +21,8 @@ struct TermoApp: App {
         // 隐藏到托盘后经启动台/托盘「显示」/⌘N 等路径重复新建窗口；也不再出现「新建窗口」菜单项。
         Window("Termo", id: "main") {
             ContentView()
-                // 三栏布局（活动栏 + 主机侧栏 + 工作区）与设置/新增主机弹窗(约 720 宽) 的合理下限
-                .frame(minWidth: 860, minHeight: 560)
+                // 保证主机侧栏、工作区和右侧面板同时展开时仍有可用空间。
+                .frame(minWidth: 1000, minHeight: 620)
         }
         .windowStyle(.hiddenTitleBar)
         // 首次打开的默认尺寸（仅初始值，最小限制不变；用户拖动后由系统记忆）：给三栏 + 工作区更宽裕的空间。
@@ -253,21 +253,21 @@ struct ContentView: View {
     @ObservedObject private var theme = ThemeManager.shared
 
     var body: some View {
-        HStack(spacing: 0) {
-            Sidebar(model: model, tabs: model.tabsModel, layout: layout)
-            // 文件栏特权：允许拖到更宽（容纳深层目录树）；其它区上限 320。
-            // zIndex(1)：拖动时分隔条会画一条越过工作区的引导线,须盖在工作区之上。
-            SidebarDivider(layout: layout, maxWidth: 320)
-                .zIndex(1)
+        GeometryReader { proxy in
+            let panelWidth = min(360, max(280, proxy.size.width - layout.sidebarWidth - 48 - 5 - 420))
             VStack(spacing: 0) {
-                TabBar(model: model, tabs: model.tabsModel)
-                Workspace(model: model, tabs: model.tabsModel)
-                    .padding([.leading, .top], 3)
+                WorkbenchHeader(model: model, tabs: model.tabsModel, layout: layout)
+                Rectangle().fill(Pal.border).frame(height: 1)
+                HStack(spacing: 0) {
+                    Sidebar(model: model, tabs: model.tabsModel, layout: layout)
+                    SidebarDivider(layout: layout, maxWidth: 360)
+                        .zIndex(1)
+                    Workspace(model: model, tabs: model.tabsModel)
+                    CompanionPanel(model: model, layout: layout, tabs: model.tabsModel,
+                                   panelWidth: panelWidth)
+                    RightBar(model: model, layout: layout)
+                }
             }
-            .background(Pal.mantle)
-            // 右侧伴随面板（SFTP/监控/转发/片段/同步，跟随当前主机）+ 40px 功能窄栏
-            CompanionPanel(model: model, layout: layout, tabs: model.tabsModel)
-            RightBar(model: model, layout: layout)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Pal.base)
@@ -377,8 +377,6 @@ struct ContentView: View {
             .allowsHitTesting(model.pendingQuitConfirm)
         }
         .modifier(AppSheets(model: model))
-        // 同步冲突裁决弹窗（挂在这里：侧栏有 clipped，大弹窗需覆盖整个窗口）
-        .modifier(SyncDialogs(model: model))
         .onAppear { model.applyStartupIfNeeded() }
     }
 

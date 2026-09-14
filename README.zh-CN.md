@@ -80,6 +80,8 @@ xcodebuild -scheme Termo -configuration Release build
 
 ## 技术架构
 
+iOS 与 Apple Watch 的目录、构建方式和功能边界见[多端开发入口](PLATFORMS.md)。
+
 - 界面：SwiftUI + AppKit，全自绘统一组件；单窗口 + 菜单栏常驻
 - SSH 栈：进程内 Rust 引擎（russh 0.63.3，ring 后端，源码构建），覆盖终端 PTY / SFTP 子系统 / 直连转发 / 已知主机校验 / 密钥生成
 - 持久化：主机 / 会话 JSON + 密码合并写入钥匙串（乐观锁防多端竞争）

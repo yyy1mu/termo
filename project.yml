@@ -1,6 +1,6 @@
 # XcodeGen 声明式工程定义。改这里后运行 `xcodegen generate` 重新生成 Termo.xcodeproj。
-# 业务代码全部直接归属 Termo App target（单一模块，与原 SwiftPM 可执行目标同构）；
-# 第三方依赖以 Swift Package 形式引入（SwiftTerm 远程终端）。
+# macOS 业务代码直接归属 Termo App target；跨端的无平台依赖模型归属 TermoCore。
+# iOS 与 watchOS 各自保留独立入口和功能目录；第三方依赖以 Swift Package 形式引入。
 name: Termo
 
 options:
@@ -29,7 +29,6 @@ settings:
     SWIFT_VERSION: "5.9"
     SWIFT_EMIT_LOC_STRINGS: YES          # 编译期把可本地化字符串抽取进 String Catalog
     DEAD_CODE_STRIPPING: YES
-    ARCHS: arm64                  # 仅 Apple Silicon（放弃 Intel）：相比通用二进制约省一半体积
     # Debug 签名会向 entitlements 注入 get-task-allow；本项目 entitlements 为空占位（Dev ID 不沙盒），
     # 最新 Xcode 会把这次注入判为「构建期修改了 entitlements 文件」而报错中止。此设置允许该注入（官方修复项）。
     CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: YES
@@ -43,7 +42,7 @@ packages:
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm
     from: "1.13.0"
-  # 三端共享框架（结构占位）：macOS/iOS/watchOS 共用代码的未来住所
+  # 三端共享的纯 Foundation 数据契约；平台实现留在各 App target。
   TermoCore:
     path: TermoCore
 
@@ -59,11 +58,17 @@ targets:
     dependencies:
       - package: SwiftTerm
         product: SwiftTerm
+      - package: TermoCore
+        product: TermoCore
       - sdk: Security.framework
       - sdk: CoreFoundation.framework
     settings:
       base:
         INFOPLIST_FILE: Termo/Info.plist
+        ARCHS: arm64  # macOS 仅 Apple Silicon；iOS/watchOS 使用各自 SDK 默认设备架构
+        # Cargo 会读取 Rust 源码及用户级依赖缓存；Xcode 的脚本沙盒无法用静态输入列表覆盖。
+        # 仅对含 Rust 预构建脚本的 macOS target 关闭，其他 target 仍使用默认设置。
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
         # SSH 引擎 C 接口经桥接头暴露给 Swift（Engine 目录在搜索路径中）。
         SWIFT_OBJC_BRIDGING_HEADER: Termo/Bridge/Termo-Bridging-Header.h
         HEADER_SEARCH_PATHS:
@@ -78,6 +83,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: Termo.entitlements
+        DEVELOPMENT_TEAM: 93D9T7Y56M  # 沿用现有 macOS target 的本机开发签名覆盖
         ENABLE_HARDENED_RUNTIME: NO       # 上架/公证阶段再打开
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         COMBINE_HIDPI_IMAGES: YES
@@ -104,8 +110,7 @@ targets:
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"   # Xcode 脚本环境默认不含 Homebrew
           "$SRCROOT/scripts/build-russh.sh"
 
-# 共享 scheme：供 xcodebuild -scheme Termo 打包（scripts/package-app.sh）与 Xcode 运行/归档使用。
-  # ── iOS 壳（结构占位，功能未实现）：复用 TermoCore；本地终端不可迁移，仅远程 SSH 方向 ──
+  # iOS 先落地无凭证的主机资料；SSH 引擎与认证按平台能力逐步接入。
   Termo-iOS:
     type: application
     platform: iOS
@@ -114,6 +119,8 @@ targets:
     dependencies:
       - package: TermoCore
         product: TermoCore
+      - target: Termo-Watch
+        embed: true
     settings:
       base:
         PRODUCT_NAME: Termo
@@ -123,8 +130,9 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         CURRENT_PROJECT_VERSION: "1"
         MARKETING_VERSION: "1.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
 
-  # ── watchOS 壳（结构占位，功能未实现）：不内嵌 SSH 引擎，经 iPhone 桥接做状态查看 ──
+  # Watch 是 iPhone 的伴侣应用，只接收无凭证的主机名称快照。
   Termo-Watch:
     type: application
     platform: watchOS
@@ -136,12 +144,15 @@ targets:
     settings:
       base:
         PRODUCT_NAME: Termo
-        PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo.watch
+        PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo.ios.watchkitapp
         WATCHOS_DEPLOYMENT_TARGET: "9.0"
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: YES
         CURRENT_PROJECT_VERSION: "1"
         MARKETING_VERSION: "1.0"
+        TARGETED_DEVICE_FAMILY: "4"
+        INFOPLIST_KEY_WKWatchKitApp: YES
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: com.cloudza.termo.ios
 
 schemes:
   Termo:
@@ -161,3 +172,19 @@ schemes:
       config: DebugMAS
     archive:
       config: ReleaseMAS
+  Termo-iOS:
+    build:
+      targets:
+        Termo-iOS: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  Termo-Watch:
+    build:
+      targets:
+        Termo-Watch: all
+    run:
+      config: Debug
+    archive:
+      config: Release

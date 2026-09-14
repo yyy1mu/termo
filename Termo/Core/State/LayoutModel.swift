@@ -13,17 +13,15 @@ import SwiftUI
 @MainActor
 final class LayoutModel: ObservableObject {
     /// 左侧栏宽度(像素)。0 视为折叠。
-    @Published var sidebarWidth: CGFloat = 224
+    @Published var sidebarWidth: CGFloat = 252
     /// 右侧伴随面板；nil = 收起。
     @Published var rightPanel: RightPanel? = nil
 
-    /// 伴随面板固定宽度（对齐 Termark 右侧功能面板）。
-    static let rightPanelWidth: CGFloat = 420
 }
 
-/// 右侧功能栏条目：伴随面板按「跟随当前主机」展开（SFTP/监控/转发需要主机上下文；片段/同步为全局）。
+/// 右侧功能栏条目：以当前主机与终端上下文为中心；全局同步位于设置。
 enum RightPanel: String, CaseIterable, Hashable {
-    case sftp, tmux, services, processes, network, monitor, docker, forward, snippets, sync
+    case sftp, tmux, services, processes, network, monitor, docker, forward, snippets
 
     var symbol: String {
         switch self {
@@ -36,7 +34,6 @@ enum RightPanel: String, CaseIterable, Hashable {
         case .docker: return "shippingbox"
         case .forward: return "arrow.left.arrow.right"
         case .snippets: return "chevron.left.forwardslash.chevron.right"
-        case .sync: return "arrow.triangle.2.circlepath"
         }
     }
 
@@ -51,14 +48,13 @@ enum RightPanel: String, CaseIterable, Hashable {
         case .docker: return "Docker"
         case .forward: return String(localized: "端口转发")
         case .snippets: return String(localized: "代码片段")
-        case .sync: return String(localized: "同步")
         }
     }
 
     /// 是否需要一台已选中的 SSH 主机（否则显示占位提示）。
     var needsHost: Bool {
         switch self {
-        case .snippets, .sync: return false
+        case .snippets: return false
         default: return true
         }
     }

@@ -1,7 +1,5 @@
 // swift-tools-version: 5.9
-// Termo 共享框架（结构占位）：macOS / iOS / watchOS 三端共用代码的未来住所。
-// 规划迁入：Core/Models、Core/Persistence、Features/Sync、Rust 引擎适配层，
-// 以及不含 AppKit 依赖的 SwiftUI 自绘组件。当前仅占位，macOS 壳代码保持原位。
+// 三端共享的纯 Foundation 模型。平台存储、认证、连接和界面留在各自 target。
 import PackageDescription
 
 let package = Package(
@@ -16,5 +14,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "TermoCore", path: "Sources/TermoCore"),
+        .testTarget(name: "TermoCoreTests", dependencies: ["TermoCore"]),
     ]
 )

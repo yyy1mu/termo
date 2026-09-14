@@ -80,6 +80,8 @@ xcodebuild -scheme Termo -configuration Release build
 
 ## Architecture
 
+For iOS and Apple Watch development, see [Multi-platform development](PLATFORMS.md).
+
 - **UI**: SwiftUI + AppKit, fully custom unified components; single window with a persistent menu-bar item
 - **SSH stack**: in-process Rust engine (russh 0.63.3, ring backend, built from source) — terminal PTY / SFTP subsystem / direct-TCP forwarding / known-hosts verification / key generation
 - **Persistence**: hosts / sessions as JSON + passwords merged into the Keychain (optimistic locking against multi-device races)

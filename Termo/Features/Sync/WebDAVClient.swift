@@ -18,6 +18,7 @@ enum WebDAVError: LocalizedError {
     case authFailed
     case notFound
     case parentMissing
+    case unsupportedMethod
     case serverError(Int)
 
     var errorDescription: String? {
@@ -27,6 +28,7 @@ enum WebDAVError: LocalizedError {
         case .notFound: return String(localized: "远端还没有备份文件")
         case .parentMissing:
             return String(localized: "远端目录不存在且无法创建：请先在服务器网页端建好第一级目录（Seafile 需先新建资料库）")
+        case .unsupportedMethod: return String(localized: "服务器不支持 WebDAV PROPFIND，请检查地址是否指向 WebDAV 目录")
         case .serverError(let code): return String(localized: "WebDAV 服务器返回错误（HTTP \(code)）")
         }
     }
@@ -79,7 +81,7 @@ enum WebDAVClient {
         case 200, 207: return true
         case 404: return false
         case 401, 403: throw WebDAVError.authFailed
-        case 405: return true  // 服务器不支持 PROPFIND，无法判断，视为可用
+        case 405: throw WebDAVError.unsupportedMethod
         default: throw WebDAVError.serverError(http.statusCode)
         }
     }

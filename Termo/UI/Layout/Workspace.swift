@@ -12,7 +12,6 @@ struct Workspace: View {
             Pal.base
             content
         }
-        .clipShape(RoundedRectangle(cornerRadius: 10))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -82,22 +81,22 @@ struct WelcomeView: View {
     @ObservedObject private var theme = ThemeManager.shared
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 18) {
             Image(systemName: "terminal.fill")
-                .font(.system(size: 30))
+                .font(.system(size: 22))
                 .foregroundStyle(Pal.mauve)
-                .frame(width: 72, height: 72)
-                .background(Pal.mauve.opacity(0.12), in: RoundedRectangle(cornerRadius: 18))
-            VStack(spacing: 6) {
-                Text("Termo").font(.system(size: 20, weight: .medium)).foregroundStyle(Pal.text)
-                Text("高效的 SSH 终端管理工具")
-                    .font(.system(size: 12)).foregroundStyle(Pal.overlay)
-            }
+                .frame(width: 56, height: 56)
+                .background(Pal.mauve.opacity(0.12), in: RoundedRectangle(cornerRadius: 15))
+            Text("你的远程工作台")
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(Pal.textBright)
+            Text("从左侧选择一台主机，或创建新的连接。终端、文件和系统状态将在这里持续工作。")
+                .font(.system(size: 13))
+                .foregroundStyle(Pal.subtext)
+                .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 10) {
-                // 快速连接：聚焦主机面板（有主机直接选；无主机弹出添加表单）
-                welcomeButton("magnifyingglass", String(localized: "快速连接"), primary: true) {
-                    model.section = .hosts
-                    if model.hosts.isEmpty { model.showAddHost = true }
+                welcomeButton("plus", String(localized: "添加主机"), primary: true) {
+                    model.showAddHost = true
                 }
                 if AppEnv.localTerminalEnabled {   // MAS 沙盒下隐藏本地终端入口
                     welcomeButton("terminal", String(localized: "新建本地终端"), primary: false) {
@@ -105,11 +104,13 @@ struct WelcomeView: View {
                     }
                 }
             }
-            .padding(.top, 6)
-            Text("从左侧主机树双击主机开始连接，或点击 + 新建标签页")
-                .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                .padding(.top, 10)
+            .padding(.top, 8)
         }
+        .padding(36)
+        .frame(maxWidth: 500, alignment: .leading)
+        .background(Pal.card, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Pal.border, lineWidth: 1))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func welcomeButton(_ symbol: String, _ title: String, primary: Bool, _ act: @escaping () -> Void) -> some View {

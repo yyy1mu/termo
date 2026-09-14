@@ -61,16 +61,16 @@ final class SyncModel: ObservableObject {
 
     func testConnection() async {
         guard validateConfig() else { return }
-        saveConfig()
         await perform {
             let exists = try await WebDAVClient.test(self.config)
+            self.saveConfig()
             return exists
                 ? String(localized: "连接成功")
                 : String(localized: "连接成功；远端目录尚不存在，首次同步会尝试创建（Seafile 需先在网页端新建资料库）")
         }
     }
 
-    /// 双向合并同步：下载 → 解密 → 合并 → 应用 → 加密上传。冲突时先弹窗裁决。
+    /// 双向合并同步：下载 → 解密 → 合并 → 加密上传 → 应用。上传失败时不改动本机。
     func mergeSync(model: AppModel) async {
         guard validateConfig(), validateMaster() else { return }
         saveConfig()
@@ -91,8 +91,8 @@ final class SyncModel: ObservableObject {
                 self.pendingMerge = PendingMerge(result: result, uploadAfter: true)
                 return String(localized: "发现 \(result.conflicts.count) 处冲突，请选择保留哪边")
             }
-            SyncEngine.apply(result.merged, to: model)
             try await self.upload(result.merged)
+            SyncEngine.apply(result.merged, to: model)
             return self.summary(result)
         }
     }
@@ -184,19 +184,20 @@ final class SyncModel: ObservableObject {
         }
     }
 
-    /// 冲突裁决完成：生成最终负载并应用；来源为 WebDAV 的合并同步还会回传远端。
+    /// 冲突裁决完成：WebDAV 合并先上传成功，再应用到本机。
     func resolvePending(choices: [String: Bool], model: AppModel) async {
         guard let pending = pendingMerge else { return }
         pendingMerge = nil
         let payload = SyncEngine.resolve(result: pending.result, choices: choices)
-        SyncEngine.apply(payload, to: model)
         guard pending.uploadAfter else {
+            SyncEngine.apply(payload, to: model)
             statusIsError = false
             statusText = String(localized: "已从备份合并导入")
             return
         }
         await perform {
             try await self.upload(payload)
+            SyncEngine.apply(payload, to: model)
             return String(localized: "同步完成")
         }
     }

@@ -42,44 +42,44 @@ struct ThemeColors {
 }
 
 extension ThemeColors {
-    // 深色主题：中性灰调，侧栏比编辑区稍亮
+    // 深色工作台：石墨蓝底、柔和薄荷强调色，压低大面积背景亮度。
     static let dark = ThemeColors(
-        crust: Color(hex: 0x333333),    // 活动栏
-        mantle: Color(hex: 0x252526),   // 侧栏 / 标签栏
-        base: Color(hex: 0x1e1e1e),     // 工作区 / 编辑器
-        surface0: Color(hex: 0x37373d),
-        card: Color(hex: 0x28282a),     // 信息卡片（比 base 亮半档）
-        text: Color(hex: 0xcccccc),
-        textBright: Color(hex: 0xffffff),
-        subtext: Color(hex: 0x9d9d9d),
-        overlay: Color(hex: 0x7a7a7a),
-        mauve: Color(hex: 0x569cd6),    // 蓝色强调色
-        green: Color(hex: 0x4ec9b0),
-        yellow: Color(hex: 0xd7ba7d),
-        red: Color(hex: 0xf14c4c),
-        termBg: 0x1e1e1e, termFg: 0xcccccc,
-        termCaret: 0xaeafad, termSelection: 0x264f78,
-        baseHex: 0x1e1e1e
+        crust: Color(hex: 0x111820),
+        mantle: Color(hex: 0x17212A),
+        base: Color(hex: 0x101920),
+        surface0: Color(hex: 0x27343E),
+        card: Color(hex: 0x1C2932),
+        text: Color(hex: 0xD5E0E3),
+        textBright: Color(hex: 0xF4F8F7),
+        subtext: Color(hex: 0x9AAEB2),
+        overlay: Color(hex: 0x72868D),
+        mauve: Color(hex: 0x168F80),
+        green: Color(hex: 0x68D3A1),
+        yellow: Color(hex: 0xE7BD77),
+        red: Color(hex: 0xF08080),
+        termBg: 0x101920, termFg: 0xD5E0E3,
+        termCaret: 0x79D6C2, termSelection: 0x28584F,
+        baseHex: 0x101920
     )
 
-    // 清新浅色主题——整体较纯白降一档亮度以减少眩光（保持层次梯度 base>mantle>crust>surface0）
+    // 浅色工作台：暖白工作面、灰绿导航与深青色强调。
     static let light = ThemeColors(
-        crust: Color(hex: 0xe6e8ed),    // 活动栏（最暗一档）
-        mantle: Color(hex: 0xedeef2),   // 侧栏 / 标签栏
-        base: Color(hex: 0xf5f6f9),     // 工作区 / 编辑器（不再纯白）
-        surface0: Color(hex: 0xdfe2e9),
-        card: Color(hex: 0xffffff),     // 信息卡片（浅色=白卡灰底，经典对比）
-        text: Color(hex: 0x2e3440),
-        textBright: Color(hex: 0x1a1d24),
-        subtext: Color(hex: 0x6b7280),
-        overlay: Color(hex: 0x9aa0ac),
-        mauve: Color(hex: 0x3b82f6),    // 清新亮蓝
-        green: Color(hex: 0x10b981),
-        yellow: Color(hex: 0xf59e0b),
-        red: Color(hex: 0xef4444),
-        termBg: 0xf5f6f9, termFg: 0x2e3440,   // 终端/编辑器底同步降亮，去掉纯白眩光
-        termCaret: 0x3b82f6, termSelection: 0xbfdbfe,
-        baseHex: 0xf5f6f9
+        crust: Color(hex: 0xE8F0EE),
+        mantle: Color(hex: 0xF0F5F3),
+        base: Color(hex: 0xFAFCFA),
+        surface0: Color(hex: 0xDCE8E4),
+        card: Color(hex: 0xFFFFFF),
+        text: Color(hex: 0x2D4242),
+        textBright: Color(hex: 0x162C2C),
+        subtext: Color(hex: 0x607877),
+        overlay: Color(hex: 0x809693),
+        mauve: Color(hex: 0x087E72),
+        green: Color(hex: 0x168B62),
+        yellow: Color(hex: 0xAB741D),
+        red: Color(hex: 0xBD4B4B),
+        termBg: 0xFAFCFA, termFg: 0x2D4242,
+        termCaret: 0x087E72, termSelection: 0xBFE8DC,
+        baseHex: 0xFAFCFA
     )
 }
 

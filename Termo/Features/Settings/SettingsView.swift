@@ -16,6 +16,7 @@ struct SettingsView: View {
         .frame(width: 720, height: 480)
         .background(Pal.solidBase)
         .preferredColorScheme(theme.isDark ? .dark : .light)
+        .modifier(SyncDialogs(model: model))
         .onChange(of: settings.appLanguage) { showLanguageRestart = true }
         .overlay {
             if showLanguageRestart {
@@ -120,23 +121,29 @@ struct SettingsView: View {
             .padding(.horizontal, 16)
             .padding(.top, 14)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    switch model.settingsTab {
-                    case .general: generalSettings
-                    case .terminal: terminalSettings
-                    case .transfer: transferSettings
-                    case .monitor: monitorSettings
-                    case .sshKeys: KeysPanel(model: model).padding(.horizontal, 24)
-            case .security: securitySettings
-                    case .keys: keysSettings
-                    case .about: aboutSettings
+            if model.settingsTab == .sync {
+                SyncPanel(model: model)
+                    .padding(.horizontal, 12)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        switch model.settingsTab {
+                        case .general: generalSettings
+                        case .terminal: terminalSettings
+                        case .transfer: transferSettings
+                        case .sync: EmptyView()
+                        case .monitor: monitorSettings
+                        case .sshKeys: KeysPanel(model: model).padding(.horizontal, 24)
+                        case .security: securitySettings
+                        case .keys: keysSettings
+                        case .about: aboutSettings
+                        }
                     }
+                    .padding(.horizontal, 28)
+                    .padding(.top, 4)
+                    .padding(.bottom, 24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, 28)
-                .padding(.top, 4)
-                .padding(.bottom, 24)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

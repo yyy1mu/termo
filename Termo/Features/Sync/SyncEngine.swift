@@ -39,8 +39,9 @@ enum SyncEngine {
         var localOnly = 0
         var remoteOnly = 0
 
-        // 主机（含密码）：按自然键「协议|IP|端口|名称」匹配，跨设备的随机 UUID 不作为身份。
-        // 名称不同时回退到「协议|IP|端口」匹配（记为冲突，弹窗逐字段对比名称等差异）。
+        // 主机（含密码）：优先用稳定 id 匹配同一条记录，允许修改地址/端口/名称。
+        // 跨设备 id 不同时再按「地址|端口|用户名|名称」匹配；名称不同时回退到
+        // 「地址|端口|用户名」。用户名必须参与身份，否则同一服务器的不同账号会互相覆盖。
         // 匹配成功的主机沿用本机 id：端口转发等对 hostId 的引用不会失效。
         var mergedHosts: [Host] = []
         var mergedHostPasswords = local.hostPasswords
@@ -48,6 +49,10 @@ enum SyncEngine {
         var remoteIDToMergedID: [String: String] = [:]  // 远端主机 id → 合并后（本机）id
         for lh in local.hosts {
             let remoteHost =
+                remote.hosts.first {
+                    !matchedRemoteIDs.contains($0.id) && $0.id == lh.id
+                }
+                ??
                 remote.hosts.first {
                     !matchedRemoteIDs.contains($0.id) && hostNaturalKey($0) == hostNaturalKey(lh)
                 }
@@ -215,14 +220,14 @@ enum SyncEngine {
 
     // MARK: - 主机身份与比较
 
-    /// 主机自然键：协议 | IP | 端口 | 名称。跨设备稳定，替代随机 UUID 作为同步身份。
+    /// 主机自然键：地址 | 端口 | 用户名 | 名称。供跨设备、不同 id 的主机匹配。
     private static func hostNaturalKey(_ host: Host) -> String {
-        "ssh|\(host.ipOrHost)|\(host.port)|\(host.name)"
+        "ssh|\(host.ipOrHost)|\(host.port)|\(host.ssh?.user ?? "")|\(host.name)"
     }
 
-    /// 回退键：协议 | IP | 端口。名称不同时仍能匹配为「同一台主机」，由冲突弹窗对比名称等差异。
+    /// 回退键不含名称，名称变化仍可匹配；不同登录账号不能合并。
     private static func hostFallbackKey(_ host: Host) -> String {
-        "ssh|\(host.ipOrHost)|\(host.port)"
+        "ssh|\(host.ipOrHost)|\(host.port)|\(host.ssh?.user ?? "")"
     }
 
     /// 采用远端内容但沿用本机 id：本机转发规则等对 hostId 的引用保持有效。

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 右侧功能窄栏（对齐 Termark）：40px 图标列，点开伴随面板（跟随当前主机）。
+/// 右侧功能窄栏：功能入口与后台任务中控常驻可见。
 /// 栏体只负责切换开合；面板内容见 [[CompanionPanel]]。
 struct RightBar: View {
     @ObservedObject var model: AppModel
@@ -9,21 +9,27 @@ struct RightBar: View {
     @ObservedObject private var theme = ThemeManager.shared
 
     var body: some View {
-        VStack(spacing: 4) {
-            ForEach(RightPanel.allCases, id: \.self) { panel in
-                RightBarButton(symbol: panel.symbol,
-                               selected: layout.rightPanel == panel,
-                               help: panel.title) {
-                    layout.rightPanel = layout.rightPanel == panel ? nil : panel
+        VStack(spacing: 0) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 7) {
+                    ForEach(RightPanel.allCases, id: \.self) { panel in
+                        RightBarButton(symbol: panel.symbol,
+                                       selected: layout.rightPanel == panel,
+                                       help: panel.title) {
+                            layout.rightPanel = layout.rightPanel == panel ? nil : panel
+                        }
+                    }
                 }
+                .padding(.top, 14)
             }
-            Spacer()
+            Rectangle().fill(Pal.border).frame(height: 1)
+            BackgroundCenterButton(model: model, arrowEdge: .leading)
+                .frame(height: 48)
         }
-        .padding(.top, 52)
-        .padding(.bottom, 10)
-        .frame(width: 40)
+        .frame(width: 48)
         .frame(maxHeight: .infinity)
-        .background(Pal.crust)
+        .background(Pal.mantle)
+        .overlay(alignment: .leading) { Rectangle().fill(Pal.border).frame(width: 1) }
     }
 }
 
@@ -39,7 +45,7 @@ private struct RightBarButton: View {
             Image(systemName: symbol)
                 .font(.system(size: 13))
                 .foregroundStyle(selected ? Pal.mauve : (hover ? Pal.subtext : Pal.overlay))
-                .frame(width: 30, height: 30)
+                .frame(width: 34, height: 34)
                 .background(
                     selected ? Pal.mauve.opacity(0.16) : (hover ? Pal.fill(0.08) : Color.clear),
                     in: RoundedRectangle(cornerRadius: 7)
@@ -50,17 +56,19 @@ private struct RightBarButton: View {
         .pointerCursor()
         .onHover { hover = $0 }
         .help(help)
+        .accessibilityLabel(help)
     }
 }
 
-/// 右侧伴随面板（对齐 Termark 功能面板）：跟随当前活动标签的主机展开。
+/// 右侧伴随面板：跟随当前活动标签的主机展开。
 /// - SFTP：复用 FileBrowser（同主机共享配置与连接池，且自带连接流程）
 /// - 监控：复用 MonitorPanel（仪表盘卡片）
-/// - 转发/片段/同步：复用各自面板
+/// - 转发/片段：复用各自面板
 struct CompanionPanel: View {
     @ObservedObject var model: AppModel
     @ObservedObject var layout: LayoutModel
     @ObservedObject var tabs: TabsModel
+    let panelWidth: CGFloat
     @ObservedObject private var theme = ThemeManager.shared
 
     /// 伴随面板固定用一个负的伪 tabId 存 FileBrowser 状态（真实 tabId 从 1 递增，永不冲突）。
@@ -74,8 +82,8 @@ struct CompanionPanel: View {
                 content(panel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(width: LayoutModel.rightPanelWidth)
-            .background(Pal.base)
+            .frame(width: panelWidth)
+            .background(Pal.mantle)
             .overlay(alignment: .leading) {
                 Rectangle().fill(Pal.border).frame(width: 1)
             }
@@ -140,12 +148,10 @@ struct CompanionPanel: View {
                 }
             case .forward:
                 if let host {
-                    PortForwardView(model: model, host: host)
+                    ForwardCompanion(model: model, host: host)
                 }
             case .snippets:
                 SnippetsPanel(model: model, tabs: tabs)
-            case .sync:
-                SyncPanel(model: model)
             }
         }
     }
@@ -168,14 +174,111 @@ private struct CompanionPlaceholder: View {
     }
 }
 
-/// 端口转发伴随面板：复用 ForwardManager 的规则列表（跟随主机上下文）。
-/// 退出时恢复进入前的面板主机，避免清掉概览页正在使用的转发面板。
+/// 窄栏只呈现隧道概况；需要编辑时打开完整管理窗口，避免 560pt 表单被挤进 280–360pt。
 private struct ForwardCompanion: View {
     @ObservedObject var model: AppModel
     let host: Host
-    @State private var prev: Host? = nil
+
+    private var rules: [ForwardRule] { model.forwardRules(for: host.id) }
 
     var body: some View {
-        PortForwardView(model: model, host: host)
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("SSH 隧道")
+                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.textBright)
+                Text("查看这台主机的转发状态。新建、编辑和删除规则请在管理窗口中完成。")
+                    .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Button { model.openForwardPanel(host) } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "slider.horizontal.3")
+                    Text("管理转发规则")
+                    Spacer()
+                    Image(systemName: "arrow.up.right").font(.system(size: 10))
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14).frame(height: 38)
+                .background(Pal.mauve, in: RoundedRectangle(cornerRadius: 9))
+            }
+            .buttonStyle(.plain).pointerCursor()
+
+            HStack {
+                Text("现有规则").font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.overlay)
+                Spacer()
+                Text("\(rules.count)").font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
+            }
+
+            if rules.isEmpty {
+                VStack(spacing: 9) {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 23)).foregroundStyle(Pal.overlay)
+                    Text("还没有转发规则")
+                        .font(.system(size: 12)).foregroundStyle(Pal.subtext)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(rules) { rule in
+                            ForwardCompanionRow(rule: rule, manager: model.forwardManager(for: host))
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct ForwardCompanionRow: View {
+    let rule: ForwardRule
+    @ObservedObject var manager: ForwardManager
+
+    var body: some View {
+        let status = manager.status(rule.id)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Circle().fill(statusColor(status)).frame(width: 7, height: 7)
+                Text(rule.name.isEmpty ? rule.kind.title : rule.name)
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Text(statusTitle(status))
+                    .font(.system(size: 10)).foregroundStyle(statusColor(status))
+            }
+            Text(rule.summary)
+                .font(.system(size: 10, design: .monospaced)).foregroundStyle(Pal.subtext)
+                .lineLimit(2).truncationMode(.middle)
+            if case .failed(let reason) = status {
+                Text(reason).font(.system(size: 10)).foregroundStyle(Pal.red)
+                    .lineLimit(2).truncationMode(.tail)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Pal.card, in: RoundedRectangle(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.border, lineWidth: 1))
+    }
+
+    private func statusTitle(_ status: ForwardManager.RuleStatus) -> LocalizedStringKey {
+        switch status {
+        case .stopped: return "未运行"
+        case .starting: return "连接中"
+        case .active: return "运行中"
+        case .failed: return "失败"
+        }
+    }
+
+    private func statusColor(_ status: ForwardManager.RuleStatus) -> Color {
+        switch status {
+        case .stopped: return Pal.overlay
+        case .starting: return Pal.yellow
+        case .active: return Pal.green
+        case .failed: return Pal.red
+        }
     }
 }

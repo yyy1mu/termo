@@ -27,19 +27,26 @@ struct Sidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 顶部：留出 macOS 红黄绿按钮区域，然后是「主机」标题行 + 新建按钮
-            Spacer().frame(height: 44)
+            // 主区域负责主机导航；跨设备同步入口固定在底部全局区。
             HStack(spacing: 8) {
-                Text(String(localized: "主机"))
-                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Pal.text)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("连接空间")
+                        .font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.textBright)
+                    Text("\(model.hosts.count) 台主机")
+                        .font(.system(size: 10)).foregroundStyle(Pal.overlay)
+                }
                 Spacer()
                 Button { model.showAddHost = true } label: {
-                    Image(systemName: "plus").font(.system(size: 13)).foregroundStyle(Pal.mauve)
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.mauve)
+                        .frame(width: 28, height: 28)
+                        .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
                 }
                 .buttonStyle(.plain).pointerCursor().help(String(localized: "添加主机"))
             }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 10)
+            .padding(.horizontal, 16)
+            .padding(.top, 18)
+            .padding(.bottom, 16)
 
             searchBox()
 
@@ -49,12 +56,41 @@ struct Sidebar: View {
                 ScrollView { hostList }.padding(.top, 6)
             }
 
+            Rectangle().fill(Pal.border).frame(height: 1)
+            syncNavigation
             hostsBottomBar
         }
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Pal.crust)
+        .frame(width: layout.sidebarWidth, alignment: .leading)
+        .background(Pal.mantle)
         .clipped()
         .onChange(of: tabs.activeTabId) { _ in searchFocused = false }
+    }
+
+    private var syncNavigation: some View {
+        Button {
+            model.settingsTab = .sync
+            model.showSettings = true
+        } label: {
+            HStack(spacing: 9) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 12)).foregroundStyle(Pal.mauve)
+                    .frame(width: 19)
+                Text("同步与备份")
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.subtext)
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 10)).foregroundStyle(Pal.overlay)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 36)
+            .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .pointerCursor()
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
     }
 
 
@@ -72,7 +108,7 @@ struct Sidebar: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(Pal.crust)
+        .background(Pal.mantle)
     }
 
     private func cornerIcon(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
@@ -108,10 +144,11 @@ struct Sidebar: View {
             .pointerCursor()
             .help(model.privacyMode ? String(localized: "显示真实信息") : String(localized: "脱敏显示(隐藏 IP / 主机名)"))
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
-        .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 9)
+        .background(Pal.base, in: RoundedRectangle(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.border, lineWidth: 1))
+        .padding(.horizontal, 14)
     }
 
     /// 活动栏「文件」面板：有活动主机时显示其文件树，否则提示。
@@ -216,6 +253,7 @@ struct HostRow: View {
                 HostLeadingIcon(host: host)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(host.name).font(.system(size: 13)).foregroundStyle(Pal.text)
+                        .lineLimit(1).truncationMode(.middle)
                     Text(host.ipOrHost)
                         .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                         .lineLimit(1)
@@ -229,8 +267,8 @@ struct HostRow: View {
             }
             .padding(.horizontal, 8).padding(.vertical, 9)
             .background(
-                isActive ? Pal.mauve.opacity(0.10) : (hover ? Pal.fill(0.05) : Pal.card),
-                in: RoundedRectangle(cornerRadius: 8)
+                isActive ? Pal.mauve.opacity(0.12) : (hover ? Pal.fill(0.05) : Color.clear),
+                in: RoundedRectangle(cornerRadius: 9)
             )
             .overlay(alignment: .leading) {
                 if isActive {
@@ -240,7 +278,7 @@ struct HostRow: View {
                 }
             }
             .overlay(
-                RoundedRectangle(cornerRadius: 8).stroke(isActive ? Pal.mauve.opacity(0.22) : Pal.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 9).stroke(isActive ? Pal.mauve.opacity(0.24) : Color.clear, lineWidth: 1)
             )
             .animation(.easeOut(duration: 0.18), value: isActive)   // 选中高亮丝滑淡入淡出
             .animation(.easeOut(duration: 0.12), value: hover)

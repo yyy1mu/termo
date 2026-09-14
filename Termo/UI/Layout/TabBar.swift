@@ -1,5 +1,61 @@
 import SwiftUI
 
+/// 工作台顶栏：左侧保留系统交通灯，中央是会话，右侧集中全局操作。
+struct WorkbenchHeader: View {
+    let model: AppModel
+    @ObservedObject var tabs: TabsModel
+    @ObservedObject var layout: LayoutModel
+    @ObservedObject private var theme = ThemeManager.shared
+
+    var body: some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 9) {
+                Color.clear.frame(width: 72)
+                Image(systemName: "terminal.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Pal.mauve)
+                    .frame(width: 25, height: 25)
+                    .background(Pal.mauve.opacity(0.13), in: RoundedRectangle(cornerRadius: 7))
+                Text("TERMO")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .tracking(1.8)
+                    .foregroundStyle(Pal.textBright)
+                Spacer(minLength: 0)
+                headerButton("sidebar.left", help: String(localized: "切换侧栏")) {
+                    layout.sidebarWidth = layout.sidebarWidth < 10 ? 252 : 0
+                }
+            }
+            .padding(.trailing, 8)
+            .frame(width: max(layout.sidebarWidth, 220))
+
+            Rectangle().fill(Pal.border).frame(width: 1, height: 24)
+            TabBar(model: model, tabs: tabs)
+
+            HStack(spacing: 3) {
+                headerButton("plus", help: String(localized: "添加主机")) { model.showAddHost = true }
+                headerButton("gearshape", help: String(localized: "设置")) { model.showSettings = true }
+            }
+            .padding(.horizontal, 10)
+        }
+        .frame(height: 52)
+        .background(Pal.crust)
+    }
+
+    private func headerButton(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Pal.subtext)
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .pointerCursor()
+        .help(help)
+        .accessibilityLabel(help)
+    }
+}
+
 struct TabBar: View {
     let model: AppModel
     @ObservedObject var tabs: TabsModel
@@ -24,25 +80,25 @@ struct TabBar: View {
                             })
                     }
                 }
-                .coordinateSpace(name: "tabstrip")
+                .coordinateSpace(.named("tabstrip"))
                 .onPreferenceChange(TabFramesKey.self) { frames = $0 }
             }
             if AppEnv.localTerminalEnabled {   // MAS 沙盒下隐藏本地终端入口
                 Button {
                     model.openLocalTerminal()
                 } label: {
-                    Image(systemName: "plus").font(.system(size: 13)).foregroundStyle(Pal.overlay)
-                        .frame(width: 24, height: 34)
-                        .offset(y: -5)
+                    Image(systemName: "terminal")
+                        .font(.system(size: 13)).foregroundStyle(Pal.subtext)
+                        .frame(width: 30, height: 30)
+                        .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 7))
                 }
                 .buttonStyle(.plain)
                 .pointerCursor()
+                .help(String(localized: "新建本地终端"))
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 10)
+        .padding(.horizontal, 10)
         .frame(maxWidth: .infinity)
-        .background(Pal.mantle)
     }
 }
 
@@ -85,10 +141,17 @@ struct TabChip: View {
     var body: some View {
         let active = tabs.activeTabId == tab.id
         HStack(spacing: 7) {
-            tabIcon(active: active)
-            Text(tab.title).font(.system(size: 12))
-                .foregroundStyle(active ? Pal.text : Pal.subtext)
-                .lineLimit(1).fixedSize(horizontal: true, vertical: false)   // 不截断；超出由标签栏横向滚动
+            Button { model.selectTab(tab.id) } label: {
+                HStack(spacing: 7) {
+                    tabIcon(active: active)
+                    Text(tab.title).font(.system(size: 12))
+                        .foregroundStyle(active ? Pal.text : Pal.subtext)
+                        .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .pointerCursor()
             Button {
                 model.closeTab(tab.id)
             } label: {
@@ -102,16 +165,15 @@ struct TabChip: View {
                 }
                 .buttonStyle(.plain)
                 .opacity(active || hover ? 1 : 0)
+                .help(String(localized: "关闭标签"))
         }
-        .padding(.leading, 10).padding(.trailing, 6).padding(.vertical, 4)
+        .padding(.leading, 11).padding(.trailing, 7).padding(.vertical, 7)
         .background(
-            active ? Pal.fill(0.08) : (hover ? Pal.fill(0.04) : Color.clear),
-            in: RoundedRectangle(cornerRadius: 7)
+            active ? Pal.card : (hover ? Pal.fill(0.07) : Color.clear),
+            in: RoundedRectangle(cornerRadius: 8)
         )
         .contentShape(Rectangle())
-        .onTapGesture { model.selectTab(tab.id) }
         .onHover { hover = $0 }
-        .pointerCursor()
         .accessibilityIdentifier(String(tab.id))
         .contextMenu {
             Button { model.closeTab(tab.id) } label: { Label("关闭当前", systemImage: "xmark") }
@@ -122,4 +184,3 @@ struct TabChip: View {
         }
     }
 }
-

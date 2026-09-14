@@ -149,6 +149,7 @@ private struct ForwardBreathingDot: View {
 /// 有可度量的传输时，沿按钮圆角边缘绘制一圈细进度环（overlay，不占布局，不改变按钮尺寸）。
 struct BackgroundCenterButton: View {
     @ObservedObject var model: AppModel
+    var arrowEdge: Edge = .trailing
     @StateObject private var progress = BackgroundProgressModel()
     @State private var open = false
     @State private var hover = false
@@ -192,7 +193,7 @@ struct BackgroundCenterButton: View {
         .pointerCursor()
         .onHover { hover = $0 }
         .help(String(localized: "后台任务"))
-        .popover(isPresented: $open, arrowEdge: .trailing) {
+        .popover(isPresented: $open, arrowEdge: arrowEdge) {
             BackgroundCenterPanel(model: model, dismiss: { open = false })
         }
     }

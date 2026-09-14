@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "2660"
+   LastUpgradeVersion = "1430"
    version = "1.3">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -14,9 +14,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "C30F527531995F0E3B3DFE49"
+               BlueprintIdentifier = "3827CF9BD8686ACED0D922E6"
                BuildableName = "Termo.app"
-               BlueprintName = "Termo"
+               BlueprintName = "Termo-Watch"
                ReferencedContainer = "container:Termo.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -30,9 +30,9 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "C30F527531995F0E3B3DFE49"
+            BlueprintIdentifier = "3827CF9BD8686ACED0D922E6"
             BuildableName = "Termo.app"
-            BlueprintName = "Termo"
+            BlueprintName = "Termo-Watch"
             ReferencedContainer = "container:Termo.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -40,7 +40,7 @@
       </Testables>
    </TestAction>
    <LaunchAction
-      buildConfiguration = "DebugMAS"
+      buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
@@ -53,9 +53,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "C30F527531995F0E3B3DFE49"
+            BlueprintIdentifier = "3827CF9BD8686ACED0D922E6"
             BuildableName = "Termo.app"
-            BlueprintName = "Termo"
+            BlueprintName = "Termo-Watch"
             ReferencedContainer = "container:Termo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -70,9 +70,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "C30F527531995F0E3B3DFE49"
+            BlueprintIdentifier = "3827CF9BD8686ACED0D922E6"
             BuildableName = "Termo.app"
-            BlueprintName = "Termo"
+            BlueprintName = "Termo-Watch"
             ReferencedContainer = "container:Termo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -81,7 +81,7 @@
       buildConfiguration = "Debug">
    </AnalyzeAction>
    <ArchiveAction
-      buildConfiguration = "ReleaseMAS"
+      buildConfiguration = "Release"
       revealArchiveInOrganizer = "YES">
    </ArchiveAction>
 </Scheme>
