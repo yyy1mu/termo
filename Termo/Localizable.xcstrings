@@ -31,52 +31,1004 @@
         }
       }
     },
-    "（可选，保存到系统钥匙串）": {
+    "#!/bin/bash": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "(Optional, saved to the system Keychain)"
+            "value": "#!/bin/bash"
           }
         }
       }
     },
-    "（可选，给私钥加密）": {
+    "%@ %lld 项": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "(Optional, encrypts the private key)"
+            "value": "%@ %lld items"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ %2$lld 项"
           }
         }
       }
     },
-    "（可选）": {
+    "%@ %lld%%，已持续约 %lld 秒": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "(Optional)"
+            "value": "%@ %lld%%, for about %lld s"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ %2$lld%%，已持续约 %3$lld 秒"
           }
         }
       }
     },
-    "（无指纹）": {
+    "%@ / %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "(No fingerprint)"
+            "value": "%@ / %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ / %2$@"
           }
         }
       }
     },
-    "（私钥有 passphrase 时填写）": {
+    "%@ · %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "(Fill in if the private key has a passphrase)"
+            "value": "%@ · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ · %@ · %lld 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@ · %lld items"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · %2$@ · %3$lld 项"
+          }
+        }
+      }
+    },
+    "%@ · 端口 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · Port %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · 端口 %2$@"
+          }
+        }
+      }
+    },
+    "%@ — 超出编辑器的打开上限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — exceeds the editor's open limit"
+          }
+        }
+      }
+    },
+    "%@ 资源告警": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Resource Alert"
+          }
+        }
+      }
+    },
+    "%@:%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@:%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@:%2$lld"
+          }
+        }
+      }
+    },
+    "%@中": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ing"
+          }
+        }
+      }
+    },
+    "%@完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ complete"
+          }
+        }
+      }
+    },
+    "%@模块开发中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ module in development"
+          }
+        }
+      }
+    },
+    "%@部分失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ partially failed"
+          }
+        }
+      }
+    },
+    "%@：": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@:"
+          }
+        }
+      }
+    },
+    "%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        }
+      }
+    },
+    "%lld ms": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ms"
+          }
+        }
+      }
+    },
+    "%lld 个文件 · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld files · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld 个文件 · %2$@"
+          }
+        }
+      }
+    },
+    "%lld 核": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld cores"
+          }
+        }
+      }
+    },
+    "%lld 行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld lines"
+          }
+        }
+      }
+    },
+    "%lld 进行中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld in progress"
+          }
+        }
+      }
+    },
+    "%lld%%": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld%%"
+          }
+        }
+      }
+    },
+    "%lld%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld%2$@"
+          }
+        }
+      }
+    },
+    "%lld×%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld×%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld×%2$lld"
+          }
+        }
+      }
+    },
+    "/": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/"
+          }
+        }
+      }
+    },
+    "1 个": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1"
+          }
+        }
+      }
+    },
+    "1,000 行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1,000 lines"
+          }
+        }
+      }
+    },
+    "10,000 行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10,000 lines"
+          }
+        }
+      }
+    },
+    "10000": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10000"
+          }
+        }
+      }
+    },
+    "1080": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1080"
+          }
+        }
+      }
+    },
+    "127.0.0.1": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "127.0.0.1"
+          }
+        }
+      }
+    },
+    "16 位": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "16-bit"
+          }
+        }
+      }
+    },
+    "192.168.1.1 或 example.com": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "192.168.1.1 or example.com"
+          }
+        }
+      }
+    },
+    "192.168.1.10 或 host.example.com": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "192.168.1.10 or host.example.com"
+          }
+        }
+      }
+    },
+    "1920": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1920"
+          }
+        }
+      }
+    },
+    "2 个": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2"
+          }
+        }
+      }
+    },
+    "22": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "22"
+          }
+        }
+      }
+    },
+    "24 位": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "24-bit"
+          }
+        }
+      }
+    },
+    "3 个": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3"
+          }
+        }
+      }
+    },
+    "32 位": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "32-bit"
+          }
+        }
+      }
+    },
+    "3389": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3389"
+          }
+        }
+      }
+    },
+    "3des-cbc (旧)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3des-cbc (legacy)"
+          }
+        }
+      }
+    },
+    "4 个": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4"
+          }
+        }
+      }
+    },
+    "5 个": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5"
+          }
+        }
+      }
+    },
+    "5,000 行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5,000 lines"
+          }
+        }
+      }
+    },
+    "50,000 行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "50,000 lines"
+          }
+        }
+      }
+    },
+    "500 行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "500 lines"
+          }
+        }
+      }
+    },
+    "5000": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5000"
+          }
+        }
+      }
+    },
+    "755": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "755"
+          }
+        }
+      }
+    },
+    "Administrator": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Administrator"
+          }
+        }
+      }
+    },
+    "Big5 (繁体)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Big5 (Traditional Chinese)"
+          }
+        }
+      }
+    },
+    "CPU 使用率": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU Usage"
+          }
+        }
+      }
+    },
+    "Cipher 算法": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cipher Algorithm"
+          }
+        }
+      }
+    },
+    "EUC-JP (日文)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EUC-JP (Japanese)"
+          }
+        }
+      }
+    },
+    "EUC-KR (韩文)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EUC-KR (Korean)"
+          }
+        }
+      }
+    },
+    "ISO-8859-1 (西欧)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISO-8859-1 (Western European)"
+          }
+        }
+      }
+    },
+    "KOI8-R (俄文)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KOI8-R (Russian)"
+          }
+        }
+      }
+    },
+    "NLA（网络级认证）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NLA (Network Level Authentication)"
+          }
+        }
+      }
+    },
+    "Privacy Policy": {},
+    "RDP 剪贴板同步": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RDP Clipboard Sync"
+          }
+        }
+      }
+    },
+    "RDP 打开方式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RDP Open Mode"
+          }
+        }
+      }
+    },
+    "RDP 新窗口全屏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full Screen for New RDP Windows"
+          }
+        }
+      }
+    },
+    "RDP 证书「%@:%lld」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RDP Certificate “%@:%lld”"
+          }
+        }
+      }
+    },
+    "RDP 连接成功后内嵌为标签还是在新窗口打开；「每次询问」会弹出选择且可记住": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Whether a successful RDP connection opens as an embedded tab or in a new window. \"Always Ask\" prompts you to choose and can remember your choice."
+          }
+        }
+      }
+    },
+    "RDP 连接的本地与远端剪贴板双向同步纯文本（复制粘贴互通）；关闭则两端剪贴板互不影响": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync plain text between the local and remote clipboards in both directions for RDP connections (copy and paste across both). When off, the two clipboards stay independent."
+          }
+        }
+      }
+    },
+    "SFTP 写入失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SFTP write failed"
+          }
+        }
+      }
+    },
+    "SFTP 初始化失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SFTP initialization failed"
+          }
+        }
+      }
+    },
+    "SFTP 已关闭": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SFTP closed"
+          }
+        }
+      }
+    },
+    "SFTP 目录读取失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SFTP directory read failed"
+          }
+        }
+      }
+    },
+    "SFTP 读取失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SFTP read failed"
+          }
+        }
+      }
+    },
+    "SFTP 连接失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SFTP connection failed"
+          }
+        }
+      }
+    },
+    "SFTP 连接错误": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SFTP connection error"
+          }
+        }
+      }
+    },
+    "SFTP 错误 %u": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SFTP error %u"
+          }
+        }
+      }
+    },
+    "SSH 协议握手": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH handshake"
+          }
+        }
+      }
+    },
+    "Shift_JIS (日文)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shift_JIS (Japanese)"
+          }
+        }
+      }
+    },
+    "Termo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Termo"
+          }
+        }
+      }
+    },
+    "WORKGROUP / 域名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WORKGROUP / Domain"
+          }
+        }
+      }
+    },
+    "WebDAV 地址或远程路径无效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid WebDAV address or remote path"
+          }
+        }
+      }
+    },
+    "WebDAV 服务器": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WebDAV Server"
+          }
+        }
+      }
+    },
+    "WebDAV 服务器返回错误（HTTP %lld）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WebDAV server error (HTTP %lld)"
+          }
+        }
+      }
+    },
+    "WebDAV 认证失败，请检查用户名与密码": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WebDAV authentication failed. Check your username and password"
+          }
+        }
+      }
+    },
+    "Windows-1251 (西里尔)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Windows-1251 (Cyrillic)"
+          }
+        }
+      }
+    },
+    "aes128-cbc (旧)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aes128-cbc (legacy)"
+          }
+        }
+      }
+    },
+    "aes256-cbc (旧)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aes256-cbc (legacy)"
+          }
+        }
+      }
+    },
+    "df -h\n支持多行；用 {{变量}} 占位，运行时填值": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "df -h\nMultiple lines supported. Use {{variable}} placeholders, filled in at runtime."
+          }
+        }
+      }
+    },
+    "dh-group14-sha1 (旧)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dh-group14-sha1 (legacy)"
+          }
+        }
+      }
+    },
+    "localhost": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "localhost"
+          }
+        }
+      }
+    },
+    "root": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "root"
+          }
+        }
+      }
+    },
+    "socks5://127.0.0.1:10808": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "socks5://127.0.0.1:10808"
+          }
+        }
+      }
+    },
+    "ssh-dss (旧)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ssh-dss (legacy)"
+          }
+        }
+      }
+    },
+    "ssh-rsa (旧)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ssh-rsa (legacy)"
+          }
+        }
+      }
+    },
+    "user@host（可选，写入公钥尾部）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "user@host (optional, appended to the public key)"
+          }
+        }
+      }
+    },
+    "~": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "~"
+          }
+        }
+      }
+    },
+    "~/.ssh/id_ed25519": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "~/.ssh/id_ed25519"
+          }
+        }
+      }
+    },
+    "•": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "•"
           }
         }
       }
@@ -177,928 +1129,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "When opening in a new window, whether new Remote Desktop windows enter full screen by default."
-          }
-        }
-      }
-    },
-    "/": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "/"
-          }
-        }
-      }
-    },
-    "#!/bin/bash": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "#!/bin/bash"
-          }
-        }
-      }
-    },
-    "%@ — 超出编辑器的打开上限": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ — exceeds the editor's open limit"
-          }
-        }
-      }
-    },
-    "%@ · %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ · %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@ · %2$@"
-          }
-        }
-      }
-    },
-    "%@ · %@ · %lld 项": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ · %@ · %lld items"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@ · %2$@ · %3$lld 项"
-          }
-        }
-      }
-    },
-    "%@ · 端口 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ · Port %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@ · 端口 %2$@"
-          }
-        }
-      }
-    },
-    "%@ / %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ / %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@ / %2$@"
-          }
-        }
-      }
-    },
-    "%@ %lld 项": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ %lld items"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@ %2$lld 项"
-          }
-        }
-      }
-    },
-    "%@ %lld%%，已持续约 %lld 秒": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ %lld%%, for about %lld s"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@ %2$lld%%，已持续约 %3$lld 秒"
-          }
-        }
-      }
-    },
-    "%@ 资源告警": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ Resource Alert"
-          }
-        }
-      }
-    },
-    "%@：": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@:"
-          }
-        }
-      }
-    },
-    "%@:%lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@:%lld"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@:%2$lld"
-          }
-        }
-      }
-    },
-    "%@中": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ing"
-          }
-        }
-      }
-    },
-    "%@完成": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ complete"
-          }
-        }
-      }
-    },
-    "%@模块开发中": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ module in development"
-          }
-        }
-      }
-    },
-    "%@部分失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ partially failed"
-          }
-        }
-      }
-    },
-    "%lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld"
-          }
-        }
-      }
-    },
-    "%lld ms": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld ms"
-          }
-        }
-      }
-    },
-    "%lld 个文件 · %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld files · %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$lld 个文件 · %2$@"
-          }
-        }
-      }
-    },
-    "%lld 核": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld cores"
-          }
-        }
-      }
-    },
-    "%lld 行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld lines"
-          }
-        }
-      }
-    },
-    "%lld 进行中": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld in progress"
-          }
-        }
-      }
-    },
-    "%lld%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld%@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$lld%2$@"
-          }
-        }
-      }
-    },
-    "%lld%%": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld%%"
-          }
-        }
-      }
-    },
-    "%lld×%lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld×%lld"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$lld×%2$lld"
-          }
-        }
-      }
-    },
-    "•": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "•"
-          }
-        }
-      }
-    },
-    "~": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~"
-          }
-        }
-      }
-    },
-    "~/.ssh/id_ed25519": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~/.ssh/id_ed25519"
-          }
-        }
-      }
-    },
-    "1 个": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1"
-          }
-        }
-      }
-    },
-    "1,000 行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1,000 lines"
-          }
-        }
-      }
-    },
-    "2 个": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "2"
-          }
-        }
-      }
-    },
-    "3 个": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "3"
-          }
-        }
-      }
-    },
-    "3des-cbc (旧)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "3des-cbc (legacy)"
-          }
-        }
-      }
-    },
-    "4 个": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4"
-          }
-        }
-      }
-    },
-    "5 个": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "5"
-          }
-        }
-      }
-    },
-    "5,000 行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "5,000 lines"
-          }
-        }
-      }
-    },
-    "10,000 行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "10,000 lines"
-          }
-        }
-      }
-    },
-    "16 位": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "16-bit"
-          }
-        }
-      }
-    },
-    "22": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "22"
-          }
-        }
-      }
-    },
-    "24 位": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "24-bit"
-          }
-        }
-      }
-    },
-    "32 位": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "32-bit"
-          }
-        }
-      }
-    },
-    "50,000 行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "50,000 lines"
-          }
-        }
-      }
-    },
-    "127.0.0.1": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "127.0.0.1"
-          }
-        }
-      }
-    },
-    "192.168.1.1 或 example.com": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "192.168.1.1 or example.com"
-          }
-        }
-      }
-    },
-    "192.168.1.10 或 host.example.com": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "192.168.1.10 or host.example.com"
-          }
-        }
-      }
-    },
-    "500 行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "500 lines"
-          }
-        }
-      }
-    },
-    "755": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "755"
-          }
-        }
-      }
-    },
-    "1080": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1080"
-          }
-        }
-      }
-    },
-    "1920": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1920"
-          }
-        }
-      }
-    },
-    "3389": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "3389"
-          }
-        }
-      }
-    },
-    "5000": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "5000"
-          }
-        }
-      }
-    },
-    "10000": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "10000"
-          }
-        }
-      }
-    },
-    "Administrator": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Administrator"
-          }
-        }
-      }
-    },
-    "aes128-cbc (旧)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "aes128-cbc (legacy)"
-          }
-        }
-      }
-    },
-    "aes256-cbc (旧)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "aes256-cbc (legacy)"
-          }
-        }
-      }
-    },
-    "Big5 (繁体)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Big5 (Traditional Chinese)"
-          }
-        }
-      }
-    },
-    "Cipher 算法": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cipher Algorithm"
-          }
-        }
-      }
-    },
-    "CPU 使用率": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CPU Usage"
-          }
-        }
-      }
-    },
-    "df -h\n支持多行；用 {{变量}} 占位，运行时填值": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "df -h\nMultiple lines supported. Use {{variable}} placeholders, filled in at runtime."
-          }
-        }
-      }
-    },
-    "dh-group14-sha1 (旧)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dh-group14-sha1 (legacy)"
-          }
-        }
-      }
-    },
-    "EUC-JP (日文)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "EUC-JP (Japanese)"
-          }
-        }
-      }
-    },
-    "EUC-KR (韩文)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "EUC-KR (Korean)"
-          }
-        }
-      }
-    },
-    "ISO-8859-1 (西欧)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ISO-8859-1 (Western European)"
-          }
-        }
-      }
-    },
-    "KOI8-R (俄文)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "KOI8-R (Russian)"
-          }
-        }
-      }
-    },
-    "localhost": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "localhost"
-          }
-        }
-      }
-    },
-    "NLA（网络级认证）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NLA (Network Level Authentication)"
-          }
-        }
-      }
-    },
-    "Privacy Policy": {},
-    "RDP 连接成功后内嵌为标签还是在新窗口打开；「每次询问」会弹出选择且可记住": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Whether a successful RDP connection opens as an embedded tab or in a new window. \"Always Ask\" prompts you to choose and can remember your choice."
-          }
-        }
-      }
-    },
-    "RDP 连接的本地与远端剪贴板双向同步纯文本（复制粘贴互通）；关闭则两端剪贴板互不影响": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sync plain text between the local and remote clipboards in both directions for RDP connections (copy and paste across both). When off, the two clipboards stay independent."
-          }
-        }
-      }
-    },
-    "root": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "root"
-          }
-        }
-      }
-    },
-    "SFTP 写入失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SFTP write failed"
-          }
-        }
-      }
-    },
-    "SFTP 初始化失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SFTP initialization failed"
-          }
-        }
-      }
-    },
-    "SFTP 已关闭": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SFTP closed"
-          }
-        }
-      }
-    },
-    "SFTP 目录读取失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SFTP directory read failed"
-          }
-        }
-      }
-    },
-    "SFTP 读取失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SFTP read failed"
-          }
-        }
-      }
-    },
-    "SFTP 连接失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SFTP connection failed"
-          }
-        }
-      }
-    },
-    "SFTP 连接错误": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SFTP connection error"
-          }
-        }
-      }
-    },
-    "SFTP 错误 %u": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SFTP error %u"
-          }
-        }
-      }
-    },
-    "Shift_JIS (日文)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Shift_JIS (Japanese)"
-          }
-        }
-      }
-    },
-    "socks5://127.0.0.1:10808": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "socks5://127.0.0.1:10808"
-          }
-        }
-      }
-    },
-    "SSH 协议握手": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SSH handshake"
-          }
-        }
-      }
-    },
-    "ssh-dss (旧)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ssh-dss (legacy)"
-          }
-        }
-      }
-    },
-    "ssh-rsa (旧)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ssh-rsa (legacy)"
-          }
-        }
-      }
-    },
-    "Termo": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Termo"
-          }
-        }
-      }
-    },
-    "user@host（可选，写入公钥尾部）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "user@host (optional, appended to the public key)"
-          }
-        }
-      }
-    },
-    "Windows-1251 (西里尔)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Windows-1251 (Cyrillic)"
-          }
-        }
-      }
-    },
-    "WORKGROUP / 域名": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "WORKGROUP / Domain"
           }
         }
       }
@@ -1213,6 +1243,36 @@
         }
       }
     },
+    "上传本机覆盖远端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upload Local (Overwrite Remote)"
+          }
+        }
+      }
+    },
+    "上次同步：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last synced: %@"
+          }
+        }
+      }
+    },
+    "上次检查失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last check failed"
+          }
+        }
+      }
+    },
     "上次检查：": {
       "localizations": {
         "en": {
@@ -1229,16 +1289,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Last checked: just now"
-          }
-        }
-      }
-    },
-    "上次检查失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last check failed"
           }
         }
       }
@@ -1393,6 +1443,16 @@
         }
       }
     },
+    "不是有效的 Termo 备份文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not a valid Termo backup file"
+          }
+        }
+      }
+    },
     "不是目录": {
       "localizations": {
         "en": {
@@ -1409,6 +1469,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Body"
+          }
+        }
+      }
+    },
+    "主密码至少 8 位（用于加密备份）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Master password must be at least 8 characters (used to encrypt backups)"
+          }
+        }
+      }
+    },
+    "主密码错误，或备份文件已损坏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incorrect master password, or the backup file is corrupted"
+          }
+        }
+      }
+    },
+    "主密码（端到端加密）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Master Password (End-to-End Encryption)"
+          }
+        }
+      }
+    },
+    "主密码（至少 8 位）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Master password (min. 8 characters)"
           }
         }
       }
@@ -1433,6 +1533,16 @@
         }
       }
     },
+    "主机「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Host “%@”"
+          }
+        }
+      }
+    },
     "主机备注": {
       "localizations": {
         "en": {
@@ -1449,6 +1559,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Host Key Algorithms"
+          }
+        }
+      }
+    },
+    "主题": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subject"
           }
         }
       }
@@ -1523,12 +1643,12 @@
         }
       }
     },
-    "从左侧选择一台主机，或打开一个本地终端开始。": {
+    "从 WebDAV 导入": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Select a host on the left, or open a local terminal to get started."
+            "value": "Import from WebDAV"
           }
         }
       }
@@ -1539,6 +1659,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Select a host on the left to get started."
+          }
+        }
+      }
+    },
+    "从左侧选择一台主机，或打开一个本地终端开始。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a host on the left, or open a local terminal to get started."
+          }
+        }
+      }
+    },
+    "从文件导入…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import from File…"
           }
         }
       }
@@ -1563,26 +1703,6 @@
         }
       }
     },
-    "代理：%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proxy: %@"
-          }
-        }
-      }
-    },
-    "代理：已禁用": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proxy: Disabled"
-          }
-        }
-      }
-    },
     "代理端口": {
       "localizations": {
         "en": {
@@ -1603,6 +1723,26 @@
         }
       }
     },
+    "代理：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proxy: %@"
+          }
+        }
+      }
+    },
+    "代理：已禁用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proxy: Disabled"
+          }
+        }
+      }
+    },
     "代码片段": {
       "localizations": {
         "en": {
@@ -1619,6 +1759,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "How Snippets Run"
+          }
+        }
+      }
+    },
+    "以下 %lld 项在本机与远端不同，请逐项选择保留哪边。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The following %lld items differ between this Mac and the remote. Choose which to keep for each."
           }
         }
       }
@@ -1659,6 +1809,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Use Snippet"
+          }
+        }
+      }
+    },
+    "使用远端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Remote"
           }
         }
       }
@@ -1709,6 +1869,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save failed (exit code %d)"
+          }
+        }
+      }
+    },
+    "保存配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Config"
+          }
+        }
+      }
+    },
+    "保留本机": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Local"
           }
         }
       }
@@ -1823,6 +2003,26 @@
         }
       }
     },
+    "全部使用远端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Remote for All"
+          }
+        }
+      }
+    },
+    "全部保留本机": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Local for All"
+          }
+        }
+      }
+    },
     "全部关闭": {
       "localizations": {
         "en": {
@@ -1859,6 +2059,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Public Key"
+          }
+        }
+      }
+    },
+    "关": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
           }
         }
       }
@@ -2073,6 +2283,16 @@
         }
       }
     },
+    "内容": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Content"
+          }
+        }
+      }
+    },
     "内容解码失败": {
       "localizations": {
         "en": {
@@ -2213,22 +2433,22 @@
         }
       }
     },
-    "删除 (%lld)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete (%lld)"
-          }
-        }
-      }
-    },
     "删除 %lld 个项目？": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Delete %lld items?"
+          }
+        }
+      }
+    },
+    "删除 (%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete (%lld)"
           }
         }
       }
@@ -2313,6 +2533,16 @@
         }
       }
     },
+    "删除确认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Confirmation"
+          }
+        }
+      }
+    },
     "删除转发规则「%@」？": {
       "localizations": {
         "en": {
@@ -2383,22 +2613,22 @@
         }
       }
     },
-    "剪切": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cut"
-          }
-        }
-      }
-    },
     "剩余 %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ remaining"
+          }
+        }
+      }
+    },
+    "剪切": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cut"
           }
         }
       }
@@ -2413,12 +2643,32 @@
         }
       }
     },
+    "协议": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protocol"
+          }
+        }
+      }
+    },
     "原信任指纹：%@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Previously trusted fingerprint: %@"
+          }
+        }
+      }
+    },
+    "发现 %lld 处冲突，请选择保留哪边": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Found %lld conflicts — choose which side to keep"
           }
         }
       }
@@ -2483,12 +2733,72 @@
         }
       }
     },
+    "合并同步": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge & Sync"
+          }
+        }
+      }
+    },
+    "合并按 id 双向进行，冲突时逐项选择；删除不会同步（另一端下次会带回）。语言等设置同步后需重启生效。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge runs both ways by ID; resolve conflicts item by item. Deletions are not synced (the other side will bring them back). Language and other settings take effect after a restart."
+          }
+        }
+      }
+    },
     "同时进行的上传/下载数量（共用一个池），超出自动排队": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Number of concurrent uploads/downloads (sharing one pool); anything beyond is queued automatically"
+          }
+        }
+      }
+    },
+    "同步": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync"
+          }
+        }
+      }
+    },
+    "同步完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync complete"
+          }
+        }
+      }
+    },
+    "同步完成（仅本机 %lld 项，仅远端 %lld 项）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync complete (local-only: %lld, remote-only: %lld)"
+          }
+        }
+      }
+    },
+    "同步完成，无变更": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync complete — no changes"
           }
         }
       }
@@ -2763,6 +3073,26 @@
         }
       }
     },
+    "备份上传前用主密码加密，WebDAV 上只有密文；主密码不保存，各设备需一致。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backups are encrypted with the master password before upload, so WebDAV stores only ciphertext. The master password is never saved and must match on every device."
+          }
+        }
+      }
+    },
+    "备份内容无法解析": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to parse backup contents"
+          }
+        }
+      }
+    },
     "备注": {
       "localizations": {
         "en": {
@@ -2839,6 +3169,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copy Body"
+          }
+        }
+      }
+    },
+    "外观": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance"
           }
         }
       }
@@ -2943,6 +3283,16 @@
         }
       }
     },
+    "字段": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Field"
+          }
+        }
+      }
+    },
     "存储卷": {
       "localizations": {
         "en": {
@@ -3043,6 +3393,16 @@
         }
       }
     },
+    "密钥「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Key “%@”"
+          }
+        }
+      }
+    },
     "密钥交换算法": {
       "localizations": {
         "en": {
@@ -3059,6 +3419,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Key Source"
+          }
+        }
+      }
+    },
+    "密钥派生失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Key derivation failed"
           }
         }
       }
@@ -3099,6 +3469,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Import Private Key"
+          }
+        }
+      }
+    },
+    "导出到文件…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export to File…"
+          }
+        }
+      }
+    },
+    "导出加密备份": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Encrypted Backup"
           }
         }
       }
@@ -3153,6 +3543,46 @@
         }
       }
     },
+    "已上传本机数据覆盖远端备份": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local data uploaded; remote backup overwritten"
+          }
+        }
+      }
+    },
+    "已从备份合并导入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merged and imported from backup"
+          }
+        }
+      }
+    },
+    "已保存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        }
+      }
+    },
+    "已保存（不一致）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved (differs)"
+          }
+        }
+      }
+    },
     "已信任的远程桌面证书": {
       "localizations": {
         "en": {
@@ -3193,6 +3623,16 @@
         }
       }
     },
+    "已取消本次合并": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge canceled"
+          }
+        }
+      }
+    },
     "已取消，远端残留半截文件。「保留」可下次从断点续传，「删除残留」清掉它。": {
       "localizations": {
         "en": {
@@ -3209,6 +3649,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copied"
+          }
+        }
+      }
+    },
+    "已导出加密备份：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encrypted backup exported: %@"
           }
         }
       }
@@ -3333,6 +3783,16 @@
         }
       }
     },
+    "应用设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Settings"
+          }
+        }
+      }
+    },
     "延迟很高": {
       "localizations": {
         "en": {
@@ -3369,6 +3829,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Establishing secure connection"
+          }
+        }
+      }
+    },
+    "建议使用 HTTPS；远程路径第一级目录需已存在（Seafile 需先在网页端新建资料库），深层目录会自动创建。密码存系统钥匙串，不写磁盘明文。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTPS is recommended. The first path segment must already exist (for Seafile, create a library in the web UI first); deeper folders are created automatically. The password is stored in the system Keychain, never in plaintext on disk."
+          }
+        }
+      }
+    },
+    "开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
           }
         }
       }
@@ -3837,6 +4317,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Undo"
+          }
+        }
+      }
+    },
+    "操作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions"
           }
         }
       }
@@ -4561,6 +5051,16 @@
         }
       }
     },
+    "更新时间": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated"
+          }
+        }
+      }
+    },
     "服务器分组": {
       "localizations": {
         "en": {
@@ -4693,6 +5193,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Local Terminal"
+          }
+        }
+      }
+    },
+    "本机": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac"
           }
         }
       }
@@ -4877,12 +5387,12 @@
         }
       }
     },
-    "正在安装，即将重启…": {
+    "正在处理…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Installing — restarting shortly…"
+            "value": "Working…"
           }
         }
       }
@@ -4893,6 +5403,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Installing…"
+          }
+        }
+      }
+    },
+    "正在安装，即将重启…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installing — restarting shortly…"
           }
         }
       }
@@ -5267,6 +5787,16 @@
         }
       }
     },
+    "滚动缓冲": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scrollback"
+          }
+        }
+      }
+    },
     "滚动缓冲区": {
       "localizations": {
         "en": {
@@ -5293,6 +5823,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Default action when a snippet is clicked; \"Ask every time\" shows an Insert/Run choice you can remember"
+          }
+        }
+      }
+    },
+    "片段「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Snippet “%@”"
+          }
+        }
+      }
+    },
+    "片段运行方式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Snippet Action"
           }
         }
       }
@@ -5463,6 +6013,16 @@
         }
       }
     },
+    "监听": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listen"
+          }
+        }
+      }
+    },
     "监听端口": {
       "localizations": {
         "en": {
@@ -5543,16 +6103,6 @@
         }
       }
     },
-    "目标：": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Target:"
-          }
-        }
-      }
-    },
     "目标主机": {
       "localizations": {
         "en": {
@@ -5599,6 +6149,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Target port must be between 1 and 65535"
+          }
+        }
+      }
+    },
+    "目标：": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target:"
           }
         }
       }
@@ -5679,6 +6239,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Offline"
+          }
+        }
+      }
+    },
+    "私钥": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Private Key"
           }
         }
       }
@@ -5889,6 +6459,16 @@
         }
       }
     },
+    "签发者": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Issuer"
+          }
+        }
+      }
+    },
     "管理": {
       "localizations": {
         "en": {
@@ -5969,7 +6549,27 @@
         }
       }
     },
+    "终端字体": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal Font"
+          }
+        }
+      }
+    },
     "终端字体大小": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal Font Size"
+          }
+        }
+      }
+    },
+    "终端字号": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6065,6 +6665,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Edit Host"
+          }
+        }
+      }
+    },
+    "编辑器缩略图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editor Minimap"
           }
         }
       }
@@ -6199,12 +6809,32 @@
         }
       }
     },
+    "解决同步冲突": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolve Sync Conflicts"
+          }
+        }
+      }
+    },
     "解压": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Extract"
+          }
+        }
+      }
+    },
+    "解压 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extract %@"
           }
         }
       }
@@ -6221,16 +6851,6 @@
           "stringUnit": {
             "state": "new",
             "value": "解压 · %1$@ · %2$@"
-          }
-        }
-      }
-    },
-    "解压 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Extract %@"
           }
         }
       }
@@ -6291,6 +6911,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Resolving host address"
+          }
+        }
+      }
+    },
+    "警告：主机密钥已变更": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warning: Host key has changed"
+          }
+        }
+      }
+    },
+    "警告：远程桌面证书已更改": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warning: Remote Desktop certificate has changed"
           }
         }
       }
@@ -6445,12 +7085,32 @@
         }
       }
     },
+    "请先填写 WebDAV 服务器地址与远程路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the WebDAV server URL and remote path first"
+          }
+        }
+      }
+    },
     "请先打开并切到一个终端，再运行片段。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Open and switch to a terminal before running a snippet."
+          }
+        }
+      }
+    },
+    "请先输入主密码（用于加解密备份）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the master password first (used to encrypt and decrypt backups)"
           }
         }
       }
@@ -6491,26 +7151,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Error reading local file"
-          }
-        }
-      }
-    },
-    "警告：主机密钥已变更": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Warning: Host key has changed"
-          }
-        }
-      }
-    },
-    "警告：远程桌面证书已更改": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Warning: Remote Desktop certificate has changed"
           }
         }
       }
@@ -6617,6 +7257,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Forwarding"
+          }
+        }
+      }
+    },
+    "转发规则「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forwarding Rule “%@”"
           }
         }
       }
@@ -6813,16 +7463,6 @@
         }
       }
     },
-    "远程桌面（窗口）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remote Desktop (Window)"
-          }
-        }
-      }
-    },
     "远程桌面剪贴板同步": {
       "localizations": {
         "en": {
@@ -6843,6 +7483,26 @@
         }
       }
     },
+    "远程桌面（窗口）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote Desktop (Window)"
+          }
+        }
+      }
+    },
+    "远端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote"
+          }
+        }
+      }
+    },
     "远端 %@ · 本地 %@": {
       "localizations": {
         "en": {
@@ -6855,6 +7515,36 @@
           "stringUnit": {
             "state": "new",
             "value": "远端 %1$@ · 本地 %2$@"
+          }
+        }
+      }
+    },
+    "远端无备份，已用本机数据创建": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No remote backup found; created one from local data"
+          }
+        }
+      }
+    },
+    "远端目录不存在且无法创建：请先在服务器网页端建好第一级目录（Seafile 需先新建资料库）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote directory doesn't exist and can't be created. Create the first-level folder on the server's web app first (Seafile requires a new repo)"
+          }
+        }
+      }
+    },
+    "远端还没有备份文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No backup file on the remote yet"
           }
         }
       }
@@ -7009,6 +7699,16 @@
         }
       }
     },
+    "连接成功；远端目录尚不存在，首次同步会尝试创建（Seafile 需先在网页端新建资料库）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected. The remote folder does not exist yet; the first sync will try to create it (for Seafile, create a library in the web UI first)."
+          }
+        }
+      }
+    },
     "连接设置": {
       "localizations": {
         "en": {
@@ -7075,6 +7775,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Select"
+          }
+        }
+      }
+    },
+    "选择 Termo 备份文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a Termo Backup File"
           }
         }
       }
@@ -7179,6 +7889,16 @@
         }
       }
     },
+    "配置已保存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration saved"
+          }
+        }
+      }
+    },
     "采样中…": {
       "localizations": {
         "en": {
@@ -7275,6 +7995,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Retry"
+          }
+        }
+      }
+    },
+    "随机数生成失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to generate random bytes"
           }
         }
       }
@@ -7419,26 +8149,6 @@
         }
       }
     },
-    "默认（UTF-8）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Default (UTF-8)"
-          }
-        }
-      }
-    },
-    "默认（自动协商）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Default (Auto-Negotiate)"
-          }
-        }
-      }
-    },
     "默认下载目录": {
       "localizations": {
         "en": {
@@ -7479,722 +8189,72 @@
         }
       }
     },
-    "RDP 剪贴板同步": {
+    "默认（UTF-8）": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "RDP Clipboard Sync"
+            "value": "Default (UTF-8)"
           }
         }
       }
     },
-    "RDP 打开方式": {
+    "默认（自动协商）": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "RDP Open Mode"
+            "value": "Default (Auto-Negotiate)"
           }
         }
       }
     },
-    "RDP 新窗口全屏": {
+    "（可选）": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Full Screen for New RDP Windows"
+            "value": "(Optional)"
           }
         }
       }
     },
-    "RDP 证书「%@:%lld」": {
+    "（可选，保存到系统钥匙串）": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "RDP Certificate “%@:%lld”"
+            "value": "(Optional, saved to the system Keychain)"
           }
         }
       }
     },
-    "WebDAV 服务器": {
+    "（可选，给私钥加密）": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "WebDAV Server"
+            "value": "(Optional, encrypts the private key)"
           }
         }
       }
     },
-    "上传本机覆盖远端": {
+    "（无指纹）": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Upload Local (Overwrite Remote)"
+            "value": "(No fingerprint)"
           }
         }
       }
     },
-    "上次同步：%@": {
+    "（私钥有 passphrase 时填写）": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Last synced: %@"
-          }
-        }
-      }
-    },
-    "不是有效的 Termo 备份文件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not a valid Termo backup file"
-          }
-        }
-      }
-    },
-    "主密码至少 8 位（用于加密备份）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Master password must be at least 8 characters (used to encrypt backups)"
-          }
-        }
-      }
-    },
-    "主密码错误，或备份文件已损坏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Incorrect master password, or the backup file is corrupted"
-          }
-        }
-      }
-    },
-    "主密码（端到端加密）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Master Password (End-to-End Encryption)"
-          }
-        }
-      }
-    },
-    "主密码（至少 8 位）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Master password (min. 8 characters)"
-          }
-        }
-      }
-    },
-    "主机「%@」": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Host “%@”"
-          }
-        }
-      }
-    },
-    "主题": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Subject"
-          }
-        }
-      }
-    },
-    "从 WebDAV 导入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import from WebDAV"
-          }
-        }
-      }
-    },
-    "从文件导入…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import from File…"
-          }
-        }
-      }
-    },
-    "以下 %lld 项在本机与远端不同，请逐项选择保留哪边。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The following %lld items differ between this Mac and the remote. Choose which to keep for each."
-          }
-        }
-      }
-    },
-    "使用远端": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Use Remote"
-          }
-        }
-      }
-    },
-    "保存配置": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save Config"
-          }
-        }
-      }
-    },
-    "保留本机": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keep Local"
-          }
-        }
-      }
-    },
-    "全部使用远端": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Use Remote for All"
-          }
-        }
-      }
-    },
-    "全部保留本机": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keep Local for All"
-          }
-        }
-      }
-    },
-    "关": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Off"
-          }
-        }
-      }
-    },
-    "内容": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Content"
-          }
-        }
-      }
-    },
-    "删除确认": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete Confirmation"
-          }
-        }
-      }
-    },
-    "协议": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Protocol"
-          }
-        }
-      }
-    },
-    "发现 %lld 处冲突，请选择保留哪边": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Found %lld conflicts — choose which side to keep"
-          }
-        }
-      }
-    },
-    "合并同步": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Merge & Sync"
-          }
-        }
-      }
-    },
-    "合并按 id 双向进行，冲突时逐项选择；删除不会同步（另一端下次会带回）。语言等设置同步后需重启生效。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Merge runs both ways by ID; resolve conflicts item by item. Deletions are not synced (the other side will bring them back). Language and other settings take effect after a restart."
-          }
-        }
-      }
-    },
-    "同步完成": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sync complete"
-          }
-        }
-      }
-    },
-    "同步完成（仅本机 %lld 项，仅远端 %lld 项）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sync complete (local-only: %lld, remote-only: %lld)"
-          }
-        }
-      }
-    },
-    "同步完成，无变更": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sync complete — no changes"
-          }
-        }
-      }
-    },
-    "备份上传前用主密码加密，WebDAV 上只有密文；主密码不保存，各设备需一致。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Backups are encrypted with the master password before upload, so WebDAV stores only ciphertext. The master password is never saved and must match on every device."
-          }
-        }
-      }
-    },
-    "备份内容无法解析": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unable to parse backup contents"
-          }
-        }
-      }
-    },
-    "外观": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Appearance"
-          }
-        }
-      }
-    },
-    "字段": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Field"
-          }
-        }
-      }
-    },
-    "密钥「%@」": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Key “%@”"
-          }
-        }
-      }
-    },
-    "密钥派生失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Key derivation failed"
-          }
-        }
-      }
-    },
-    "导出到文件…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Export to File…"
-          }
-        }
-      }
-    },
-    "导出加密备份": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Export Encrypted Backup"
-          }
-        }
-      }
-    },
-    "已上传本机数据覆盖远端备份": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Local data uploaded; remote backup overwritten"
-          }
-        }
-      }
-    },
-    "已从备份合并导入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Merged and imported from backup"
-          }
-        }
-      }
-    },
-    "已保存": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved"
-          }
-        }
-      }
-    },
-    "已保存（不一致）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved (differs)"
-          }
-        }
-      }
-    },
-    "已取消本次合并": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Merge canceled"
-          }
-        }
-      }
-    },
-    "已导出加密备份：%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Encrypted backup exported: %@"
-          }
-        }
-      }
-    },
-    "应用设置": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "App Settings"
-          }
-        }
-      }
-    },
-    "建议使用 HTTPS；远程路径第一级目录需已存在（Seafile 需先在网页端新建资料库），深层目录会自动创建。密码存系统钥匙串，不写磁盘明文。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "HTTPS is recommended. The first path segment must already exist (for Seafile, create a library in the web UI first); deeper folders are created automatically. The password is stored in the system Keychain, never in plaintext on disk."
-          }
-        }
-      }
-    },
-    "开": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "On"
-          }
-        }
-      }
-    },
-    "操作": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Actions"
-          }
-        }
-      }
-    },
-    "更新时间": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Updated"
-          }
-        }
-      }
-    },
-    "本机": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Mac"
-          }
-        }
-      }
-    },
-    "正在处理…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Working…"
-          }
-        }
-      }
-    },
-    "滚动缓冲": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scrollback"
-          }
-        }
-      }
-    },
-    "片段「%@」": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Snippet “%@”"
-          }
-        }
-      }
-    },
-    "片段运行方式": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Snippet Action"
-          }
-        }
-      }
-    },
-    "监听": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Listen"
-          }
-        }
-      }
-    },
-    "私钥": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Private Key"
-          }
-        }
-      }
-    },
-    "签发者": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Issuer"
-          }
-        }
-      }
-    },
-    "终端字体": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terminal Font"
-          }
-        }
-      }
-    },
-    "终端字号": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terminal Font Size"
-          }
-        }
-      }
-    },
-    "编辑器缩略图": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Editor Minimap"
-          }
-        }
-      }
-    },
-    "解决同步冲突": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Resolve Sync Conflicts"
-          }
-        }
-      }
-    },
-    "请先填写 WebDAV 服务器地址与远程路径": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter the WebDAV server URL and remote path first"
-          }
-        }
-      }
-    },
-    "请先输入主密码（用于加解密备份）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter the master password first (used to encrypt and decrypt backups)"
-          }
-        }
-      }
-    },
-    "转发规则「%@」": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forwarding Rule “%@”"
-          }
-        }
-      }
-    },
-    "远端": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remote"
-          }
-        }
-      }
-    },
-    "远端无备份，已用本机数据创建": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No remote backup found; created one from local data"
-          }
-        }
-      }
-    },
-    "连接成功；远端目录尚不存在，首次同步会尝试创建（Seafile 需先在网页端新建资料库）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connected. The remote folder does not exist yet; the first sync will try to create it (for Seafile, create a library in the web UI first)."
-          }
-        }
-      }
-    },
-    "选择 Termo 备份文件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose a Termo Backup File"
-          }
-        }
-      }
-    },
-    "配置已保存": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Configuration saved"
-          }
-        }
-      }
-    },
-    "随机数生成失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Failed to generate random bytes"
+            "value": "(Fill in if the private key has a passphrase)"
           }
         }
       }

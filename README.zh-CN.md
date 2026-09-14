@@ -30,13 +30,13 @@ SSH · SFTP · 终端 · Windows 远程桌面 · 端口转发 · 主机监控
 
 **Termo** 是一款用 SwiftUI + AppKit 原生打造的 macOS 远程运维客户端。它把日常需要在多个工具间来回切换的事——SSH 终端、文件传输、Windows 远程桌面、端口转发、主机监控、密钥管理——收进同一个高完成度的界面里。
 
-引擎层面，Termo 把 SSH / SFTP / 终端 / 端口转发 / 密钥 全部做进**进程内**（libssh2 + OpenSSL），不依赖系统 `ssh`、无需 spawn 外部进程；Windows 远程桌面内嵌 **FreeRDP**。因此它是一个自包含、经 Apple 签名与公证的单一二进制，连接更稳、启动更快、开箱即用。
+引擎层面，Termo 把 SSH / SFTP / 终端 / 端口转发 / 密钥 全部做进**进程内**（Rust SSH 引擎 russh，源码构建），不依赖系统 `ssh`、无需 spawn 外部进程；Windows 远程桌面内嵌 **FreeRDP**。因此它是一个自包含、经 Apple 签名与公证的单一二进制，连接更稳、启动更快、开箱即用。
 
 ## 特性
 
 | 能力 | 说明 |
 |---|---|
-| **SSH 终端** | 基于 SwiftTerm 的完整终端；进程内 libssh2 引擎，连接稳、启动快 |
+| **SSH 终端** | 基于 SwiftTerm 的完整终端；进程内 Rust（russh）引擎，连接稳、启动快 |
 | **SFTP 文件浏览** | 上传 / 下载 / 重命名 / 权限修改，断点续传、并发队列、远程代码在线编辑 |
 | **Windows 远程桌面** | 内嵌 FreeRDP：全彩图形管线、键盘输入、剪贴板双向同步、分辨率随窗口自适应 |
 | **端口转发** | 本地（-L）/ 远程（-R）/ 动态 SOCKS（-D），后台常驻，托盘看板实时掌控 |
@@ -69,7 +69,7 @@ SSH · SFTP · 终端 · Windows 远程桌面 · 端口转发 · 主机监控
 
 ## 从源码构建
 
-项目用 [XcodeGen](https://github.com/yonaskolb/XcodeGen) 声明式管理工程，第三方原生依赖（FreeRDP / libssh2 / Sparkle）以 xcframework 形式随仓库提供。
+项目用 [XcodeGen](https://github.com/yonaskolb/XcodeGen) 声明式管理工程，第三方原生依赖（FreeRDP / Sparkle）以 xcframework 形式随仓库提供；SSH 引擎为 Rust（russh），构建期从源码编译为静态库。
 
 ```bash
 brew install xcodegen
@@ -84,7 +84,7 @@ xcodebuild -scheme Termo -configuration Release build
 ## 技术架构
 
 - 界面：SwiftUI + AppKit，全自绘统一组件；单窗口 + 菜单栏常驻
-- SSH 栈：进程内 libssh2（静态）+ 共享 OpenSSL，覆盖终端 PTY / SFTP 子系统 / 直连转发 / 已知主机校验 / 密钥生成
+- SSH 栈：进程内 Rust 引擎（russh 0.63.3，ring 后端，源码构建），覆盖终端 PTY / SFTP 子系统 / 直连转发 / 已知主机校验 / 密钥生成
 - RDP 栈：内嵌 FreeRDP 静态库 + ObjC 桥，BGRA 帧回主线程转 CGImage 渲染
 - 持久化：主机 / 会话 JSON + 密码合并写入钥匙串（乐观锁防多端竞争）
 - 分发：Developer ID 签名 + 公证；GitHub Actions 打 tag 自动发版 → Sparkle appcast → R2/CDN

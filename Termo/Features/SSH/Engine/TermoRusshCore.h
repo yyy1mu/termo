@@ -13,11 +13,6 @@
 extern "C" {
 #endif
 
-// ── 后端开关（分发层用）─────────────────────────────────────────────────────
-/// 0=libssh2 旧引擎，1=russh。默认 1（dev 分支）；MAS/回退可在启动时设 0。
-void termo_ssh_set_backend(int use_russh);
-int  termo_ssh_get_backend(void);
-
 // ── Rust 后端直连接口（分发层以下仅供 TermoSSHDispatch.c 使用）────────────────
 
 /// russh 后端版本（静态字符串，勿释放）。

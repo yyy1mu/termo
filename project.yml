@@ -69,10 +69,6 @@ targets:
       # RDP：内嵌 FreeRDP 静态库 xcframework（只链接不嵌入）+ 其依赖的系统框架/库。
       - framework: Vendor/CFreeRDP.xcframework
         embed: false
-      # SSH：内嵌 libssh2 静态库 xcframework（进程内 SSH 引擎，MAS 沙盒化前提）。
-      # 仅含 libssh2.a；它对 OpenSSL 的未定义符号由上面的 CFreeRDP（已合入同一份静态 OpenSSL）在最终链接时解析。
-      - framework: Vendor/CSSH2.xcframework
-        embed: false
       # Sparkle：自动更新框架，仅服务 Developer ID（GitHub）渠道。**Mac App Store 包绝不能含 Sparkle**
       # （沙盒禁自更新 + 审核拒）。故 weak 弱链接（缺失也不崩）+ 所有调用点 `#if !TERMO_MAS` 隔离 +
       # MAS 配置在 postBuildScripts 里把已嵌入的 Sparkle.framework 删除（弱链 + 零引用 ⟹ 删了不崩）。
@@ -90,7 +86,6 @@ targets:
           - $(SRCROOT)/Vendor/CFreeRDP.xcframework/macos-arm64/Headers          # openssl/（legacy provider 注册）
           - $(SRCROOT)/Vendor/CFreeRDP.xcframework/macos-arm64/Headers/freerdp3
           - $(SRCROOT)/Vendor/CFreeRDP.xcframework/macos-arm64/Headers/winpr3
-          - $(SRCROOT)/Vendor/CSSH2.xcframework/macos-arm64/Headers              # libssh2.h / libssh2_sftp.h
           - $(SRCROOT)/Termo/Features/SSH/Engine                                # TermoSSHCore.h（桥接头按文件名引用）
         LIBRARY_SEARCH_PATHS:
           - $(SRCROOT)/Build/russh/aarch64-apple-darwin   # libtermo_ssh.a（russh 静态库，见 scripts/build-russh.sh）

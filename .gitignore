@@ -16,8 +16,6 @@ dist/
 # FreeRDP 构建中间产物（见 scripts/build-freerdp.sh；产物 Vendor/CFreeRDP.xcframework 可选提交）
 .freerdp-build/
 
-# libssh2 静态库构建中间产物（SSH 迁移 J1）
-.libssh2-build/
 
 # MCP 工具运行日志
 .playwright-mcp/
@@ -33,3 +31,6 @@ docs/
 
 # Rust 构建产物（cargo 默认 target 目录）
 Rust/**/target/
+
+# 本地 Agent 指南：仅本地查阅，永不入库
+agents.local.md

@@ -30,13 +30,13 @@ SSH · SFTP · Terminal · Windows Remote Desktop · Port forwarding · Host mon
 
 **Termo** is a native macOS remote-operations client built with SwiftUI + AppKit. It brings the tasks you usually juggle across separate tools — SSH terminals, file transfer, Windows Remote Desktop, port forwarding, host monitoring, and key management — into a single, polished interface.
 
-Under the hood, Termo runs its SSH / SFTP / terminal / port forwarding / keys entirely **in-process** (libssh2 + OpenSSL) — no reliance on the system `ssh`, no spawning of external processes; Windows Remote Desktop embeds **FreeRDP**. The result is a self-contained, Apple-signed and notarized single binary: steadier connections, faster startup, and nothing to set up.
+Under the hood, Termo runs its SSH / SFTP / terminal / port forwarding / keys entirely **in-process** (Rust SSH engine built from source) — no reliance on the system `ssh`, no spawning of external processes; Windows Remote Desktop embeds **FreeRDP**. The result is a self-contained, Apple-signed and notarized single binary: steadier connections, faster startup, and nothing to set up.
 
 ## Features
 
 | Capability | Details |
 |---|---|
-| **SSH terminal** | Full terminal powered by SwiftTerm; in-process libssh2 engine for stable, fast connections |
+| **SSH terminal** | Full terminal powered by SwiftTerm; in-process Rust (russh) engine for stable, fast connections |
 | **SFTP browsing** | Upload / download / rename / chmod, resumable transfers, concurrent queue, in-app remote code editing |
 | **Windows Remote Desktop** | Embedded FreeRDP: full-color graphics pipeline, keyboard input, two-way clipboard sync, resolution that follows the window |
 | **Port forwarding** | Local (-L) / remote (-R) / dynamic SOCKS (-D), running in the background with a menu-bar dashboard |
@@ -69,7 +69,7 @@ Passwords and key passphrases are stored in the system **Keychain**, never in pl
 
 ## Build from source
 
-The project is managed declaratively with [XcodeGen](https://github.com/yonaskolb/XcodeGen); native third-party dependencies (FreeRDP / libssh2 / Sparkle) ship in the repo as xcframeworks.
+The project is managed declaratively with [XcodeGen](https://github.com/yonaskolb/XcodeGen); native third-party dependencies (FreeRDP / Sparkle) ship in the repo as xcframeworks; the SSH engine is Rust (russh), compiled from source at build time.
 
 ```bash
 brew install xcodegen
@@ -84,7 +84,7 @@ xcodebuild -scheme Termo -configuration Release build
 ## Architecture
 
 - **UI**: SwiftUI + AppKit, fully custom unified components; single window with a persistent menu-bar item
-- **SSH stack**: in-process libssh2 (static) + shared OpenSSL — terminal PTY / SFTP subsystem / direct-TCP forwarding / known-hosts verification / key generation
+- **SSH stack**: in-process Rust engine (russh 0.63.3, ring backend, built from source) — terminal PTY / SFTP subsystem / direct-TCP forwarding / known-hosts verification / key generation
 - **RDP stack**: embedded FreeRDP static library + an Objective-C bridge; BGRA frames marshalled to the main thread and drawn as CGImage
 - **Persistence**: hosts / sessions as JSON + passwords merged into the Keychain (optimistic locking against multi-device races)
 - **Distribution**: Developer ID signing + notarization; a git tag triggers GitHub Actions → Sparkle appcast → R2/CDN
