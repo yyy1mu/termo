@@ -9,9 +9,47 @@ import SwiftUI
 ///
 /// 把宽度放进本对象后,只有真正参与缩放的视图(Sidebar 的 frame、SidebarDivider)订阅它,
 /// TabBar / Workspace 的 `model` 入参不变 → SwiftUI 跳过它们的 body 重算,拖动只剩侧栏自身
-/// 这点开销。
+/// 这点开销。右栏伴随面板同理：只有 RightBar / CompanionPanel 观察它。
 @MainActor
 final class LayoutModel: ObservableObject {
-    /// 侧栏宽度(像素)。0 视为折叠。
+    /// 左侧栏宽度(像素)。0 视为折叠。
     @Published var sidebarWidth: CGFloat = 224
+    /// 右侧伴随面板；nil = 收起。
+    @Published var rightPanel: RightPanel? = nil
+
+    /// 伴随面板固定宽度（对齐 Termark 右侧功能面板）。
+    static let rightPanelWidth: CGFloat = 420
+}
+
+/// 右侧功能栏条目：伴随面板按「跟随当前主机」展开（SFTP/监控/转发需要主机上下文；片段/同步为全局）。
+enum RightPanel: String, CaseIterable, Hashable {
+    case sftp, monitor, forward, snippets, sync
+
+    var symbol: String {
+        switch self {
+        case .sftp: return "folder"
+        case .monitor: return "waveform.path.ecg"
+        case .forward: return "arrow.left.arrow.right"
+        case .snippets: return "chevron.left.forwardslash.chevron.right"
+        case .sync: return "arrow.triangle.2.circlepath"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .sftp: return String(localized: "文件 (SFTP)")
+        case .monitor: return String(localized: "监控")
+        case .forward: return String(localized: "端口转发")
+        case .snippets: return String(localized: "代码片段")
+        case .sync: return String(localized: "同步")
+        }
+    }
+
+    /// 是否需要一台已选中的 SSH 主机（否则显示占位提示）。
+    var needsHost: Bool {
+        switch self {
+        case .sftp, .monitor, .forward: return true
+        case .snippets, .sync: return false
+        }
+    }
 }

@@ -266,6 +266,9 @@ struct ContentView: View {
                     .padding([.leading, .top], 3)
             }
             .background(Pal.mantle)
+            // 右侧伴随面板（SFTP/监控/转发/片段/同步，跟随当前主机）+ 40px 功能窄栏
+            CompanionPanel(model: model, layout: layout, tabs: model.tabsModel)
+            RightBar(model: model, layout: layout)
         }
         .onChange(of: model.section) { sec in
             // 离开文件栏时，若超过常规上限则收回（额外宽度是文件栏的特权）。

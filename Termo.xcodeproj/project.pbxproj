@@ -58,6 +58,7 @@
 		9E90B83D1DF39F54A3E660FC /* SnippetsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7075C12BC3153FDBECAE6CDD /* SnippetsPanel.swift */; };
 		9EBF1625176E56AEFCEDB5A0 /* PortForwardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF1A4E31A396CBDCD57DF2AB /* PortForwardView.swift */; };
 		9F5F0EFF7D091F163C1AE5E3 /* Snippet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA3E0ECD927BE5B8E2E188AF /* Snippet.swift */; };
+		A5F083481C1216AFE8FCB3F4 /* RightBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F4CFDE3083C63221444816 /* RightBar.swift */; };
 		AAD4CE9760CC10DF42EB32D4 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = E34CDDD5377B936A4BD7074F /* AppIcon.icns */; };
 		AB040BAAE224C9A3DC34AC2A /* FileExtract.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD39E9CC2091D88B6C63B349 /* FileExtract.swift */; };
 		ABD40C5DF3AF425FC848A08B /* font-logos.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A67AE3D18D0C1243CFB8D557 /* font-logos.ttf */; };
@@ -157,6 +158,7 @@
 		C88E879F74C0907E243220AF /* SyncPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPanel.swift; sourceTree = "<group>"; };
 		CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Termo-Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D026950CEB9B2C8A1AE92AF6 /* BundleResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResources.swift; sourceTree = "<group>"; };
+		D0F4CFDE3083C63221444816 /* RightBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightBar.swift; sourceTree = "<group>"; };
 		D172F44C6B1D699CB9362786 /* SSHKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKey.swift; sourceTree = "<group>"; };
 		D30E8F85BB20C7A21F6D7899 /* ActivityBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityBar.swift; sourceTree = "<group>"; };
 		D5336686AD7D595B6A0F188A /* KeySheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeySheets.swift; sourceTree = "<group>"; };
@@ -226,6 +228,7 @@
 			isa = PBXGroup;
 			children = (
 				D30E8F85BB20C7A21F6D7899 /* ActivityBar.swift */,
+				D0F4CFDE3083C63221444816 /* RightBar.swift */,
 				C5222F58405D3CEFB6BD7717 /* Sidebar.swift */,
 				3D2F27F8718F6415C790115F /* SidebarDivider.swift */,
 				75740BD11A4036590AF39490 /* TabBar.swift */,
@@ -770,6 +773,7 @@
 				9EBF1625176E56AEFCEDB5A0 /* PortForwardView.swift in Sources */,
 				66D1D025912F7FCDB04ABC96 /* PrivacyPolicyView.swift in Sources */,
 				CCCE7023A8BF9DF0D12F5A1C /* RemoteFS.swift in Sources */,
+				A5F083481C1216AFE8FCB3F4 /* RightBar.swift in Sources */,
 				4E8BB08836DC765A3793C7BB /* SFTPClient.swift in Sources */,
 				91CE14BF1033D9A165E19E08 /* SSHKey.swift in Sources */,
 				9A8317CC83A8962133251EE9 /* SSHSession.swift in Sources */,

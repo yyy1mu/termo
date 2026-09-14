@@ -35,3 +35,7 @@ agents.local.md
 
 # 外部分析素材（Termark 参照应用），永不入库
 termark/
+
+# Termark 遗留的 package.json 与分析截图：永不入库
+/package.json
+/pic/

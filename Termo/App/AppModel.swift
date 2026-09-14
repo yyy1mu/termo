@@ -963,6 +963,15 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// 右侧伴随面板的「当前主机」：活动标签所关联的 SSH 主机（终端/文件/概览均可）。
+    func companionHost() -> Host? {
+        guard let id = activeTabId,
+              let tab = tabs.first(where: { $0.id == id }),
+              let host = host(tab.hostId),
+              host.ssh != nil else { return nil }
+        return host
+    }
+
     func host(_ id: String?) -> Host? {
         guard let id else { return nil }
         return hosts.first(where: { $0.id == id })

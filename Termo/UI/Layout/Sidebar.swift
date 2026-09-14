@@ -66,6 +66,7 @@ struct Sidebar: View {
                 } else {
                     ScrollView { hostList }.padding(.top, 6)
                 }
+                hostsBottomBar
             } else if model.section == .files {
                 filesPanel
             } else if model.section == .sshKeys {
@@ -94,6 +95,37 @@ struct Sidebar: View {
         .frame(width: layout.sidebarWidth, alignment: .leading)
         .clipped()
         .onChange(of: tabs.activeTabId) { _ in searchFocused = false }
+    }
+
+    /// 主机面板底部角标行（对齐 Termark 底栏）：设置 / 主题切换 / 脱敏。
+    private var hostsBottomBar: some View {
+        HStack(spacing: 8) {
+            cornerIcon("gearshape", help: String(localized: "设置")) { model.showSettings = true }
+            cornerIcon(theme.isDark ? "sun.max" : "moon", help: String(localized: "切换主题")) {
+                theme.mode = theme.isDark ? .light : .dark
+            }
+            cornerIcon(model.privacyMode ? "eye.slash" : "eye", help: String(localized: "脱敏显示")) {
+                model.privacyMode.toggle()
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Pal.crust)
+    }
+
+    private func cornerIcon(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12))
+                .foregroundStyle(Pal.overlay)
+                .frame(width: 26, height: 26)
+                .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 6))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .pointerCursor()
+        .help(help)
     }
 
     private var sectionTitle: String {

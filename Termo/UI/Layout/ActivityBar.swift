@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 
+/// 左侧活动窄栏（对齐 Termark）：40px 小图标列，承载侧栏各 section 的切换与开合。
+/// 「设置」不在此列——已降级为主机面板底部角标。
 struct ActivityBar: View {
     @ObservedObject var model: AppModel
     // 非 @ObservedObject:本视图只在点击闭包里读写宽度,body 不依赖它。
@@ -13,12 +15,10 @@ struct ActivityBar: View {
         ("server.rack", .hosts),
         ("folder", .files),
         ("key", .sshKeys),
-        ("chevron.left.forwardslash.chevron.right", .snippets),
-        ("arrow.triangle.2.circlepath", .sync),
     ]
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             ForEach(items, id: \.1) { symbol, section in
                 item(symbol, section)
             }
@@ -31,11 +31,10 @@ struct ActivityBar: View {
                         UploadAskWatcher(task: task) { model.focusedTransferId = task.id }
                     }
                 }
-            settingsButton
         }
         .padding(.top, isFullScreen ? 12 : 52)
-        .padding(.bottom, 12)
-        .frame(width: 76)
+        .padding(.bottom, 10)
+        .frame(width: 40)
         .frame(maxHeight: .infinity)
         .background(Pal.crust)
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { _ in
@@ -46,15 +45,9 @@ struct ActivityBar: View {
         }
     }
 
-    private var settingsButton: some View {
-        ActivityBarButton(symbol: "gearshape", selected: model.showSettings) {
-            model.showSettings = true
-        }
-    }
-
     @ViewBuilder
     private func item(_ symbol: String, _ section: Section) -> some View {
-        ActivityBarButton(symbol: symbol, selected: model.section == section) {
+        ActivityBarButton(symbol: symbol, selected: model.section == section && layout.sidebarWidth >= 10) {
             // 瞬间开合(不加动画):宽度滑动动画会逐帧重排工作区 → 卡顿。
             if model.section == section && layout.sidebarWidth >= 10 {
                 layout.sidebarWidth = 0
@@ -68,7 +61,7 @@ struct ActivityBar: View {
     }
 }
 
-/// 活动栏图标按钮：选中=主色高亮底，hover=淡底 + 图标提亮（与左下迷你进度环的 hover 一致）。
+/// 窄栏图标按钮：选中=主色高亮底，hover=淡底 + 图标提亮。
 private struct ActivityBarButton: View {
     let symbol: String
     let selected: Bool
@@ -78,12 +71,12 @@ private struct ActivityBarButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 16))
+                .font(.system(size: 13))
                 .foregroundStyle(selected ? Pal.mauve : (hover ? Pal.subtext : Pal.overlay))
-                .frame(width: 38, height: 38)
+                .frame(width: 30, height: 30)
                 .background(
                     selected ? Pal.mauve.opacity(0.16) : (hover ? Pal.fill(0.08) : Color.clear),
-                    in: RoundedRectangle(cornerRadius: 9)
+                    in: RoundedRectangle(cornerRadius: 7)
                 )
                 .contentShape(Rectangle())
         }

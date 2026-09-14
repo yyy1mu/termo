@@ -210,7 +210,7 @@ private struct BreathingDot: View {
 
 /// 主机概览的实时监控面板（macOS 原生风格）：CPU 每核热力方块、内存、GPU 卡片阵列、多磁盘、网络与运行时长。
 /// 数据来自 [[HostMonitor]] 的流式采样；分区按数据自适应，无 GPU 时隐藏该区，核多则热力方块自动换行。
-private struct MonitorPanel: View {
+struct MonitorPanel: View {
     @ObservedObject var monitor: HostMonitor
     @ObservedObject private var theme = ThemeManager.shared
     @ObservedObject private var settings = AppSettings.shared

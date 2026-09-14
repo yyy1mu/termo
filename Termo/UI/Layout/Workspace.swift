@@ -48,6 +48,17 @@ struct Workspace: View {
                             TerminalReconnectOverlay(conn: conn) { model.manualReconnectTerminal(tab.id) }
                         }
                     }
+                    .overlay(alignment: .topTrailing) {
+                        // 延迟徽章（对齐 Termark 常驻右上）：最近探测的 RTT，无探测结果不显示
+                        if let ms = model.host(tab.hostId)?.latencyMs {
+                            Text("\(ms)ms")
+                                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                .foregroundStyle(Pal.green)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Pal.fill(0.3), in: RoundedRectangle(cornerRadius: 4))
+                                .padding(14)
+                        }
+                    }
                     .padding(10)
             case .overview:
                 if let host = model.host(tab.hostId) {
@@ -71,36 +82,48 @@ struct WelcomeView: View {
     @ObservedObject private var theme = ThemeManager.shared
 
     var body: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "server.rack")
+        VStack(spacing: 16) {
+            Image(systemName: "terminal.fill")
                 .font(.system(size: 30))
                 .foregroundStyle(Pal.mauve)
-                .frame(width: 64, height: 64)
-                .background(Pal.mauve.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+                .frame(width: 72, height: 72)
+                .background(Pal.mauve.opacity(0.12), in: RoundedRectangle(cornerRadius: 18))
             VStack(spacing: 6) {
-                Text("Termo").font(.system(size: 18, weight: .medium)).foregroundStyle(Pal.text)
-                Text(AppEnv.localTerminalEnabled ? "从左侧选择一台主机，或打开一个本地终端开始。" : "从左侧选择一台主机开始。")
-                    .font(.system(size: 13)).foregroundStyle(Pal.overlay)
+                Text("Termo").font(.system(size: 20, weight: .medium)).foregroundStyle(Pal.text)
+                Text("高效的 SSH 终端管理工具")
+                    .font(.system(size: 12)).foregroundStyle(Pal.overlay)
             }
-            if AppEnv.localTerminalEnabled {   // MAS 沙盒下隐藏本地终端入口
-                Button {
-                    model.openLocalTerminal()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "terminal").font(.system(size: 13))
-                        Text("打开本地终端").font(.system(size: 13))
-                    }
-                    .foregroundStyle(Pal.mauve)
-                    .padding(.horizontal, 16).padding(.vertical, 9)
-                    .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 9).stroke(Pal.mauve.opacity(0.25), lineWidth: 1)
-                    )
-                    .contentShape(Rectangle())
+            HStack(spacing: 10) {
+                // 快速连接：聚焦主机面板（有主机直接选；无主机弹出添加表单）
+                welcomeButton("magnifyingglass", String(localized: "快速连接"), primary: true) {
+                    model.section = .hosts
+                    if model.hosts.isEmpty { model.showAddHost = true }
                 }
-                .buttonStyle(.plain)
-                .pointerCursor()
+                if AppEnv.localTerminalEnabled {   // MAS 沙盒下隐藏本地终端入口
+                    welcomeButton("terminal", String(localized: "新建本地终端"), primary: false) {
+                        model.openLocalTerminal()
+                    }
+                }
             }
+            .padding(.top, 6)
+            Text("从左侧主机树双击主机开始连接，或点击 + 新建标签页")
+                .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                .padding(.top, 10)
         }
+    }
+
+    private func welcomeButton(_ symbol: String, _ title: String, primary: Bool, _ act: @escaping () -> Void) -> some View {
+        Button(action: act) {
+            HStack(spacing: 7) {
+                Image(systemName: symbol).font(.system(size: 12))
+                Text(title).font(.system(size: 12))
+            }
+            .foregroundStyle(primary ? .white : Pal.mauve)
+            .padding(.horizontal, 15).padding(.vertical, 8)
+            .background(primary ? Pal.mauve : Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .pointerCursor()
     }
 }
