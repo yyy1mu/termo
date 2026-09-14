@@ -2,7 +2,7 @@ import SwiftUI
 
 struct Sidebar: View {
     @ObservedObject var model: AppModel
-    // 切换 tab 时侧栏需重算（activeHostId 高亮、文件面板 sidebarFileTree），故一并观察 TabsModel。
+    // 切换 tab 时侧栏需重算（主机行高亮随活动标签变化），故一并观察 TabsModel。
     @ObservedObject var tabs: TabsModel
     @ObservedObject var layout: LayoutModel
     @ObservedObject private var theme = ThemeManager.shared
@@ -26,76 +26,37 @@ struct Sidebar: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(sectionTitle).font(.system(size: 15, weight: .medium)).foregroundStyle(Pal.text)
+        VStack(alignment: .leading, spacing: 0) {
+            // 顶部：留出 macOS 红黄绿按钮区域，然后是「主机」标题行 + 新建按钮
+            Spacer().frame(height: 44)
+            HStack(spacing: 8) {
+                Text(String(localized: "主机"))
+                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Pal.text)
                 Spacer()
-                if model.section == .sshKeys {
-                    Button { model.presentImportKey() } label: {
-                        Image(systemName: "square.and.arrow.down").font(.system(size: 13)).foregroundStyle(Pal.mauve)
-                    }
-                    .buttonStyle(.plain).pointerCursor().help(String(localized: "导入已有私钥"))
-                    Button { model.showGenerateKey = true } label: {
-                        Image(systemName: "plus").font(.system(size: 14)).foregroundStyle(Pal.mauve)
-                    }
-                    .buttonStyle(.plain).pointerCursor().help(String(localized: "生成新密钥"))
-                } else if model.section == .hosts {
-                    Button {
-                        model.showAddHost = true
-                    } label: {
-                        Image(systemName: "plus").font(.system(size: 14)).foregroundStyle(Pal.mauve)
-                    }
-                    .buttonStyle(.plain)
-                    .pointerCursor()
-                } else if model.section == .snippets {
-                    Button { model.showCreateSnippet = true } label: {
-                        Image(systemName: "plus").font(.system(size: 14)).foregroundStyle(Pal.mauve)
-                    }
-                    .buttonStyle(.plain).pointerCursor().help(String(localized: "新建片段"))
+                Button { model.showAddHost = true } label: {
+                    Image(systemName: "plus").font(.system(size: 13)).foregroundStyle(Pal.mauve)
                 }
+                .buttonStyle(.plain).pointerCursor().help(String(localized: "添加主机"))
             }
             .padding(.horizontal, 14)
-            .padding(.top, 16)
             .padding(.bottom, 10)
 
-            if model.section == .hosts {
-                Spacer().frame(height: 10)
-                searchBox()
-                if filteredHosts.isEmpty {
-                    hostEmptyState
-                } else {
-                    ScrollView { hostList }.padding(.top, 6)
-                }
-                hostsBottomBar
-            } else if model.section == .files {
-                filesPanel
-            } else if model.section == .sshKeys {
-                Spacer().frame(height: 10)
-                searchBox(String(localized: "搜索密钥…"))
-                KeysPanel(model: model)
-            } else if model.section == .snippets {
-                Spacer().frame(height: 10)
-                searchBox(String(localized: "搜索片段…"))
-                SnippetsPanel(model: model, tabs: tabs)
-            } else if model.section == .sync {
-                Spacer().frame(height: 10)
-                SyncPanel(model: model)
+            searchBox()
+
+            if filteredHosts.isEmpty {
+                hostEmptyState
             } else {
-                Spacer()
-                Text("\(sectionTitle)模块开发中")
-                    .font(.system(size: 12)).foregroundStyle(Pal.overlay)
+                ScrollView { hostList }.padding(.top, 6)
             }
 
-            Spacer(minLength: 0)
-            if AppEnv.localTerminalEnabled { localTerminalButton }   // MAS 沙盒下隐藏
+            hostsBottomBar
         }
-        .frame(width: max(224, layout.sidebarWidth), alignment: .leading)
-        .frame(maxHeight: .infinity)
-        .background(Pal.mantle)
-        .frame(width: layout.sidebarWidth, alignment: .leading)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Pal.crust)
         .clipped()
         .onChange(of: tabs.activeTabId) { _ in searchFocused = false }
     }
+
 
     /// 主机面板底部角标行（对齐 Termark 底栏）：设置 / 主题切换 / 脱敏。
     private var hostsBottomBar: some View {
@@ -128,17 +89,6 @@ struct Sidebar: View {
         .help(help)
     }
 
-    private var sectionTitle: String {
-        switch model.section {
-        case .hosts: return String(localized: "主机")
-        case .files: return String(localized: "文件")
-        case .sshKeys: return String(localized: "密钥")
-        case .snippets: return String(localized: "代码片段")
-        case .sync: return String(localized: "同步")
-        case .settings: return String(localized: "设置")
-        }
-    }
-
     private func searchBox(_ placeholder: String = String(localized: "搜索主机…")) -> some View {
         HStack(spacing: 7) {
             Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(Pal.overlay)
@@ -166,22 +116,6 @@ struct Sidebar: View {
 
     /// 活动栏「文件」面板：有活动主机时显示其文件树，否则提示。
     @ViewBuilder
-    private var filesPanel: some View {
-        if let tree = model.sidebarFileTree {
-            SidebarFileTree(state: tree.state, host: tree.host, model: model)
-                .id(tree.id)
-        } else {
-            VStack(spacing: 10) {
-                Spacer()
-                Image(systemName: "folder").font(.system(size: 26)).foregroundStyle(Pal.overlay)
-                Text("打开一个主机后\n在此浏览文件")
-                    .font(.system(size: 12)).foregroundStyle(Pal.subtext)
-                    .multilineTextAlignment(.center)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity)
-        }
-    }
 
 
     private var hostEmptyState: some View {

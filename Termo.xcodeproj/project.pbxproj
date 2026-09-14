@@ -68,7 +68,6 @@
 		B239A88ECF733A6D9281BB9A /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022AEDEEEA2726ED9937BBC7 /* Components.swift */; };
 		B3ABCC2C2D678CE2E3B4F20D /* TabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75740BD11A4036590AF39490 /* TabBar.swift */; };
 		B7FBDA0D3EA60CC50BB62DC5 /* HostDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501545F29B4E1519B62B1BC7 /* HostDraft.swift */; };
-		BB1704EA4FE099F9C7A2DF06 /* ActivityBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30E8F85BB20C7A21F6D7899 /* ActivityBar.swift */; };
 		BCE58AD69E37A05D9EFA8349 /* SnippetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE623D081B326C025E0118B3 /* SnippetStore.swift */; };
 		C06F062E9806D2919BBAF1D1 /* FileOpDialogs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D690BC4B87701F1703B64F /* FileOpDialogs.swift */; };
 		CA9C859BF5D74AAAD27A97FE /* SnippetRunDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7FDEA83B50C900461CECE94 /* SnippetRunDialog.swift */; };
@@ -161,7 +160,6 @@
 		D026950CEB9B2C8A1AE92AF6 /* BundleResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResources.swift; sourceTree = "<group>"; };
 		D0F4CFDE3083C63221444816 /* RightBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightBar.swift; sourceTree = "<group>"; };
 		D172F44C6B1D699CB9362786 /* SSHKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKey.swift; sourceTree = "<group>"; };
-		D30E8F85BB20C7A21F6D7899 /* ActivityBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityBar.swift; sourceTree = "<group>"; };
 		D5336686AD7D595B6A0F188A /* KeySheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeySheets.swift; sourceTree = "<group>"; };
 		DC28CA70D6C67E543CB61C94 /* Termo-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Termo-Bridging-Header.h"; sourceTree = "<group>"; };
 		DCED3CB381B1EBDA09D6F705 /* HostOverview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostOverview.swift; sourceTree = "<group>"; };
@@ -237,7 +235,6 @@
 		1840729531F1BDECC4EBF7CB /* Layout */ = {
 			isa = PBXGroup;
 			children = (
-				D30E8F85BB20C7A21F6D7899 /* ActivityBar.swift */,
 				D0F4CFDE3083C63221444816 /* RightBar.swift */,
 				C5222F58405D3CEFB6BD7717 /* Sidebar.swift */,
 				3D2F27F8718F6415C790115F /* SidebarDivider.swift */,
@@ -747,7 +744,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				16D136F3D24B59CA45769116 /* AboutView.swift in Sources */,
-				BB1704EA4FE099F9C7A2DF06 /* ActivityBar.swift in Sources */,
 				766D139DE85662003CB933E0 /* AddHostView.swift in Sources */,
 				1317AC84BBA66472850E1FA0 /* AppEnv.swift in Sources */,
 				49ED9F3C1FB4A57E5C40A2D5 /* AppInfo.swift in Sources */,

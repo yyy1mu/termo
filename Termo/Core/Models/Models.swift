@@ -6,6 +6,7 @@ enum Section: Hashable {
 
 enum SettingsTab: String, CaseIterable, Hashable {
     case general = "通用"
+    case sshKeys = "密钥"
     case terminal = "终端"
     case transfer = "传输"
     case monitor = "监控"
@@ -20,6 +21,7 @@ enum SettingsTab: String, CaseIterable, Hashable {
         case .transfer: return String(localized: "传输")
         case .monitor: return String(localized: "监控")
         case .security: return String(localized: "安全")
+        case .sshKeys: return String(localized: "密钥")
         case .keys: return String(localized: "快捷键")
         case .about: return String(localized: "关于")
         }
@@ -32,6 +34,7 @@ enum SettingsTab: String, CaseIterable, Hashable {
         case .transfer: return "arrow.up.arrow.down"
         case .monitor: return "speedometer"
         case .security: return "lock.shield"
+        case .sshKeys: return "key"
         case .keys: return "command"
         case .about: return "info.circle"
         }

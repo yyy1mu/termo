@@ -954,17 +954,6 @@ final class AppModel: ObservableObject {
 
     /// 侧栏「文件」面板要显示的树 + 稳定标识 + 所属主机。
     /// 终端/文件标签 → 各自跟随 cwd 的按标签树；编辑器标签 → 主机级资源管理器树（高亮当前文件）。
-    var sidebarFileTree: (state: FileTreeState, id: String, host: Host)? {
-        guard let id = activeTabId,
-              let tab = tabs.first(where: { $0.id == id }),
-              let host = host(tab.hostId) else { return nil }
-        switch tab.kind {
-        case .terminal, .files:
-            return (fileTreeState(forTab: id, host: host), "tab-\(id)", host)
-        case .overview:
-            return nil
-        }
-    }
 
     /// 右侧伴随面板的「当前主机」：活动标签所关联的 SSH 主机（终端/文件/概览均可）。
     func companionHost() -> Host? {

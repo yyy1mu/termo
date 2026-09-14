@@ -254,11 +254,10 @@ struct ContentView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            ActivityBar(model: model, layout: layout)
             Sidebar(model: model, tabs: model.tabsModel, layout: layout)
             // 文件栏特权：允许拖到更宽（容纳深层目录树）；其它区上限 320。
             // zIndex(1)：拖动时分隔条会画一条越过工作区的引导线,须盖在工作区之上。
-            SidebarDivider(layout: layout, maxWidth: model.section == .files ? 600 : 320)
+            SidebarDivider(layout: layout, maxWidth: 320)
                 .zIndex(1)
             VStack(spacing: 0) {
                 TabBar(model: model, tabs: model.tabsModel)
@@ -270,16 +269,15 @@ struct ContentView: View {
             CompanionPanel(model: model, layout: layout, tabs: model.tabsModel)
             RightBar(model: model, layout: layout)
         }
-        .onChange(of: model.section) { sec in
-            // 离开文件栏时，若超过常规上限则收回（额外宽度是文件栏的特权）。
-            // 瞬间收回(不加动画):宽度动画会逐帧重排工作区,造成卡顿。
-            if sec != .files, layout.sidebarWidth > 320 {
-                layout.sidebarWidth = 320
-            }
-        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Pal.base)
         .background(WindowConfigurator())
+        // 后台传输中控：守卫自动展开任务弹窗（原活动栏职责，随活动栏移除迁至此处挂载）。
+        .background {
+            ForEach(model.transfers, id: \.id) { task in
+                UploadAskWatcher(task: task) { model.focusedTransferId = task.id }
+            }
+        }
         .ignoresSafeArea()
         .preferredColorScheme(theme.isDark ? .dark : .light)
         // 注意：动画必须局限在各自 overlay 的 ZStack 内，不能加在视图链上——否则会泄漏到

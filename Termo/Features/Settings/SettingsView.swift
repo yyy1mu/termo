@@ -127,7 +127,8 @@ struct SettingsView: View {
                     case .terminal: terminalSettings
                     case .transfer: transferSettings
                     case .monitor: monitorSettings
-                    case .security: securitySettings
+                    case .sshKeys: KeysPanel(model: model).padding(.horizontal, 24)
+            case .security: securitySettings
                     case .keys: keysSettings
                     case .about: aboutSettings
                     }
