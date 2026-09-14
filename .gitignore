@@ -32,3 +32,6 @@ Rust/**/target/
 
 # 本地 Agent 指南：仅本地查阅，永不入库
 agents.local.md
+
+# 外部分析素材（Termark 参照应用），永不入库
+termark/

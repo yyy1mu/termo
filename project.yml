@@ -43,6 +43,9 @@ packages:
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm
     from: "1.13.0"
+  # 三端共享框架（结构占位）：macOS/iOS/watchOS 共用代码的未来住所
+  TermoCore:
+    path: TermoCore
 
 targets:
   Termo:
@@ -102,6 +105,44 @@ targets:
           "$SRCROOT/scripts/build-russh.sh"
 
 # 共享 scheme：供 xcodebuild -scheme Termo 打包（scripts/package-app.sh）与 Xcode 运行/归档使用。
+  # ── iOS 壳（结构占位，功能未实现）：复用 TermoCore；本地终端不可迁移，仅远程 SSH 方向 ──
+  Termo-iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: iOS/Termo-iOS
+    dependencies:
+      - package: TermoCore
+        product: TermoCore
+    settings:
+      base:
+        PRODUCT_NAME: Termo
+        PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo.ios
+        IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
+        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.0"
+
+  # ── watchOS 壳（结构占位，功能未实现）：不内嵌 SSH 引擎，经 iPhone 桥接做状态查看 ──
+  Termo-Watch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: Watch/Termo-Watch
+    dependencies:
+      - package: TermoCore
+        product: TermoCore
+    settings:
+      base:
+        PRODUCT_NAME: Termo
+        PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo.watch
+        WATCHOS_DEPLOYMENT_TARGET: "9.0"
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
+        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.0"
+
 schemes:
   Termo:
     build:

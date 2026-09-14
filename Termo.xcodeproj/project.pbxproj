@@ -23,7 +23,9 @@
 		3801418ADE5720C9809D4098 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2CAFBC8380A693E6ED2162D0 /* Assets.xcassets */; };
 		3CB26182AE9092AB27045790 /* LayoutModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C026D59ED91361778B6B4B83 /* LayoutModel.swift */; };
 		405C1999CC835E019FA8D087 /* WebDAVClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7197CFB2ABD4958688C7F12B /* WebDAVClient.swift */; };
+		416C5F24605314F61E0FE971 /* TermoIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 141656DAD408F8616E5DA27F /* TermoIOSApp.swift */; };
 		425BC5173D1D386193DF0FF2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4781A2CF9579DE21490ED7 /* AppModel.swift */; };
+		45E2AF15536559A48A74A94B /* TermoCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6B0B341D52D906722944780E /* TermoCore */; };
 		49ED9F3C1FB4A57E5C40A2D5 /* AppInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC2740433D28692622FE7281 /* AppInfo.swift */; };
 		4E8BB08836DC765A3793C7BB /* SFTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40368D0C3B6906325B722EE0 /* SFTPClient.swift */; };
 		5006CD805681677B0CF1953B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8153CA939F7EA1C538726203 /* SettingsView.swift */; };
@@ -43,6 +45,7 @@
 		766D139DE85662003CB933E0 /* AddHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333A99410F1C608823899399 /* AddHostView.swift */; };
 		7715578FC742A02AA06A2A93 /* KeyTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB120BE0A8466FDD6051FDD /* KeyTools.swift */; };
 		791DFE9DEAD1061E2296BB15 /* Tooltip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A4DA8CC82A64EB068CBD823 /* Tooltip.swift */; };
+		7F4405939A794AB6E3D1C1F9 /* TermoWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2495EE901DC0389FB62BC30A /* TermoWatchApp.swift */; };
 		82564CB03E98959D9890E2AF /* TerminalSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507FF5447F03353EF481A8B0 /* TerminalSurface.swift */; };
 		8E3B08A126CAA5DE8124C315 /* SyncCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE23E262C9D525A094244A7B /* SyncCrypto.swift */; };
 		8EDFD4A742997CCB799687E5 /* FileTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800B3BEE581D0FE8185ABEE1 /* FileTree.swift */; };
@@ -72,6 +75,7 @@
 		D1246FC441226EB86256B996 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862C497DDA041A73F78FEA04 /* Models.swift */; };
 		D4E1BB5C63DB0D8B5D3C4AA7 /* HostKeyDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38CB670FB02EF6AF5CEBDF9 /* HostKeyDialog.swift */; };
 		D64FA808A8F41212E30BD758 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCEFBDBEDCA1B9A7D7F8DF36 /* Theme.swift */; };
+		D71B3A5AB5732C288E2D1F4E /* TermoCore in Frameworks */ = {isa = PBXBuildFile; productRef = 29B716FC3EC01F73653D4A43 /* TermoCore */; };
 		DC82E921312D10CFF921F97B /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C321CE8CC691865AB47896F /* Persistence.swift */; };
 		DD247A59BA9C0A9B8F8DECE0 /* TestConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B549B96E762A0F96435705 /* TestConnectionView.swift */; };
 		DE283A4EBA547661A5B5F5D0 /* SSHSessionPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172B7815060BD98DE4B52BAD /* SSHSessionPool.swift */; };
@@ -91,13 +95,16 @@
 		00D690BC4B87701F1703B64F /* FileOpDialogs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOpDialogs.swift; sourceTree = "<group>"; };
 		022AEDEEEA2726ED9937BBC7 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		09193A7184944CAF7E27F8D3 /* OSLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLogo.swift; sourceTree = "<group>"; };
+		0972F9D146D84483F7A39E3D /* TermoCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TermoCore; path = TermoCore; sourceTree = SOURCE_ROOT; };
 		0A9624A842CEA091C1638BE8 /* SyncModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModel.swift; sourceTree = "<group>"; };
 		0BB120BE0A8466FDD6051FDD /* KeyTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyTools.swift; sourceTree = "<group>"; };
+		141656DAD408F8616E5DA27F /* TermoIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TermoIOSApp.swift; sourceTree = "<group>"; };
 		1626E272150021A09FC31784 /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
 		172B7815060BD98DE4B52BAD /* SSHSessionPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHSessionPool.swift; sourceTree = "<group>"; };
 		1983EEAC0FFD7F2C8003C88B /* KeysPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeysPanel.swift; sourceTree = "<group>"; };
 		1C321CE8CC691865AB47896F /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		248097FC2A8FBA83A9E42874 /* RemoteFS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteFS.swift; sourceTree = "<group>"; };
+		2495EE901DC0389FB62BC30A /* TermoWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TermoWatchApp.swift; sourceTree = "<group>"; };
 		28F358AF868EFC403DE5E8F5 /* TermoRusshCore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TermoRusshCore.h; sourceTree = "<group>"; };
 		2AEE9BE384D7D3E41A645BFD /* TermoSSHCore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TermoSSHCore.h; sourceTree = "<group>"; };
 		2CAFBC8380A693E6ED2162D0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -128,6 +135,7 @@
 		8D459A9141AD020F9822273D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		922A429B171BE608DC237A98 /* FileOps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOps.swift; sourceTree = "<group>"; };
 		960BB4F03437160E388C0A01 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		9C26B0F2AE3943DEC875BE48 /* Termo-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Termo-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		9DE0DE66B1418BAB8B1F0F73 /* AppIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppIcon.png; sourceTree = "<group>"; };
 		A1239B55F5573C3CD7FCA137 /* TermoSSHDispatch.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TermoSSHDispatch.c; sourceTree = "<group>"; };
 		A1C9C7C264181C1C658F930C /* SyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModels.swift; sourceTree = "<group>"; };
@@ -147,6 +155,7 @@
 		C62CC3928D2886D20B479A59 /* NerdFontIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NerdFontIcons.swift; sourceTree = "<group>"; };
 		C703EECD0742870CD6D43856 /* HostKeyVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostKeyVerifier.swift; sourceTree = "<group>"; };
 		C88E879F74C0907E243220AF /* SyncPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPanel.swift; sourceTree = "<group>"; };
+		CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Termo-Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D026950CEB9B2C8A1AE92AF6 /* BundleResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResources.swift; sourceTree = "<group>"; };
 		D172F44C6B1D699CB9362786 /* SSHKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKey.swift; sourceTree = "<group>"; };
 		D30E8F85BB20C7A21F6D7899 /* ActivityBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityBar.swift; sourceTree = "<group>"; };
@@ -177,6 +186,22 @@
 				50A266AC1A12B573BBAA2DF1 /* SwiftTerm in Frameworks */,
 				2EE07A6CD3B97876E60F14BE /* Security.framework in Frameworks */,
 				F5B3AE3D0DA903464CC16F47 /* CoreFoundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D21548FA7EE0505100C6F6C0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D71B3A5AB5732C288E2D1F4E /* TermoCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E2FCA2A816EB4F995E902869 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				45E2AF15536559A48A74A94B /* TermoCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -318,6 +343,14 @@
 			path = Engine;
 			sourceTree = "<group>";
 		};
+		5FB7D69EFD3FED87B15708D7 /* Termo-Watch */ = {
+			isa = PBXGroup;
+			children = (
+				2495EE901DC0389FB62BC30A /* TermoWatchApp.swift */,
+			);
+			path = "Termo-Watch";
+			sourceTree = "<group>";
+		};
 		652D651E8A66215F80D6D42C /* Sync */ = {
 			isa = PBXGroup;
 			children = (
@@ -384,6 +417,8 @@
 		73A71940EFCC3B417839098F /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				9C26B0F2AE3943DEC875BE48 /* Termo-iOS.app */,
+				CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */,
 				8B98C4B8B210F38C372B2955 /* Termo.app */,
 			);
 			name = Products;
@@ -438,7 +473,10 @@
 		BACE1B016C10D943441DCD8E = {
 			isa = PBXGroup;
 			children = (
+				C72CB9A3BA0750C8BDADEC89 /* iOS */,
+				E84A2EC1481BCF349828A73C /* Packages */,
 				CE438AB157F6FDDB37A841B9 /* Termo */,
+				ECD883E36E6CCD7784992EB2 /* Watch */,
 				A9BD7F3AC3F534283F579FDC /* Frameworks */,
 				73A71940EFCC3B417839098F /* Products */,
 			);
@@ -463,6 +501,14 @@
 			path = Keys;
 			sourceTree = "<group>";
 		};
+		C72CB9A3BA0750C8BDADEC89 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				DCF382133E4DE7DD004638FB /* Termo-iOS */,
+			);
+			path = iOS;
+			sourceTree = "<group>";
+		};
 		CE438AB157F6FDDB37A841B9 /* Termo */ = {
 			isa = PBXGroup;
 			children = (
@@ -478,6 +524,14 @@
 			path = Termo;
 			sourceTree = "<group>";
 		};
+		DCF382133E4DE7DD004638FB /* Termo-iOS */ = {
+			isa = PBXGroup;
+			children = (
+				141656DAD408F8616E5DA27F /* TermoIOSApp.swift */,
+			);
+			path = "Termo-iOS";
+			sourceTree = "<group>";
+		};
 		E32C0139BE8918DED91D1077 /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -488,6 +542,22 @@
 				D172F44C6B1D699CB9362786 /* SSHKey.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		E84A2EC1481BCF349828A73C /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				0972F9D146D84483F7A39E3D /* TermoCore */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		ECD883E36E6CCD7784992EB2 /* Watch */ = {
+			isa = PBXGroup;
+			children = (
+				5FB7D69EFD3FED87B15708D7 /* Termo-Watch */,
+			);
+			path = Watch;
 			sourceTree = "<group>";
 		};
 		F5F0912EECE7F6631F40B2E6 /* App */ = {
@@ -504,6 +574,44 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0A48118B32F1155789C7FB0A /* Termo-iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B38F0668C8E5D51169EB9F10 /* Build configuration list for PBXNativeTarget "Termo-iOS" */;
+			buildPhases = (
+				2FF40774B315C4A76D59E0B2 /* Sources */,
+				E2FCA2A816EB4F995E902869 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Termo-iOS";
+			packageProductDependencies = (
+				6B0B341D52D906722944780E /* TermoCore */,
+			);
+			productName = "Termo-iOS";
+			productReference = 9C26B0F2AE3943DEC875BE48 /* Termo-iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		3827CF9BD8686ACED0D922E6 /* Termo-Watch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0CB62FB915759507E4BDBA3B /* Build configuration list for PBXNativeTarget "Termo-Watch" */;
+			buildPhases = (
+				7FB4318033E532C64EA80DFA /* Sources */,
+				D21548FA7EE0505100C6F6C0 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Termo-Watch";
+			packageProductDependencies = (
+				29B716FC3EC01F73653D4A43 /* TermoCore */,
+			);
+			productName = "Termo-Watch";
+			productReference = CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */;
+			productType = "com.apple.product-type.application";
+		};
 		C30F527531995F0E3B3DFE49 /* Termo */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6D67467588D7309322003925 /* Build configuration list for PBXNativeTarget "Termo" */;
@@ -534,6 +642,14 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					0A48118B32F1155789C7FB0A = {
+						DevelopmentTeam = KTP97H9YFF;
+						ProvisioningStyle = Automatic;
+					};
+					3827CF9BD8686ACED0D922E6 = {
+						DevelopmentTeam = KTP97H9YFF;
+						ProvisioningStyle = Automatic;
+					};
 					C30F527531995F0E3B3DFE49 = {
 						DevelopmentTeam = KTP97H9YFF;
 						ProvisioningStyle = Automatic;
@@ -552,6 +668,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				24FC386F270D786934C82453 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				5F40513BC93BFAD017093EF7 /* XCLocalSwiftPackageReference "TermoCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 73A71940EFCC3B417839098F /* Products */;
@@ -559,6 +676,8 @@
 			projectRoot = "";
 			targets = (
 				C30F527531995F0E3B3DFE49 /* Termo */,
+				0A48118B32F1155789C7FB0A /* Termo-iOS */,
+				3827CF9BD8686ACED0D922E6 /* Termo-Watch */,
 			);
 		};
 /* End PBXProject section */
@@ -601,6 +720,14 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2FF40774B315C4A76D59E0B2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				416C5F24605314F61E0FE971 /* TermoIOSApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		59222020EEE4F93E0902B6FE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -677,6 +804,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7FB4318033E532C64EA80DFA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7F4405939A794AB6E3D1C1F9 /* TermoWatchApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
@@ -734,7 +869,6 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
@@ -803,13 +937,29 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
 			};
 			name = DebugMAS;
+		};
+		4255831DB232907B9DA1C857 /* ReleaseMAS */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.watch;
+				PRODUCT_NAME = Termo;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 9.0;
+			};
+			name = ReleaseMAS;
 		};
 		4737907BF17204385CE4FC98 /* ReleaseMAS */ = {
 			isa = XCBuildConfiguration;
@@ -845,6 +995,23 @@
 			};
 			name = ReleaseMAS;
 		};
+		6600859A1430C7945B4635D8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.watch;
+				PRODUCT_NAME = Termo;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 9.0;
+			};
+			name = Release;
+		};
 		68617F7FA2F240908BD1F960 /* DebugMAS */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -877,6 +1044,65 @@
 			};
 			name = DebugMAS;
 		};
+		6DF78356B434F050FC7EA7BA /* ReleaseMAS */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.ios;
+				PRODUCT_NAME = Termo;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = ReleaseMAS;
+		};
+		787178CD72E035BED5388D6D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.watch;
+				PRODUCT_NAME = Termo;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 9.0;
+			};
+			name = Debug;
+		};
+		7C45D0C6780B2BEB607B9731 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.ios;
+				PRODUCT_NAME = Termo;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		92F7E487E56B677442FB84BE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -908,6 +1134,23 @@
 			};
 			name = Debug;
 		};
+		CB5E7C626AD07B54956EA7D9 /* DebugMAS */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.watch;
+				PRODUCT_NAME = Termo;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 9.0;
+			};
+			name = DebugMAS;
+		};
 		CDA89A2683E5576E77F50189 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -938,6 +1181,48 @@
 				SDKROOT = macosx;
 				SWIFT_OBJC_BRIDGING_HEADER = "Termo/Bridge/Termo-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Osize";
+			};
+			name = Release;
+		};
+		DC14A95CFFD4C54132E33CE8 /* DebugMAS */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.ios;
+				PRODUCT_NAME = Termo;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = DebugMAS;
+		};
+		E5E50511A6D48DA90CCD5C9C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.ios;
+				PRODUCT_NAME = Termo;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -995,7 +1280,6 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
@@ -1064,7 +1348,6 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -1075,6 +1358,17 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0CB62FB915759507E4BDBA3B /* Build configuration list for PBXNativeTarget "Termo-Watch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				787178CD72E035BED5388D6D /* Debug */,
+				CB5E7C626AD07B54956EA7D9 /* DebugMAS */,
+				6600859A1430C7945B4635D8 /* Release */,
+				4255831DB232907B9DA1C857 /* ReleaseMAS */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		4140589C6F02BC5DA46E5CDC /* Build configuration list for PBXProject "Termo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1097,7 +1391,25 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		B38F0668C8E5D51169EB9F10 /* Build configuration list for PBXNativeTarget "Termo-iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7C45D0C6780B2BEB607B9731 /* Debug */,
+				DC14A95CFFD4C54132E33CE8 /* DebugMAS */,
+				E5E50511A6D48DA90CCD5C9C /* Release */,
+				6DF78356B434F050FC7EA7BA /* ReleaseMAS */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5F40513BC93BFAD017093EF7 /* XCLocalSwiftPackageReference "TermoCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = TermoCore;
+		};
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
 		24FC386F270D786934C82453 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
@@ -1111,6 +1423,14 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		29B716FC3EC01F73653D4A43 /* TermoCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TermoCore;
+		};
+		6B0B341D52D906722944780E /* TermoCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TermoCore;
+		};
 		9AFD70D7F0CA6271D43F4764 /* SwiftTerm */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 24FC386F270D786934C82453 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
