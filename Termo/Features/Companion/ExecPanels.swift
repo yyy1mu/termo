@@ -123,8 +123,8 @@ private struct PanelCard<Content: View>: View {
         content()
             .padding(.horizontal, 12).padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Pal.fill(0.05), lineWidth: 1))
+            .background(Pal.card, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Pal.border, lineWidth: 1))
     }
 }
 

@@ -295,8 +295,18 @@ struct HostRow: View {
             }
             .padding(.horizontal, 8).padding(.vertical, 9)
             .background(
-                isActive ? Pal.mauve.opacity(0.15) : (hover ? Pal.fill(0.05) : Color.clear),
+                isActive ? Pal.mauve.opacity(0.10) : (hover ? Pal.fill(0.05) : Pal.card),
                 in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay(alignment: .leading) {
+                if isActive {
+                    // 选中标识：左侧 2px 主色条（对齐主流终端管理器的选中语言）
+                    RoundedRectangle(cornerRadius: 1).fill(Pal.mauve)
+                        .frame(width: 2, height: 22).padding(.leading, 2)
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 8).stroke(isActive ? Pal.mauve.opacity(0.22) : Pal.border, lineWidth: 1)
             )
             .animation(.easeOut(duration: 0.18), value: isActive)   // 选中高亮丝滑淡入淡出
             .animation(.easeOut(duration: 0.12), value: hover)

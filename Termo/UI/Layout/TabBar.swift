@@ -103,7 +103,7 @@ struct TabChip: View {
                 .buttonStyle(.plain)
                 .opacity(active || hover ? 1 : 0)
         }
-        .padding(.leading, 10).padding(.trailing, 6).padding(.vertical, 5)
+        .padding(.leading, 10).padding(.trailing, 6).padding(.vertical, 4)
         .background(
             active ? Pal.fill(0.08) : (hover ? Pal.fill(0.04) : Color.clear),
             in: RoundedRectangle(cornerRadius: 7)

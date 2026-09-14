@@ -75,9 +75,9 @@ struct CompanionPanel: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(width: LayoutModel.rightPanelWidth)
-            .background(Pal.mantle)
+            .background(Pal.base)
             .overlay(alignment: .leading) {
-                Rectangle().fill(Pal.fill(0.08)).frame(width: 1)
+                Rectangle().fill(Pal.border).frame(width: 1)
             }
         }
     }

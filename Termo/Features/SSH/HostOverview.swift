@@ -8,43 +8,78 @@ struct HostOverview: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 12) {
-                    Text(host.name).font(.system(size: 20, weight: .medium)).foregroundStyle(Pal.textBright)
-                    statusBadge
-                    if host.status == .online, let ms = host.latencyMs {
-                        let level = LatencyLevel(ms: ms)
+                // ── 头部：发行版 logo + 名称 + 状态徽章行 ──
+                HStack(spacing: 14) {
+                    overviewLogo
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 9) {
+                            Text(host.name).font(.system(size: 19, weight: .semibold)).foregroundStyle(Pal.textBright)
+                            statusBadge
+                        }
                         HStack(spacing: 6) {
-                            Text("\(ms) ms").font(.system(size: 12, design: .monospaced)).foregroundStyle(level.color)
-                            Text(level.title).font(.system(size: 12)).foregroundStyle(Pal.overlay)
+                            Text("\(host.ipOrHost) · 端口 \(String(host.ssh?.port ?? 22))")
+                                .font(.system(size: 12, design: .monospaced)).foregroundStyle(Pal.subtext)
+                                .privacyBlur(model.privacyMode)
+                            if host.status == .online, let ms = host.latencyMs {
+                                let level = LatencyLevel(ms: ms)
+                                Text("\(ms) ms").font(.system(size: 11, design: .monospaced)).foregroundStyle(level.color)
+                                Text(level.title).font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                            }
                         }
                     }
                 }
-                // 端口用 String() 包一层：Text 的 LocalizedStringKey 插值会给裸整数加千分符（20,241）。
-                Text("\(host.ipOrHost) · 端口 \(String(host.ssh?.port ?? 22))")
-                    .font(.system(size: 13)).foregroundStyle(Pal.subtext)
-                    .privacyBlur(model.privacyMode)
-                    .padding(.top, 6).padding(.bottom, 16)
+                .padding(.bottom, 18)
 
-                specsRow
+                // ── 系统信息卡（logo 已在头部，这里放规格网格）──
+                if let s = host.specs, !s.isEmpty {
+                    infoCard {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                                  alignment: .leading, spacing: 14) {
+                            if !s.os.isEmpty { specCell("system", String(localized: "系统"), s.os) }
+                            if !s.cores.isEmpty { specCell("cpu", String(localized: "核心"), "\(s.cores) 核") }
+                            if !s.memory.isEmpty { specCell("memorychip", String(localized: "内存"), s.memory) }
+                            if !s.disk.isEmpty { specCell("internaldrive", String(localized: "磁盘"), s.disk) }
+                            if !s.vram.isEmpty { specCell("bolt", String(localized: "显存"), s.vram) }
+                            if !s.gpu.isEmpty { specCell("dp", String(localized: "显卡"), s.gpu) }
+                        }
+                    }
+                    .padding(.bottom, 14)
+                } else if model.probingHosts.contains(host.id) {
+                    infoCard {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text("正在获取系统信息…").font(.system(size: 12)).foregroundStyle(Pal.overlay)
+                        }
+                    }
+                    .padding(.bottom, 14)
+                }
 
-                HStack(spacing: 10) {
-                    action("terminal", String(localized: "终端"), primary: true) { model.openHostTerminal(host) }
+                // ── 紧凑操作行（图标 + 文字的一行按钮，不是大卡）──
+                HStack(spacing: 8) {
+                    actionChip("terminal", String(localized: "终端"), primary: true) { model.openHostTerminal(host) }
                         .contextMenu { Button("新建终端") { model.openHostTerminal(host, forceNew: true) } }
-                    action("folder", String(localized: "文件 (SFTP)"), loading: model.openingFilesHostId == host.id) { model.openHostFiles(host) }
-                    action("arrow.left.arrow.right", String(localized: "端口转发"), badge: model.hasRunningForward(hostId: host.id)) { model.openForwardPanel(host) }
-                    action("pencil", String(localized: "编辑")) { model.beginEditHost(host) }
+                    actionChip("folder", String(localized: "文件 (SFTP)"), loading: model.openingFilesHostId == host.id) { model.openHostFiles(host) }
+                        .contextMenu { Button("新建文件标签") { model.openHostFiles(host) } }
+                    actionChip("arrow.left.arrow.right", String(localized: "端口转发"),
+                               badge: model.hasRunningForward(hostId: host.id)) { model.openForwardPanel(host) }
+                    actionChip("square.and.pencil", String(localized: "编辑")) { model.beginEditHost(host) }
                 }
-                .padding(.bottom, 26)
+                .padding(.bottom, 22)
 
+                // ── 备注 ──
                 if !host.notes.isEmpty {
-                    Text("备注").font(.system(size: 12)).foregroundStyle(Pal.overlay).padding(.bottom, 8)
-                    Text(host.notes)
-                        .font(.system(size: 13)).foregroundStyle(Pal.subtext)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.bottom, 24)
+                    infoCard {
+                        Text("备注").font(.system(size: 10, weight: .medium)).foregroundStyle(Pal.overlay)
+                            .padding(.bottom, 5)
+                        Text(host.notes)
+                            .font(.system(size: 12)).foregroundStyle(Pal.subtext)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.bottom, 18)
                 }
 
+                // ── 监控入口提示（每次询问未验证时）或监控面板本体（已登录）──
                 if host.ssh != nil {
                     if needsAuth {
                         monitorAuthPlaceholder
@@ -53,7 +88,7 @@ struct HostOverview: View {
                     }
                 }
             }
-            .padding(.horizontal, 28).padding(.top, 38).padding(.bottom, 20)
+            .padding(.horizontal, 24).padding(.top, 28).padding(.bottom, 20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         // 监控只在概览可见时跑：切到此 tab 开始采集，切走（视图移出）几秒后自动停流，保持轻量。
@@ -69,6 +104,48 @@ struct HostOverview: View {
             }
         }
         .onDisappear { model.overviewDisappeared(host.id) }
+    }
+
+    /// 概览头部大号发行版 Logo（46pt，品牌色底 + 白字形；未识别回退服务器符号）。
+    private var overviewLogo: some View {
+        let osStr = liveHost.specs?.os ?? liveHost.os
+        return ZStack {
+            if let name = OSLogo.fontName, let logo = OSLogo.info(for: osStr) {
+                RoundedRectangle(cornerRadius: 11)
+                    .fill(logo.color)
+                    .overlay(Text(logo.glyph).font(.custom(name, size: 26)).foregroundStyle(.white))
+            } else {
+                RoundedRectangle(cornerRadius: 11)
+                    .fill(Pal.mauve.opacity(0.14))
+                    .overlay(Image(systemName: "server.rack")
+                        .font(.system(size: 22)).foregroundStyle(Pal.mauve))
+            }
+        }
+        .frame(width: 46, height: 46)
+    }
+
+    /// 信息卡片容器：统一卡片底/描边/圆角/内边距（设计系统基准件）。
+    private func infoCard(@ViewBuilder _ content: () -> some View) -> some View {
+        content()
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Pal.card, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Pal.border, lineWidth: 1))
+    }
+
+    /// 系统规格单元格：小图标 + 标签 + 值。
+    private func specCell(_ symbol: String, _ label: String, _ value: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: symbol)
+                .font(.system(size: 13)).foregroundStyle(Pal.mauve)
+                .frame(width: 24, height: 24)
+                .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label).font(.system(size: 10)).foregroundStyle(Pal.overlay)
+                Text(value).font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
+                    .lineLimit(1)
+            }
+        }
     }
 
     /// 实时主机：host 是 Workspace 传入的快照，输密码等变化要从 model 取最新值（HostOverview 已 @ObservedObject model）。
@@ -121,73 +198,41 @@ struct HostOverview: View {
             .background(bg, in: RoundedRectangle(cornerRadius: 6))
     }
 
-    @ViewBuilder
-    private var specsRow: some View {
-        if let s = host.specs, !s.isEmpty {
-            HStack(spacing: 24) {
-                if !s.os.isEmpty { specItem(String(localized: "系统"), s.os) }
-                if !s.cores.isEmpty { specItem(String(localized: "核心"), "\(s.cores) 核") }
-                if !s.memory.isEmpty { specItem(String(localized: "内存"), s.memory) }
-                if !s.disk.isEmpty { specItem(String(localized: "磁盘"), s.disk) }
-                if !s.vram.isEmpty { specItem(String(localized: "显存"), s.vram) }
-                if !s.gpu.isEmpty { specItem(String(localized: "显卡"), s.gpu) }
-            }
-            .padding(.bottom, 20)
-        } else if model.probingHosts.contains(host.id) {
-            HStack(spacing: 7) {
-                ProgressView().controlSize(.small)
-                Text("正在获取系统信息…").font(.system(size: 12)).foregroundStyle(Pal.overlay)
-            }
-            .padding(.bottom, 20)
-        }
-    }
 
-    private func specItem(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.system(size: 11)).foregroundStyle(Pal.overlay)
-            Text(value).font(.system(size: 13, weight: .medium)).foregroundStyle(Pal.text)
-        }
-    }
-
+    /// 紧凑操作按钮：图标+文字横排、高 36，选中主操作用主色底。
     @ViewBuilder
-    private func action(_ symbol: String, _ label: String, primary: Bool = false, badge: Bool = false,
-                        loading: Bool = false, _ act: @escaping () -> Void) -> some View {
+    private func actionChip(_ symbol: String, _ label: String, primary: Bool = false, badge: Bool = false,
+                            loading: Bool = false, _ act: @escaping () -> Void) -> some View {
         Button(action: act) {
-            VStack(spacing: 8) {
+            HStack(spacing: 7) {
                 Group {
                     if loading {
-                        ProgressView().controlSize(.small)   // 连接/指纹预检中：转圈给高延迟主机即时反馈
+                        ProgressView().controlSize(.small)
                     } else {
-                        Image(systemName: symbol).font(.system(size: 21))
-                            .foregroundStyle(primary ? Pal.mauve : Pal.subtext)
+                        Image(systemName: symbol).font(.system(size: 12, weight: .medium))
                     }
                 }
-                .frame(height: 24)   // 固定图标高度，避免不同字形造成卡片高度参差
-                Text(loading ? String(localized: "连接中…") : label).font(.system(size: 12)).foregroundStyle(Pal.text)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                primary ? Pal.mauve.opacity(0.10) : Pal.fill(0.03),
-                in: RoundedRectangle(cornerRadius: 10)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(primary ? Pal.mauve.opacity(0.25) : Pal.fill(0.07), lineWidth: 1)
-            )
-            // 有进行中的后台任务（如运行中的转发隧道）时，右上角亮一个绿点
-            .overlay(alignment: .topTrailing) {
+                Text(loading ? String(localized: "连接中…") : label).font(.system(size: 12, weight: .medium))
                 if badge {
-                    Circle().fill(Pal.green).frame(width: 8, height: 8)
-                        .overlay(Circle().stroke(Pal.base, lineWidth: 1.5))
-                        .padding(7)
+                    Circle().fill(Pal.green).frame(width: 6, height: 6)
                 }
             }
+            .foregroundStyle(primary ? .white : Pal.text)
+            .padding(.horizontal, 14).padding(.vertical, 9)
+            .background(
+                primary ? Pal.mauve : Pal.card,
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(primary ? Color.clear : Pal.border, lineWidth: 1)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .pointerCursor()
     }
+
 
 }
 

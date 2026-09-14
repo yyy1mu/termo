@@ -20,6 +20,8 @@ struct ThemeColors {
     let mantle: Color
     let base: Color
     let surface0: Color
+    /// 卡片底色：比所在表面亮半档（深色）/纯白（浅色），承载信息卡片。
+    let card: Color
     let text: Color
     let textBright: Color
     let subtext: Color
@@ -46,6 +48,7 @@ extension ThemeColors {
         mantle: Color(hex: 0x252526),   // 侧栏 / 标签栏
         base: Color(hex: 0x1e1e1e),     // 工作区 / 编辑器
         surface0: Color(hex: 0x37373d),
+        card: Color(hex: 0x28282a),     // 信息卡片（比 base 亮半档）
         text: Color(hex: 0xcccccc),
         textBright: Color(hex: 0xffffff),
         subtext: Color(hex: 0x9d9d9d),
@@ -65,6 +68,7 @@ extension ThemeColors {
         mantle: Color(hex: 0xedeef2),   // 侧栏 / 标签栏
         base: Color(hex: 0xf5f6f9),     // 工作区 / 编辑器（不再纯白）
         surface0: Color(hex: 0xdfe2e9),
+        card: Color(hex: 0xffffff),     // 信息卡片（浅色=白卡灰底，经典对比）
         text: Color(hex: 0x2e3440),
         textBright: Color(hex: 0x1a1d24),
         subtext: Color(hex: 0x6b7280),
@@ -149,6 +153,9 @@ enum Pal {
     static var solidMantle: Color { c.mantle }
     static var solidBase: Color { c.base }
     static var surface0: Color { c.surface0 }
+    static var card: Color { c.card }
+    /// 统一分割线/卡片描边：随明暗主题自适应的淡色线。
+    static var border: Color { fill(0.07) }
     static var text: Color { c.text }
     static var textBright: Color { c.textBright }
     static var subtext: Color { c.subtext }
