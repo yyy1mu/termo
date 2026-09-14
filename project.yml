@@ -1,6 +1,6 @@
 # XcodeGen 声明式工程定义。改这里后运行 `xcodegen generate` 重新生成 Termo.xcodeproj。
 # 业务代码全部直接归属 Termo App target（单一模块，与原 SwiftPM 可执行目标同构）；
-# 第三方/vendored 依赖以 Swift Package 形式引入（SwiftTerm 远程 + 三个本地 CodeEdit 包）。
+# 第三方依赖以 Swift Package 形式引入（SwiftTerm 远程终端）。
 name: Termo
 
 options:
@@ -43,12 +43,6 @@ packages:
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm
     from: "1.13.0"
-  CodeEditSourceEditor:
-    path: LocalPackages/CodeEditSourceEditor
-  # CodeEditTextView 由 App 直接 import，需单列；CodeEditSymbols 仅经 CodeEditSourceEditor
-  # 的相对 path 传递引入，不在此重复声明（避免 identity 冲突）。
-  CodeEditTextView:
-    path: LocalPackages/CodeEditTextView
 
 targets:
   Termo:
@@ -62,16 +56,6 @@ targets:
     dependencies:
       - package: SwiftTerm
         product: SwiftTerm
-      - package: CodeEditSourceEditor
-        product: CodeEditSourceEditor
-      - package: CodeEditTextView      # App 直接 import；CodeEditSymbols 经此传递引入，无需显式声明
-        product: CodeEditTextView
-      # Sparkle：自动更新框架，仅服务 Developer ID（GitHub）渠道。**Mac App Store 包绝不能含 Sparkle**
-      # （沙盒禁自更新 + 审核拒）。故 weak 弱链接（缺失也不崩）+ 所有调用点 `#if !TERMO_MAS` 隔离 +
-      # MAS 配置在 postBuildScripts 里把已嵌入的 Sparkle.framework 删除（弱链 + 零引用 ⟹ 删了不崩）。
-      - framework: Vendor/Sparkle.framework
-        embed: true
-        weak: true
       - sdk: Security.framework
       - sdk: CoreFoundation.framework
     settings:
@@ -116,20 +100,6 @@ targets:
           set -e
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"   # Xcode 脚本环境默认不含 Homebrew
           "$SRCROOT/scripts/build-russh.sh"
-    # MAS 渠道剥离 Sparkle：弱链接的 Sparkle.framework 已被「嵌入框架」阶段拷进包，这里在最终代码签名前删除它。
-    # 运行脚本阶段晚于嵌入、早于 App 自身签名 ⟹ 删除后签名只覆盖剩余内容，签名自洽；弱链 + 全部调用 #if 隔离 ⟹ 缺失不崩。
-    # Developer ID（Debug/Release）保留框架，自动更新正常。
-    postBuildScripts:
-      - name: "Strip Sparkle (MAS only)"
-        basedOnDependencyAnalysis: false
-        script: |
-          if [ "${CONFIGURATION}" = "DebugMAS" ] || [ "${CONFIGURATION}" = "ReleaseMAS" ]; then
-            FW="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework"
-            if [ -d "$FW" ]; then
-              rm -rf "$FW"
-              echo "note: 已为 MAS 渠道剥离 Sparkle.framework"
-            fi
-          fi
 
 # 共享 scheme：供 xcodebuild -scheme Termo 打包（scripts/package-app.sh）与 Xcode 运行/归档使用。
 schemes:

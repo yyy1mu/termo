@@ -39,7 +39,7 @@ enum SettingsTab: String, CaseIterable, Hashable {
 }
 
 enum TabKind {
-    case overview, terminal, files, editor
+    case overview, terminal, files
 }
 
 struct TabItem: Identifiable {

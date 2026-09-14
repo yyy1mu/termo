@@ -1,7 +1,6 @@
-name: Release (Developer ID + Sparkle)
+name: Release (Developer ID)
 
-# 推送 v* 标签即自动发版：构建 → Developer ID 签名 → 公证装订 → 打 zip/dmg →
-# Sparkle EdDSA 签名 + 生成 appcast → 创建 GitHub Release → 发布 appcast 到 GitHub Pages。
+# 推送 v* 标签即自动发版：构建 → Developer ID 签名 → 公证装订 → DMG → 创建 GitHub Release。
 # Dev ID（GitHub）渠道全自动；Mac App Store 渠道另走手动 Transporter 上传。
 on:
   push:
@@ -9,7 +8,7 @@ on:
       - "v*"
 
 permissions:
-  contents: write   # 创建 Release、推送 gh-pages
+  contents: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -19,7 +18,6 @@ jobs:
   release:
     runs-on: macos-15   # Apple Silicon（arm64）；自带 Xcode 16.x，可读 xcodegen 产出的 objectVersion 77 工程
     env:
-      SPARKLE_VERSION: "2.9.3"
       TEAM_ID: KTP97H9YFF
       NOTARY_PROFILE: termo-notary
     steps:
@@ -38,14 +36,6 @@ jobs:
 
       - name: 安装构建工具
         run: brew install xcodegen create-dmg
-
-      # ── 占位公钥未替换则中止（否则发出去的更新无法被校验）──
-      - name: 校验 Sparkle 公钥已填入 Info.plist
-        run: |
-          if grep -q "__SPARKLE_PUBLIC_ED_KEY_PLACEHOLDER__" Termo/Info.plist; then
-            echo "::error::Termo/Info.plist 的 SUPublicEDKey 仍是占位串。请先用 generate_keys 生成密钥并把公钥填入后再打 tag。"
-            exit 1
-          fi
 
       # ── 导入 Developer ID Application 证书到临时钥匙串 ──
       - name: 导入签名证书
@@ -102,41 +92,9 @@ jobs:
           echo "dmg=$DMG"   >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      # ── 下载 Sparkle 发布工具（generate_appcast / sign_update）──
-      - name: 获取 Sparkle 工具
-        run: |
-          set -euo pipefail
-          curl -fsSL -o sparkle.tar.xz \
-            "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
-          mkdir -p .sparkle && tar -xJf sparkle.tar.xz -C .sparkle bin
-
-      # ── 准备 Sparkle 归档目录：zip + 上次的 appcast（从 gh-pages 取，保留历史条目）+ 发行说明 ──
-      - name: 组装 Sparkle 归档目录
-        id: sparkle
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.artifacts.outputs.version }}"
-          ARCH_DIR="$RUNNER_TEMP/sparkle-archives"
-          mkdir -p "$ARCH_DIR"
-          # 1) 供 Sparkle 自动安装的 zip（保留顶层 .app）
-          ditto -c -k --keepParent "${{ steps.artifacts.outputs.app }}" "$ARCH_DIR/Termo-$VERSION.zip"
-          # 2) 取回已发布的 appcast（首发时不存在则忽略），让 generate_appcast 追加而非重建
-          curl -fsSL "https://icloudza.github.io/termo/appcast.xml" -o "$ARCH_DIR/appcast.xml" || true
-          # 3) 发行说明：用本次 tag 的注释信息（无则用提交说明）生成同名 .html，被 appcast 作为更新内容
-          NOTES=$(git tag -l --format='%(contents)' "${{ github.ref_name }}")
-          [ -n "$NOTES" ] || NOTES=$(git log -1 --pretty=%B "${{ github.ref_name }}")
-          {
-            echo "<h2>Termo $VERSION</h2>"
-            printf '%s\n' "$NOTES" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/$/<br>/'
-          } > "$ARCH_DIR/Termo-$VERSION.html"
-          # 4) 同一份 NOTES 转成 markdown 列表，供 GitHub Release 正文（body_path）
-          { echo "### 本次更新"; echo; printf '%s\n' "$NOTES" | sed 's/^/- /'; } > "$RUNNER_TEMP/release-body.md"
-          echo "dir=$ARCH_DIR" >> "$GITHUB_OUTPUT"
-
-      # ── 上传安装包到 Cloudflare R2（dl.termoi.app）——必须在生成/发布 appcast 之前 ──
-      # Sparkle 自动更新的 zip 与官网直链的 dmg 都放 R2：国内下载远快于 GitHub Release，
-      # 完整性由 appcast 的 EdDSA 签名保证（下错/被篡改会被 Sparkle 拒绝）。
-      # 版本键（Termo-<版本>.zip/.dmg）内容唯一 → immutable 长缓存，永不下到旧版；
+      # ── 上传安装包到 Cloudflare R2（dl.termoi.app）──
+      # 官网直链的 dmg 放 R2：国内下载远快于 GitHub Release。
+      # 版本键（Termo-<版本>.dmg）内容唯一 → immutable 长缓存，永不下到旧版；
       # 稳定键 Termo.dmg（官网按钮）仅正式版更新、短缓存。
       - name: 上传安装包到 Cloudflare R2
         env:
@@ -146,12 +104,10 @@ jobs:
           set -euo pipefail
           VERSION="${{ steps.artifacts.outputs.version }}"
           DMG="${{ steps.artifacts.outputs.dmg }}"
-          ZIP="${{ steps.sparkle.outputs.dir }}/Termo-$VERSION.zip"
           BUCKET=termo-downloads
           IMMUTABLE="public, max-age=31536000, immutable"
           put() { npx --yes wrangler@4 r2 object put "$1" --file="$2" --content-type="$3" --cache-control="$4" --remote; }
-          echo "上传 Sparkle zip 与 dmg 到 R2 …"
-          put "$BUCKET/Termo-$VERSION.zip" "$ZIP" "application/zip" "$IMMUTABLE"
+          echo "上传 dmg 到 R2 …"
           put "$BUCKET/$(basename "$DMG")" "$DMG" "application/x-apple-diskimage" "$IMMUTABLE"
           # 稳定键 Termo.dmg：官网下载按钮永远指它；仅正式版更新、短缓存（5 分钟内切新版）
           if [[ "$VERSION" != *-* ]]; then
@@ -161,39 +117,11 @@ jobs:
             echo "预发布 $VERSION：仅存档版本键，未更新官网稳定键 Termo.dmg"
           fi
 
-      # ── EdDSA 签名 + 生成 appcast（enclosure 指向 R2 上的 zip，自动更新走 R2）──
-      - name: 生成 appcast
-        env:
-          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          PREFIX="https://dl.termoi.app/"
-          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | .sparkle/bin/generate_appcast \
-            --ed-key-file - \
-            --download-url-prefix "$PREFIX" \
-            --link "https://github.com/${{ github.repository }}" \
-            --maximum-versions 0 \
-            "${{ steps.sparkle.outputs.dir }}"
-          echo "—— appcast.xml ——"; cat "${{ steps.sparkle.outputs.dir }}/appcast.xml"
-
-      # ── 创建 GitHub Release，上传 zip + dmg ──
+      # ── 创建 GitHub Release，上传 dmg ──
       - name: 发布 Release
         uses: softprops/action-gh-release@v2
         with:
           name: Termo ${{ steps.artifacts.outputs.version }}
           tag_name: ${{ github.ref_name }}
-          body_path: ${{ runner.temp }}/release-body.md
-          files: |
-            ${{ steps.sparkle.outputs.dir }}/Termo-${{ steps.artifacts.outputs.version }}.zip
-            ${{ steps.artifacts.outputs.dmg }}
+          files: ${{ steps.artifacts.outputs.dmg }}
           generate_release_notes: true
-
-      # ── 发布 appcast.xml 到 GitHub Pages（SUFeedURL 固定指向它）──
-      - name: 部署 appcast 到 Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: ${{ steps.sparkle.outputs.dir }}
-          keep_files: true   # 不删除 Pages 上其它文件（如历史 appcast 资源）
-          exclude_assets: "*.zip,*.app"   # 只发布 appcast.xml / *.html，不把 zip 推到 Pages

@@ -46,7 +46,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         Notifier.requestAuthIfNeeded()   // 申请系统通知权限（上传/下载完成提醒）
         tray = TrayController(onShow: { [weak self] in self?.showMainWindow() },
                               onQuit: { [weak self] in self?.forceQuit() })
-        UpdateController.shared.startup()   // 启动自动更新调度（Dev ID 走 Sparkle；MAS 无操作）
         NSApp.activate(ignoringOtherApps: true)
         // 窗口此刻已创建；记录主窗口并接管其关闭行为（隐藏到托盘）。延迟一拍确保 WindowGroup 已出窗口。
         DispatchQueue.main.async { [weak self] in self?.attachMainWindow() }
@@ -183,9 +182,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let about = NSMenuItem(title: String(localized: "关于 Termo"), action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         appMenu.addItem(about)
-        let checkUpdate = NSMenuItem(title: String(localized: "检查更新…"), action: #selector(checkForUpdates), keyEquivalent: "")
-        checkUpdate.target = self
-        appMenu.addItem(checkUpdate)
         appMenu.addItem(.separator())
         let quit = NSMenuItem(title: String(localized: "退出 Termo"), action: #selector(requestQuit), keyEquivalent: "q")
         quit.target = self   // 经退出流程检查后台任务，而非直接 terminate
@@ -216,9 +212,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.mainMenu = main
     }
 
-    @objc private func checkForUpdates() {
-        MainActor.assumeIsolated { UpdateController.shared.checkForUpdates() }   // 菜单动作恒在主线程投递
-    }
 
     @objc private func showAbout() {
         if aboutWindow == nil {
@@ -421,15 +414,6 @@ struct ContentView: View {
                     onCancel: { model.cancelBatchDelete() }
                 ).transition(.opacity)
             }
-            if let ctx = model.pendingFileRefresh {
-                ConfirmDialog(
-                    title: "文件有未保存的修改",
-                    message: "「\(ctx.fileName)」在编辑器中有未保存的修改。重新加载会丢弃这些修改。",
-                    confirmTitle: "重新加载", destructive: true,
-                    onConfirm: { model.confirmFileRefreshReload() },
-                    onCancel: { model.pendingFileRefresh = nil }
-                ).transition(.opacity)
-            }
             if let ctx = model.pendingFileRename {
                 RenameDialog(
                     originalName: ctx.file.name,
@@ -481,7 +465,6 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.15), value: model.pendingFileRename?.id)
         .animation(.easeOut(duration: 0.15), value: model.pendingFileChmod?.id)
         .animation(.easeOut(duration: 0.15), value: model.pendingFileCreate?.id)
-        .animation(.easeOut(duration: 0.15), value: model.pendingFileRefresh?.id)
         .animation(.easeOut(duration: 0.15), value: model.pendingFileInfo?.id)
         // 无任何文件弹窗时整层不吃点击，杜绝 .transition 关闭后残留命中层卡住界面。
         .allowsHitTesting(anyFileOverlayActive)
@@ -489,7 +472,7 @@ struct ContentView: View {
 
     /// 文件操作叠层里是否有弹窗正在展示（含展开的上传/下载对话框）。
     private var anyFileOverlayActive: Bool {
-        model.pendingFileDelete != nil || model.pendingBatchDelete != nil || model.pendingHostDelete != nil || model.pendingFileRefresh != nil ||
+        model.pendingFileDelete != nil || model.pendingBatchDelete != nil || model.pendingHostDelete != nil ||
         model.pendingFileRename != nil || model.pendingFileChmod != nil ||
         model.pendingFileCreate != nil || model.pendingFileInfo != nil ||
         model.focusedTransferId != nil ||

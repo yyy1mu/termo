@@ -280,7 +280,6 @@ extension SyncedSettings {
         out.defaultShell = s.defaultShell.rawValue
         out.closeConfirm = s.closeConfirm
         out.confirmHostDelete = s.confirmHostDelete
-        out.editorMinimap = s.editorMinimap
         out.termFont = s.termFont
         out.termFontSize = s.termFontSize
         out.termCursorStyle = s.termCursorStyle
@@ -300,7 +299,6 @@ extension SyncedSettings {
         s.defaultShell = DefaultShell(rawValue: defaultShell) ?? .auto
         s.closeConfirm = closeConfirm
         s.confirmHostDelete = confirmHostDelete
-        s.editorMinimap = editorMinimap
         s.termFont = termFont
         s.termFontSize = termFontSize
         s.termCursorStyle = termCursorStyle

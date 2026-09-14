@@ -43,7 +43,6 @@ struct SyncedSettings: Codable, Equatable {
     var defaultShell: String = "auto"
     var closeConfirm: Bool = true
     var confirmHostDelete: Bool = true
-    var editorMinimap: Bool = true
     var termFont: String = ""
     var termFontSize: Int = 13
     var termCursorStyle: String = "bar"
@@ -56,7 +55,7 @@ struct SyncedSettings: Codable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case appearanceMode, appLanguage, startupBehavior, defaultShell, closeConfirm, confirmHostDelete
-        case editorMinimap, termFont, termFontSize, termCursorStyle, termCursorBlink, termScrollback
+        case termFont, termFontSize, termCursorStyle, termCursorBlink, termScrollback
         case resourceAlerts, snippetAction
     }
 
@@ -68,7 +67,6 @@ struct SyncedSettings: Codable, Equatable {
         defaultShell = try c.decodeIfPresent(String.self, forKey: .defaultShell) ?? "auto"
         closeConfirm = try c.decodeIfPresent(Bool.self, forKey: .closeConfirm) ?? true
         confirmHostDelete = try c.decodeIfPresent(Bool.self, forKey: .confirmHostDelete) ?? true
-        editorMinimap = try c.decodeIfPresent(Bool.self, forKey: .editorMinimap) ?? true
         termFont = try c.decodeIfPresent(String.self, forKey: .termFont) ?? ""
         termFontSize = try c.decodeIfPresent(Int.self, forKey: .termFontSize) ?? 13
         termCursorStyle = try c.decodeIfPresent(String.self, forKey: .termCursorStyle) ?? "bar"
@@ -230,7 +228,6 @@ struct SyncConflict: Identifiable {
         add(String(localized: "默认 Shell"), l.defaultShell, r.defaultShell)
         add(String(localized: "关闭确认"), onOff(l.closeConfirm), onOff(r.closeConfirm))
         add(String(localized: "删除确认"), onOff(l.confirmHostDelete), onOff(r.confirmHostDelete))
-        add(String(localized: "编辑器缩略图"), onOff(l.editorMinimap), onOff(r.editorMinimap))
         add(String(localized: "终端字体"), l.termFont, r.termFont)
         add(String(localized: "终端字号"), "\(l.termFontSize)", "\(r.termFontSize)")
         add(String(localized: "光标样式"), l.termCursorStyle, r.termCursorStyle)

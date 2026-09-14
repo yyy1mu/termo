@@ -43,7 +43,6 @@ Under the hood, Termo runs its SSH / SFTP / terminal / port forwarding / keys en
 | **SSH key management** | Generate / import ed25519 · RSA in-process — no `ssh-keygen` dependency |
 | **Snippets** | Insert or run frequently used commands in one click |
 | **Unified custom UI** | Dark / light themes, a menu-bar breathing indicator, detail polished toward Ghostty / Xcode |
-| **In-app auto-update** | Sparkle with EdDSA signatures, delivered via Cloudflare R2 |
 | **Bilingual** | Switch the interface language in Settings |
 
 ## Download & install
@@ -67,7 +66,7 @@ Passwords and key passphrases are stored in the system **Keychain**, never in pl
 
 ## Build from source
 
-The project is managed declaratively with [XcodeGen](https://github.com/yonaskolb/XcodeGen); native third-party dependencies (Sparkle) ships in the repo as an xcframework; the SSH engine is Rust (russh), compiled from source at build time.
+The project is managed declaratively with [XcodeGen](https://github.com/yonaskolb/XcodeGen); the SSH engine is Rust (russh), compiled from source at build time.
 
 ```bash
 brew install xcodegen
@@ -84,7 +83,7 @@ xcodebuild -scheme Termo -configuration Release build
 - **UI**: SwiftUI + AppKit, fully custom unified components; single window with a persistent menu-bar item
 - **SSH stack**: in-process Rust engine (russh 0.63.3, ring backend, built from source) — terminal PTY / SFTP subsystem / direct-TCP forwarding / known-hosts verification / key generation
 - **Persistence**: hosts / sessions as JSON + passwords merged into the Keychain (optimistic locking against multi-device races)
-- **Distribution**: Developer ID signing + notarization; a git tag triggers GitHub Actions → Sparkle appcast → R2/CDN
+- **Distribution**: Developer ID signing + notarization; a git tag triggers GitHub Actions → signed DMG → R2/CDN
 
 ## License
 

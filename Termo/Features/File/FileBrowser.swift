@@ -154,7 +154,6 @@ struct FileBrowser: View {
     @ObservedObject var state: BrowserState
     let host: Host
     let model: AppModel
-    var onOpenFile: (RemoteFile) -> Void = { _ in }
     @ObservedObject private var theme = ThemeManager.shared
     @State private var dropTarget = false
 
@@ -384,7 +383,7 @@ struct FileBrowser: View {
     private func handleOpen(_ i: Int?) {
         guard let i, state.visible.indices.contains(i) else { return }
         let f = state.visible[i]
-        if f.isDir { state.enter(f) } else { onOpenFile(f) }
+        if f.isDir { state.enter(f) }
     }
 
     private func handleMarquee(_ idxs: Set<Int>) {

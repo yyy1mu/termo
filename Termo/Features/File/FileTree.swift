@@ -312,8 +312,7 @@ struct SidebarFileTree: View {
                                 FlatRow(item: item,
                                         selected: state.selectedPath,
                                         host: host, model: model, tree: state,
-                                        onTap: { state.toggle(item.node) },
-                                        onOpenFile: { model.openFile($0, host: host) })
+                                        onTap: { state.toggle(item.node) })
                                 .id(item.node.file.path)
                             }
                         }
@@ -345,7 +344,6 @@ private struct FlatRow: View {
     let model: AppModel
     let tree: FileTreeState
     let onTap: () -> Void
-    let onOpenFile: (RemoteFile) -> Void
     @State private var hover = false
     // 观察主题：切换深浅色时强制重算 body，否则 Pal 配色不刷新（同 FileRow 的旧色残留问题）。
     @ObservedObject private var theme = ThemeManager.shared
@@ -361,7 +359,7 @@ private struct FlatRow: View {
     var body: some View {
         let node = item.node
         Button {
-            if node.file.isDir { onTap() } else { onOpenFile(node.file) }
+            if node.file.isDir { onTap() }
         } label: {
             HStack(spacing: 4) {
                 if node.file.isDir {

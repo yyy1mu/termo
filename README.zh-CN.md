@@ -43,7 +43,6 @@ SSH · SFTP · 终端 · Windows 远程桌面 · 端口转发 · 主机监控
 | **SSH 密钥管理** | 进程内生成 / 导入 ed25519 · RSA，不依赖 `ssh-keygen` |
 | **代码片段** | 常用命令一键插入或直接运行 |
 | **统一自绘界面** | 深 / 浅色主题、菜单栏呼吸灯，细节对齐 Ghostty / Xcode 的观感 |
-| **应用内自动更新** | Sparkle + EdDSA 签名，国内经 Cloudflare R2 加速下载 |
 | **中英双语** | 设置内一键切换界面语言 |
 
 ## 下载安装
@@ -67,7 +66,7 @@ SSH · SFTP · 终端 · Windows 远程桌面 · 端口转发 · 主机监控
 
 ## 从源码构建
 
-项目用 [XcodeGen](https://github.com/yonaskolb/XcodeGen) 声明式管理工程，第三方原生依赖（Sparkle）以 xcframework 形式随仓库提供；SSH 引擎为 Rust（russh），构建期从源码编译为静态库。
+项目用 [XcodeGen](https://github.com/yonaskolb/XcodeGen) 声明式管理工程，SSH 引擎为 Rust（russh），构建期从源码编译为静态库。
 
 ```bash
 brew install xcodegen
@@ -84,7 +83,7 @@ xcodebuild -scheme Termo -configuration Release build
 - 界面：SwiftUI + AppKit，全自绘统一组件；单窗口 + 菜单栏常驻
 - SSH 栈：进程内 Rust 引擎（russh 0.63.3，ring 后端，源码构建），覆盖终端 PTY / SFTP 子系统 / 直连转发 / 已知主机校验 / 密钥生成
 - 持久化：主机 / 会话 JSON + 密码合并写入钥匙串（乐观锁防多端竞争）
-- 分发：Developer ID 签名 + 公证；GitHub Actions 打 tag 自动发版 → Sparkle appcast → R2/CDN
+- 分发：Developer ID 签名 + 公证；GitHub Actions 打 tag 自动发版 → 签名 DMG → R2/CDN
 
 ## 许可
 

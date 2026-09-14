@@ -58,10 +58,6 @@ final class AppSettings: ObservableObject {
     @Published var closeConfirm: Bool {
         didSet { d.set(closeConfirm, forKey: "closeConfirm") }
     }
-    /// 代码编辑器右侧缩略图（minimap）。
-    @Published var editorMinimap: Bool {
-        didSet { d.set(editorMinimap, forKey: "editorMinimap") }
-    }
 
     // ---------- 终端 ----------
     /// 终端字体名（空 = 自动回退到预置等宽字体）。
@@ -137,7 +133,6 @@ final class AppSettings: ObservableObject {
         startupBehavior = StartupBehavior(rawValue: d.string(forKey: "startupBehavior") ?? "") ?? .welcome
         defaultShell = DefaultShell(rawValue: d.string(forKey: "defaultShell") ?? "") ?? .auto
         closeConfirm = d.object(forKey: "closeConfirm") as? Bool ?? true
-        editorMinimap = d.object(forKey: "editorMinimap") as? Bool ?? true
         termFont = d.string(forKey: "termFont") ?? ""
         termFontSize = d.object(forKey: "termFontSize") as? Int ?? 13
         termCursorStyle = d.string(forKey: "termCursorStyle") ?? "bar"

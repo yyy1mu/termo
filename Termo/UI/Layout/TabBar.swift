@@ -66,7 +66,6 @@ struct TabChip: View {
         case .overview: return "square.grid.2x2"
         case .terminal: return "terminal"
         case .files: return "folder"
-        case .editor: return "doc.text"
         }
     }
 
@@ -90,13 +89,9 @@ struct TabChip: View {
             Text(tab.title).font(.system(size: 12))
                 .foregroundStyle(active ? Pal.text : Pal.subtext)
                 .lineLimit(1).fixedSize(horizontal: true, vertical: false)   // 不截断；超出由标签栏横向滚动
-            // 编辑器标签：未保存时显示圆点（hover 时让位给关闭按钮）
-            if tab.kind == .editor, let st = model.editorState(for: tab.id) {
-                EditorTabClose(state: st, hover: hover, active: active) { model.closeTab(tab.id) }
-            } else {
-                Button {
-                    model.closeTab(tab.id)
-                } label: {
+            Button {
+                model.closeTab(tab.id)
+            } label: {
                     Image(systemName: "xmark").font(.system(size: 9))
                         .foregroundStyle(Pal.overlay)
                         .frame(width: 16, height: 16)
@@ -107,7 +102,6 @@ struct TabChip: View {
                 }
                 .buttonStyle(.plain)
                 .opacity(active || hover ? 1 : 0)
-            }
         }
         .padding(.leading, 10).padding(.trailing, 6).padding(.vertical, 5)
         .background(
@@ -129,30 +123,3 @@ struct TabChip: View {
     }
 }
 
-/// 编辑器标签右侧：未保存→脏点，hover/已保存→关闭按钮。单独观察 EditorState 以保证脏态实时刷新。
-private struct EditorTabClose: View {
-    @ObservedObject var state: EditorState
-    let hover: Bool
-    let active: Bool
-    let onClose: () -> Void
-
-    var body: some View {
-        ZStack {
-            if state.isDirty && !hover {
-                Circle().fill(Pal.yellow).frame(width: 7, height: 7).frame(width: 16, height: 16)
-            } else {
-                Button(action: onClose) {
-                    Image(systemName: "xmark").font(.system(size: 9))
-                        .foregroundStyle(Pal.overlay)
-                        .frame(width: 16, height: 16)
-                        .background(hover ? Pal.fill(0.1) : Color.clear,
-                                    in: RoundedRectangle(cornerRadius: 4))
-                }
-                .buttonStyle(.plain)
-                .pointerCursor()
-                .opacity(active || hover || state.isDirty ? 1 : 0)
-            }
-        }
-        .frame(width: 16, height: 16)
-    }
-}

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Termo 发版向导 —— 改版本号 + 提交 + 推送 + 打 tag，推 tag 后由 GitHub Actions 接管
-# （构建 / Developer ID 签名 / 公证 / Sparkle appcast / 发布 Release）。本脚本不本地构建。
+# （构建 / Developer ID 签名 / 公证 / 发布 Release）。本脚本不本地构建。
 #
 # 用法：
 #   scripts/release.sh            交互发版（每步确认）
@@ -195,7 +195,6 @@ section "完成"
 ok "发版已触发。请关注并核对："
 info "Actions： https://github.com/$REPO_SLUG/actions"
 info "Releases：https://github.com/$REPO_SLUG/releases"
-info "appcast：https://icloudza.github.io/termo/appcast.xml （应出现 $NEW_MARKETING / 构建号 $NEW_BUILD）"
 echo
-info "若 CI 失败：用户无感（不会发布 Release/appcast）。修复后改用更高版本重发，"
+info "若 CI 失败：用户无感（不会发布 Release）。修复后改用更高版本重发，"
 info "或删除 tag 重来：git tag -d $TAG && git push origin :refs/tags/$TAG"

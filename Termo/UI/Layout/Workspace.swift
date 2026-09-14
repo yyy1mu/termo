@@ -6,7 +6,6 @@ struct Workspace: View {
     @ObservedObject var tabs: TabsModel
     @ObservedObject private var theme = ThemeManager.shared
     // 非活动编辑器的冻结尺寸：仅首次布局时定一次。缩放时只有活动编辑器随实时尺寸重排，隐藏编辑器尺寸不变、不触发 TextKit 重排。
-    @State private var frozenEditorSize: CGSize = .zero
 
     var body: some View {
         ZStack {
@@ -22,41 +21,13 @@ struct Workspace: View {
         if tabs.tabs.isEmpty {
             WelcomeView(model: model)
         } else {
-            // 渲染策略（混合）：
-            // - **编辑器 tab 常驻**（opacity 切显隐、不 detach）。原因：编辑器是 NSHostingView→SourceEditor
-            //   两层嵌套,一旦从窗口 detach 再 attach，SwiftUI 会重建内部控制器 → 丢撤销栈 + 重排版 churn。
-            //   只切显隐就不会 detach，控制器/撤销/光标/滚动全程存活。代价：缩放时各编辑器重布局，但不换行=轻、
-            //   缩略图缩放期已跳过，开销小；且编辑器不像终端要 reflow 整缓冲。
-            // - **其它 tab（终端/文件/概览）只渲染活动的**。终端视图是模型持有的裸 NSView，detach/attach 不重建、
-            //   PTY 后台不断；其它要么无状态、要么模型持有。这把"标签越多越卡"的大头（终端 reflow×N）压到 O(1)。
-            // GeometryReader 取实时尺寸：活动编辑器随之填满并重排（仅 1 个，开销等同只开一个标签）；
-            // 隐藏编辑器钉死在 frozenEditorSize，缩放/拖侧栏时容器尺寸不变 → 不重排。切到它时才取实时尺寸重排一次。
+            // 只渲染活动 tab（终端视图由模型持有的裸 NSView 承载，detach/attach 不重建、PTY 后台不断）；
+            // 这把"标签越多越卡"的大头（终端 reflow×N）压到 O(1)。
             GeometryReader { geo in
-                // topLeading 对齐：活动编辑器钉在左上 (0,0) 填满；隐藏编辑器即便冻结在更大尺寸也只向右下溢出，
-                // 不会把活动编辑器居中挤偏（窗口缩到比 frozenEditorSize 小时尤为关键）。
-                ZStack(alignment: .topLeading) {
-                    ForEach(tabs.tabs.filter { $0.kind == .editor }, id: \.id) { tab in
-                        let isActive = tab.id == tabs.activeTabId
-                        tabView(tab)
-                            .frame(width: isActive ? geo.size.width : max(1, frozenEditorSize.width),
-                                   height: isActive ? geo.size.height : max(1, frozenEditorSize.height))
-                            .opacity(isActive ? 1 : 0)
-                            .allowsHitTesting(isActive)
-                            .zIndex(isActive ? 1 : 0)
-                            .accessibilityHidden(!isActive)
-                    }
-                    if let active = tabs.tabs.first(where: { $0.id == tabs.activeTabId }), active.kind != .editor {
-                        tabView(active)
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .zIndex(2)
-                    }
+                if let active = tabs.tabs.first(where: { $0.id == tabs.activeTabId }) {
+                    tabView(active)
+                        .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
                 }
-                // 钉死为当前 geo 尺寸：窗口缩到比 frozenEditorSize 小时，ZStack 不会被那个更大的隐藏编辑器撑大、
-                // 进而把活动编辑器居中错位；超出部分裁掉（隐藏编辑器本就不可见）。
-                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
-                .clipped()
-                .onAppear { if frozenEditorSize == .zero { frozenEditorSize = geo.size } }
-                .onChange(of: geo.size) { s in if frozenEditorSize == .zero { frozenEditorSize = s } }
             }
             .onChange(of: tabs.activeTabId) { _ in model.focusActiveTab() }
             .onAppear { model.focusActiveTab() }
@@ -85,16 +56,9 @@ struct Workspace: View {
             case .files:
                 if let host = model.host(tab.hostId) {
                     FileBrowser(state: model.browserState(for: tab.id, host: host),
-                                host: host, model: model,
-                                onOpenFile: { model.openFile($0, host: host) })
+                                host: host, model: model)
                 } else {
                     Text("无主机").font(.system(size: 13)).foregroundStyle(Pal.overlay)
-                }
-            case .editor:
-                if let st = model.editorState(for: tab.id) {
-                    FileViewerView(state: st, model: model, tabId: tab.id)
-                } else {
-                    Text("无法打开文件").font(.system(size: 13)).foregroundStyle(Pal.overlay)
                 }
             }
         }
