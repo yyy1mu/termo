@@ -394,7 +394,7 @@ private struct DropdownOption: View {
 /// 可搜索的自定义下拉选择（combobox）：弹层顶部带搜索框，输入即过滤；
 /// 输入了现有项里没有的值时给出「新建」入口。绑定到一个字符串（最终值），
 /// 既能从已有项里选，也能直接键入新值。视觉与 [[ThemedDropdown]] 一致。
-/// 用于「服务器/RDP/代码片段」的分组选择——分组一多，原来的横排 chip 就挤了。
+/// 用于「服务器/代码片段」的分组选择——分组一多，原来的横排 chip 就挤了。
 struct SearchableSelect: View {
     let options: [String]
     @Binding var text: String

@@ -27,7 +27,7 @@ struct Workspace: View {
             //   两层嵌套,一旦从窗口 detach 再 attach，SwiftUI 会重建内部控制器 → 丢撤销栈 + 重排版 churn。
             //   只切显隐就不会 detach，控制器/撤销/光标/滚动全程存活。代价：缩放时各编辑器重布局，但不换行=轻、
             //   缩略图缩放期已跳过，开销小；且编辑器不像终端要 reflow 整缓冲。
-            // - **其它 tab（终端/文件/概览/RDP）只渲染活动的**。终端视图是模型持有的裸 NSView，detach/attach 不重建、
+            // - **其它 tab（终端/文件/概览）只渲染活动的**。终端视图是模型持有的裸 NSView，detach/attach 不重建、
             //   PTY 后台不断；其它要么无状态、要么模型持有。这把"标签越多越卡"的大头（终端 reflow×N）压到 O(1)。
             // GeometryReader 取实时尺寸：活动编辑器随之填满并重排（仅 1 个，开销等同只开一个标签）；
             // 隐藏编辑器钉死在 frozenEditorSize，缩放/拖侧栏时容器尺寸不变 → 不重排。切到它时才取实时尺寸重排一次。
@@ -95,12 +95,6 @@ struct Workspace: View {
                     FileViewerView(state: st, model: model, tabId: tab.id)
                 } else {
                     Text("无法打开文件").font(.system(size: 13)).foregroundStyle(Pal.overlay)
-                }
-            case .rdp:
-                if let host = model.host(tab.hostId) {
-                    RDPSessionView(session: model.rdpSession(for: tab.id, host: host))
-                } else {
-                    Text("无主机").font(.system(size: 13)).foregroundStyle(Pal.overlay)
                 }
             }
         }

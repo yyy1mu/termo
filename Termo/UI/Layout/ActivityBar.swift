@@ -13,7 +13,6 @@ struct ActivityBar: View {
         ("server.rack", .hosts),
         ("folder", .files),
         ("key", .sshKeys),
-        ("display", .rdp),
         ("chevron.left.forwardslash.chevron.right", .snippets),
         ("arrow.triangle.2.circlepath", .sync),
     ]

@@ -5,7 +5,6 @@ struct SettingsView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var theme = ThemeManager.shared
     @ObservedObject private var settings = AppSettings.shared
-    @ObservedObject private var certStore = RDPCertTrustStore.shared
     @State private var showLanguageRestart = false
 
     var body: some View {
@@ -180,28 +179,6 @@ struct SettingsView: View {
             settingRow(String(localized: "删除主机前确认"), description: String(localized: "删除主机时弹出确认弹窗，避免误删")) {
                 ThemedToggle(isOn: $settings.confirmHostDelete)
             }
-
-            settingRow(String(localized: "远程桌面打开方式"), description: String(localized: "RDP 连接成功后内嵌为标签还是在新窗口打开；「每次询问」会弹出选择且可记住")) {
-                ThemedDropdown(
-                    options: RDPOpenMode.allCases.map { ($0, $0.label) },
-                    selection: $settings.rdpOpenMode
-                )
-                .frame(width: 160)
-            }
-
-            if settings.rdpOpenMode == .window {
-                settingRow(String(localized: "新窗口行为"), description: String(localized: "「新窗口」打开时，新的远程桌面窗口是否默认进入全屏")) {
-                    ThemedDropdown(
-                        options: [(true, String(localized: "默认全屏")), (false, String(localized: "不全屏"))],
-                        selection: $settings.rdpWindowFullscreen
-                    )
-                    .frame(width: 160)
-                }
-            }
-
-            settingRow(String(localized: "远程桌面剪贴板同步"), description: String(localized: "RDP 连接的本地与远端剪贴板双向同步纯文本（复制粘贴互通）；关闭则两端剪贴板互不影响")) {
-                ThemedToggle(isOn: $settings.rdpClipboardSync)
-            }
         }
     }
 
@@ -268,52 +245,9 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 24) {
             sectionHeader(String(localized: "安全"))
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("已信任的远程桌面证书")
-                    .font(.system(size: 13)).foregroundStyle(Pal.text)
-                Text("连接 RDP 主机时勾选「始终信任此电脑」后记录于此。撤销后该主机下次连接会重新询问。")
-                    .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                if certStore.entries.isEmpty {
-                    Text("暂无已信任的证书")
-                        .font(.system(size: 12)).foregroundStyle(Pal.overlay)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 28)
-                        .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 10))
-                } else {
-                    VStack(spacing: 0) {
-                        ForEach(certStore.entries) { cert in
-                            trustedCertRow(cert)
-                            if cert.id != certStore.entries.last?.id {
-                                Divider().overlay(Pal.fill(0.06))
-                            }
-                        }
-                    }
-                    .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Pal.fill(0.06), lineWidth: 1))
-                }
-            }
+            Text(String(localized: "安全相关设置会随功能更新逐步增加。"))
+                .font(.system(size: 12)).foregroundStyle(Pal.overlay)
         }
-    }
-
-    private func trustedCertRow(_ cert: RDPTrustedCert) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "lock.shield")
-                .font(.system(size: 14)).foregroundStyle(Pal.mauve)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(verbatim: "\(cert.host):\(cert.port)")
-                    .font(.system(size: 13, design: .monospaced)).foregroundStyle(Pal.text)
-                Text(cert.fingerprint.isEmpty ? String(localized: "（无指纹）") : cert.fingerprint)
-                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.overlay)
-                    .lineLimit(1).truncationMode(.middle)
-                    .tooltip(cert.fingerprint)
-            }
-            Spacer()
-            SecondaryButton(title: "撤销") { certStore.revoke(cert.id) }
-        }
-        .padding(.horizontal, 12).padding(.vertical, 10)
     }
 
     private func chooseDownloadDir() {

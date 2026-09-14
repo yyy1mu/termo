@@ -30,7 +30,7 @@ SSH · SFTP · Terminal · Windows Remote Desktop · Port forwarding · Host mon
 
 **Termo** is a native macOS remote-operations client built with SwiftUI + AppKit. It brings the tasks you usually juggle across separate tools — SSH terminals, file transfer, Windows Remote Desktop, port forwarding, host monitoring, and key management — into a single, polished interface.
 
-Under the hood, Termo runs its SSH / SFTP / terminal / port forwarding / keys entirely **in-process** (Rust SSH engine built from source) — no reliance on the system `ssh`, no spawning of external processes; Windows Remote Desktop embeds **FreeRDP**. The result is a self-contained, Apple-signed and notarized single binary: steadier connections, faster startup, and nothing to set up.
+Under the hood, Termo runs its SSH / SFTP / terminal / port forwarding / keys entirely **in-process** (Rust SSH engine built from source) — no reliance on the system `ssh`, no spawning of external processes. The result is a self-contained, Apple-signed and notarized single binary: steadier connections, faster startup, and nothing to set up.
 
 ## Features
 
@@ -38,7 +38,6 @@ Under the hood, Termo runs its SSH / SFTP / terminal / port forwarding / keys en
 |---|---|
 | **SSH terminal** | Full terminal powered by SwiftTerm; in-process Rust (russh) engine for stable, fast connections |
 | **SFTP browsing** | Upload / download / rename / chmod, resumable transfers, concurrent queue, in-app remote code editing |
-| **Windows Remote Desktop** | Embedded FreeRDP: full-color graphics pipeline, keyboard input, two-way clipboard sync, resolution that follows the window |
 | **Port forwarding** | Local (-L) / remote (-R) / dynamic SOCKS (-D), running in the background with a menu-bar dashboard |
 | **Host monitoring** | Live CPU / memory / disk / network charts, with system notifications on sustained load |
 | **SSH key management** | Generate / import ed25519 · RSA in-process — no `ssh-keygen` dependency |
@@ -62,14 +61,13 @@ Termo is **signed with a Developer ID and notarized by Apple**, so Gatekeeper re
 
 1. In the left activity bar, open **Hosts** and click `+` to add an SSH host (address, account, password or key)
 2. Click a host to open its overview; choose **Terminal** to start a session, or **Files** to browse the remote tree
-3. For Windows machines, switch to the **RDP** panel to add one, then hit **Remote Desktop**
 4. Need tunneling? Configure -L / -R / -D rules under **Port forwarding** — they keep running in the background
 
 Passwords and key passphrases are stored in the system **Keychain**, never in plaintext on disk.
 
 ## Build from source
 
-The project is managed declaratively with [XcodeGen](https://github.com/yonaskolb/XcodeGen); native third-party dependencies (FreeRDP / Sparkle) ship in the repo as xcframeworks; the SSH engine is Rust (russh), compiled from source at build time.
+The project is managed declaratively with [XcodeGen](https://github.com/yonaskolb/XcodeGen); native third-party dependencies (Sparkle) ships in the repo as an xcframework; the SSH engine is Rust (russh), compiled from source at build time.
 
 ```bash
 brew install xcodegen
@@ -85,7 +83,6 @@ xcodebuild -scheme Termo -configuration Release build
 
 - **UI**: SwiftUI + AppKit, fully custom unified components; single window with a persistent menu-bar item
 - **SSH stack**: in-process Rust engine (russh 0.63.3, ring backend, built from source) — terminal PTY / SFTP subsystem / direct-TCP forwarding / known-hosts verification / key generation
-- **RDP stack**: embedded FreeRDP static library + an Objective-C bridge; BGRA frames marshalled to the main thread and drawn as CGImage
 - **Persistence**: hosts / sessions as JSON + passwords merged into the Keychain (optimistic locking against multi-device races)
 - **Distribution**: Developer ID signing + notarization; a git tag triggers GitHub Actions → Sparkle appcast → R2/CDN
 

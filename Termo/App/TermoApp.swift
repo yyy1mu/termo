@@ -158,10 +158,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // 自定义弹窗已在退出前做后台任务检查（见 requestQuit / QuitConfirmDialog）。
     // 系统发起的退出（注销/关机）会直接走到这里：放行退出，残留隧道由 willTerminate 的进程登记表兜底清理。
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        // 收口所有退出路径的清理：结束附着 sheet、复位 SwiftUI 绑定、关闭 RDP（join FreeRDP 线程）、优雅停端口转发。
+        // 收口所有退出路径的清理：结束附着 sheet、复位 SwiftUI 绑定、优雅停端口转发。
         for w in NSApp.windows { if let sheet = w.attachedSheet { w.endSheet(sheet) } }
         AppModel.shared.dismissAllSheets()
-        AppModel.shared.shutdownAllRDP()
         ForwardProcessRegistry.shared.terminateAll()
         UserDefaults.standard.synchronize()
         // 关键：打开过设置页等会拉起 RemoteViewService（进程外视图）的界面后，系统在 exit() 的 atexit 阶段会卡在
@@ -507,32 +506,6 @@ private struct ConnectionDialogs: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            // RDP 连接弹窗：覆盖当前概览/列表，连接成功才开标签；含连接进度与证书信任框。
-            .overlay {
-                ZStack {
-                    if let s = model.connectingRDP {
-                        RDPConnectingDialog(session: s,
-                                            onConnected: { model.finishRDPConnecting() },
-                                            onCancel: { model.cancelRDPConnecting() })
-                            .transition(.opacity)
-                    }
-                }
-                .animation(.easeOut(duration: 0.2), value: model.connectingRDP != nil)
-                .allowsHitTesting(model.connectingRDP != nil)
-            }
-            // RDP 连接成功后的打开方式选择（内嵌 / 新窗口），仅在设置为「每次询问」时出现。
-            .overlay {
-                ZStack {
-                    if let s = model.pendingRDPOpen {
-                        RDPOpenDialog(hostName: s.host.name,
-                                      onChoose: { model.resolveRDPOpen(s, window: $0, remember: $1) },
-                                      onCancel: { model.cancelRDPOpen() })
-                            .transition(.opacity)
-                    }
-                }
-                .animation(.easeOut(duration: 0.15), value: model.pendingRDPOpen != nil)
-                .allowsHitTesting(model.pendingRDPOpen != nil)
-            }
             .overlay {
                 ZStack {
                     if let h = model.connectingHost {
@@ -607,8 +580,6 @@ private struct AppSheets: ViewModifier {
             .sheet(isPresented: $model.showSettings) { SettingsView(model: model) }
             .sheet(isPresented: $model.showAddHost) { AddHostView(model: model) }
             .sheet(item: $model.editingHost) { host in AddHostView(model: model, editing: host) }
-            .sheet(isPresented: $model.showAddRDPHost) { AddRDPHostView(model: model) }
-            .sheet(item: $model.editingRDPHost) { host in AddRDPHostView(model: model, editing: host) }
             .sheet(item: $model.forwardPanelHost) { host in PortForwardView(model: model, host: host) }
             .sheet(isPresented: $model.showGenerateKey) { GenerateKeyView(model: model) }
             .sheet(item: $model.detailKey) { key in KeyDetailView(model: model, key: key) }

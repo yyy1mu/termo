@@ -44,7 +44,7 @@ enum OSLogo {
             return ("\u{F302}", Color(hex: 0xA2AAAD))   // Apple
         }
         // 已知是 Linux 但发行版不明 → 通用 Tux(F31A)。
-        // 注:Windows 在开源 logo 字体里没有(商标),RDP/Windows 主机会回退到圆点。
+        // 注:Windows 在开源 logo 字体里没有(商标),会回退到圆点。
         if s.contains("linux") || s.contains("gnu") { return ("\u{F31A}", Color(hex: 0x9CA3AF)) }
         return nil
     }
@@ -60,8 +60,8 @@ struct HostLeadingIcon: View {
     private static let radius: CGFloat = 7
 
     var body: some View {
-        // SSH 主机用探测到的发行版(specs.os),回退到存储的 os 字段;RDP 视为 Windows。
-        let osStr = host.isRDP ? "windows" : (host.specs?.os ?? host.os)
+        // 用探测到的发行版(specs.os),回退到存储的 os 字段。
+        let osStr = host.specs?.os ?? host.os
         let dotColor = LatencyLevel(ms: host.latencyMs).color   // 延迟等级着色:快绿、慢黄/红,未探测/不可达为灰
         ZStack(alignment: .bottomTrailing) {
             iconTile(osStr)
@@ -82,12 +82,12 @@ struct HostLeadingIcon: View {
                 .overlay(Text(logo.glyph).font(.custom(name, size: 16)).foregroundStyle(.white))
                 .frame(width: Self.side, height: Self.side)
         } else {
-            // 无 logo（Windows/RDP 或未识别）：纯色底 + 系统符号，保持实心方块风格统一。
-            let bg: Color = host.isRDP ? Color(hex: 0x0078D4) : Pal.fill(0.14)
-            let fg: Color = host.isRDP ? .white : Pal.subtext
+            // 无 logo（未识别）：纯色底 + 系统符号，保持实心方块风格统一。
+            let bg: Color = Pal.fill(0.14)
+            let fg: Color = Pal.subtext
             RoundedRectangle(cornerRadius: Self.radius)
                 .fill(bg)
-                .overlay(Image(systemName: host.isRDP ? "display" : "server.rack")
+                .overlay(Image(systemName: "server.rack")
                     .font(.system(size: 13, weight: .medium)).foregroundStyle(fg))
                 .frame(width: Self.side, height: Self.side)
         }

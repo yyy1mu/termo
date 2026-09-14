@@ -14,8 +14,6 @@ enum SyncEngine {
             // 「每次询问」的密码是本会话内存值，不同步（与 HostStore.saveHosts 的落盘策略一致）。
             if let ssh = host.ssh, ssh.authMethod != .ask, !ssh.password.isEmpty {
                 hostPasswords[host.id] = ssh.password
-            } else if let rdp = host.rdp, !rdp.password.isEmpty {
-                hostPasswords[host.id] = rdp.password
             }
         }
         return SyncPayload(
@@ -27,7 +25,6 @@ enum SyncEngine {
             privateKeys: KeyKeychain.loadAll(),
             snippets: model.snippets,
             forwards: model.forwards,
-            rdpCerts: RDPCertTrustStore.shared.entries,
             settings: SyncedSettings.capture())
     }
 
@@ -147,25 +144,6 @@ enum SyncEngine {
         }
         merged.forwards = mergedForwards
 
-        // RDP 信任证书（指纹一致即视为相同；trustedAt 不参与判定）
-        let remoteCerts = Dictionary(remote.rdpCerts.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
-        let localCertIDs = Set(local.rdpCerts.map(\.id))
-        var mergedCerts: [RDPTrustedCert] = []
-        for lc in local.rdpCerts {
-            guard let rc = remoteCerts[lc.id] else { mergedCerts.append(lc); localOnly += 1; continue }
-            if certEquivalent(lc, rc) {
-                mergedCerts.append(lc)
-            } else {
-                conflicts.append(SyncConflict(item: .rdpCert(local: lc, remote: rc)))
-                mergedCerts.append(lc)
-            }
-        }
-        for rc in remote.rdpCerts where !localCertIDs.contains(rc.id) {
-            mergedCerts.append(rc)
-            remoteOnly += 1
-        }
-        merged.rdpCerts = mergedCerts
-
         // 应用设置（整体一致即可，不做逐项合并）
         if local.settings != remote.settings {
             conflicts.append(SyncConflict(item: .settings(local: local.settings, remote: remote.settings)))
@@ -201,8 +179,6 @@ enum SyncEngine {
                 if let i = payload.snippets.firstIndex(where: { $0.id == rs.id }) { payload.snippets[i] = rs }
             case .forward(_, let rf):
                 if let i = payload.forwards.firstIndex(where: { $0.id == rf.id }) { payload.forwards[i] = rf }
-            case .rdpCert(_, let rc):
-                if let i = payload.rdpCerts.firstIndex(where: { $0.id == rc.id }) { payload.rdpCerts[i] = rc }
             case .settings(_, let rs):
                 payload.settings = rs
             }
@@ -217,11 +193,7 @@ enum SyncEngine {
         var hosts = payload.hosts
         for i in hosts.indices {
             let password = payload.hostPasswords[hosts[i].id] ?? ""
-            if hosts[i].ssh != nil {
-                hosts[i].ssh?.password = password
-            } else if hosts[i].rdp != nil {
-                hosts[i].rdp?.password = password
-            }
+            hosts[i].ssh?.password = password
         }
         model.hosts = hosts
         HostStore.saveHosts(hosts)
@@ -236,7 +208,6 @@ enum SyncEngine {
         model.forwards = payload.forwards
         HostStore.saveForwards(payload.forwards)
 
-        RDPCertTrustStore.shared.replaceAll(payload.rdpCerts)
         payload.settings.apply()
 
         for host in hosts { model.checkReachability(host) }
@@ -246,12 +217,12 @@ enum SyncEngine {
 
     /// 主机自然键：协议 | IP | 端口 | 名称。跨设备稳定，替代随机 UUID 作为同步身份。
     private static func hostNaturalKey(_ host: Host) -> String {
-        "\(host.isRDP ? "rdp" : "ssh")|\(host.ipOrHost)|\(host.port)|\(host.name)"
+        "ssh|\(host.ipOrHost)|\(host.port)|\(host.name)"
     }
 
     /// 回退键：协议 | IP | 端口。名称不同时仍能匹配为「同一台主机」，由冲突弹窗对比名称等差异。
     private static func hostFallbackKey(_ host: Host) -> String {
-        "\(host.isRDP ? "rdp" : "ssh")|\(host.ipOrHost)|\(host.port)"
+        "ssh|\(host.ipOrHost)|\(host.port)"
     }
 
     /// 采用远端内容但沿用本机 id：本机转发规则等对 hostId 的引用保持有效。
@@ -259,11 +230,11 @@ enum SyncEngine {
         Host(
             id: id, name: remote.name, addr: remote.addr, group: remote.group, status: remote.status,
             os: remote.os, port: remote.port, ssh: remote.ssh, notes: remote.notes,
-            specs: remote.specs, latencyMs: remote.latencyMs, rdp: remote.rdp)
+            specs: remote.specs, latencyMs: remote.latencyMs)
     }
 
     /// 主机配置的归一化编码：排除 id（跨设备不同）与探测结果（specs/latency），
-    /// 密码由 ssh/rdp 的 CodingKeys 排除、单独比较。
+    /// 密码由 ssh 的 CodingKeys 排除、单独比较。
     private struct HostComparable: Encodable {
         let name: String
         let addr: String
@@ -272,7 +243,6 @@ enum SyncEngine {
         let port: Int
         let notes: String
         let ssh: SSHConnection?
-        let rdp: RDPConnection?
     }
 
     private static func hostEquivalent(
@@ -284,7 +254,7 @@ enum SyncEngine {
     private static func hostJSON(_ host: Host) -> Data {
         let comparable = HostComparable(
             name: host.name, addr: host.addr, group: host.group, os: host.os,
-            port: host.port, notes: host.notes, ssh: host.ssh, rdp: host.rdp)
+            port: host.port, notes: host.notes, ssh: host.ssh)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         return (try? encoder.encode(comparable)) ?? Data()
@@ -295,10 +265,6 @@ enum SyncEngine {
         a.name == b.name && a.content == b.content && a.group == b.group
     }
 
-    /// 证书比较只看信任内容，忽略各端写入时间。
-    private static func certEquivalent(_ a: RDPTrustedCert, _ b: RDPTrustedCert) -> Bool {
-        a.fingerprint == b.fingerprint && a.subject == b.subject && a.issuer == b.issuer
-    }
 }
 
 // MARK: - 应用设置快照
@@ -322,9 +288,6 @@ extension SyncedSettings {
         out.termScrollback = s.termScrollback
         out.resourceAlerts = s.resourceAlerts
         out.snippetAction = s.snippetAction.rawValue
-        out.rdpOpenMode = s.rdpOpenMode.rawValue
-        out.rdpClipboardSync = s.rdpClipboardSync
-        out.rdpWindowFullscreen = s.rdpWindowFullscreen
         return out
     }
 
@@ -345,8 +308,5 @@ extension SyncedSettings {
         s.termScrollback = termScrollback
         s.resourceAlerts = resourceAlerts
         s.snippetAction = SnippetAction(rawValue: snippetAction) ?? .ask
-        s.rdpOpenMode = RDPOpenMode(rawValue: rdpOpenMode) ?? .ask
-        s.rdpClipboardSync = rdpClipboardSync
-        s.rdpWindowFullscreen = rdpWindowFullscreen
     }
 }

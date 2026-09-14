@@ -23,7 +23,7 @@ struct SyncPayload: Codable {
     var deviceName: String
     /// 主机配置。Host 的 Codable 已排除密码字段，密码单独放 hostPasswords。
     var hosts: [Host]
-    /// hostId → 密码（含 RDP）。
+    /// hostId → 密码。
     var hostPasswords: [String: String]
     /// 密钥元数据。私钥 PEM 单独放 privateKeys。
     var keys: [SSHKey]
@@ -31,7 +31,6 @@ struct SyncPayload: Codable {
     var privateKeys: [String: String]
     var snippets: [Snippet]
     var forwards: [ForwardRule]
-    var rdpCerts: [RDPTrustedCert]
     var settings: SyncedSettings
 }
 
@@ -52,16 +51,13 @@ struct SyncedSettings: Codable, Equatable {
     var termScrollback: Int = 1000
     var resourceAlerts: Bool = true
     var snippetAction: String = "ask"
-    var rdpOpenMode: String = "ask"
-    var rdpClipboardSync: Bool = true
-    var rdpWindowFullscreen: Bool = false
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
         case appearanceMode, appLanguage, startupBehavior, defaultShell, closeConfirm, confirmHostDelete
         case editorMinimap, termFont, termFontSize, termCursorStyle, termCursorBlink, termScrollback
-        case resourceAlerts, snippetAction, rdpOpenMode, rdpClipboardSync, rdpWindowFullscreen
+        case resourceAlerts, snippetAction
     }
 
     init(from decoder: Decoder) throws {
@@ -80,9 +76,6 @@ struct SyncedSettings: Codable, Equatable {
         termScrollback = try c.decodeIfPresent(Int.self, forKey: .termScrollback) ?? 1000
         resourceAlerts = try c.decodeIfPresent(Bool.self, forKey: .resourceAlerts) ?? true
         snippetAction = try c.decodeIfPresent(String.self, forKey: .snippetAction) ?? "ask"
-        rdpOpenMode = try c.decodeIfPresent(String.self, forKey: .rdpOpenMode) ?? "ask"
-        rdpClipboardSync = try c.decodeIfPresent(Bool.self, forKey: .rdpClipboardSync) ?? true
-        rdpWindowFullscreen = try c.decodeIfPresent(Bool.self, forKey: .rdpWindowFullscreen) ?? false
     }
 }
 
@@ -108,7 +101,6 @@ struct SyncConflict: Identifiable {
         case key(local: SSHKey, localPEM: String?, remote: SSHKey, remotePEM: String?)
         case snippet(local: Snippet, remote: Snippet)
         case forward(local: ForwardRule, remote: ForwardRule)
-        case rdpCert(local: RDPTrustedCert, remote: RDPTrustedCert)
         case settings(local: SyncedSettings, remote: SyncedSettings)
     }
 
@@ -120,7 +112,6 @@ struct SyncConflict: Identifiable {
         case .key(let l, _, _, _): return "key-\(l.id)"
         case .snippet(let l, _): return "snippet-\(l.id)"
         case .forward(let l, _): return "forward-\(l.id.uuidString)"
-        case .rdpCert(let l, _): return "cert-\(l.id)"
         case .settings: return "settings"
         }
     }
@@ -131,7 +122,6 @@ struct SyncConflict: Identifiable {
         case .key(let l, _, _, _): return String(localized: "密钥「\(l.name)」")
         case .snippet(let l, _): return String(localized: "片段「\(l.name)」")
         case .forward(let l, _): return String(localized: "转发规则「\(l.name.isEmpty ? l.summary : l.name)」")
-        case .rdpCert(let l, _): return String(localized: "RDP 证书「\(l.host):\(l.port)」")
         case .settings: return String(localized: "应用设置")
         }
     }
@@ -146,12 +136,12 @@ struct SyncConflict: Identifiable {
                 Field(label: String(localized: "名称"), local: l.name, remote: r.name),
                 Field(
                     label: String(localized: "协议"),
-                    local: l.isRDP ? "RDP" : "SSH", remote: r.isRDP ? "RDP" : "SSH"),
+                    local: "SSH", remote: "SSH"),
                 Field(label: String(localized: "地址"), local: l.ipOrHost, remote: r.ipOrHost),
                 Field(label: String(localized: "端口"), local: "\(l.port)", remote: "\(r.port)"),
                 Field(
                     label: String(localized: "用户名"),
-                    local: l.ssh?.user ?? l.rdp?.user ?? "", remote: r.ssh?.user ?? r.rdp?.user ?? ""),
+                    local: l.ssh?.user ?? "", remote: r.ssh?.user ?? ""),
                 Field(
                     label: String(localized: "分组"),
                     local: groupLabel(l.group), remote: groupLabel(r.group)),
@@ -199,12 +189,6 @@ struct SyncConflict: Identifiable {
                     label: String(localized: "目标"),
                     local: l.kind == .dynamic ? "—" : "\(l.destHost):\(l.destPort)",
                     remote: r.kind == .dynamic ? "—" : "\(r.destHost):\(r.destPort)"),
-            ]
-        case .rdpCert(let l, let r):
-            return [
-                Field(label: String(localized: "指纹"), local: l.fingerprint, remote: r.fingerprint),
-                Field(label: String(localized: "主题"), local: l.subject ?? "—", remote: r.subject ?? "—"),
-                Field(label: String(localized: "签发者"), local: l.issuer ?? "—", remote: r.issuer ?? "—"),
             ]
         case .settings(let l, let r):
             return settingsFields(l, r)
@@ -254,9 +238,6 @@ struct SyncConflict: Identifiable {
         add(String(localized: "滚动缓冲"), "\(l.termScrollback)", "\(r.termScrollback)")
         add(String(localized: "资源告警"), onOff(l.resourceAlerts), onOff(r.resourceAlerts))
         add(String(localized: "片段运行方式"), l.snippetAction, r.snippetAction)
-        add(String(localized: "RDP 打开方式"), l.rdpOpenMode, r.rdpOpenMode)
-        add(String(localized: "RDP 剪贴板同步"), onOff(l.rdpClipboardSync), onOff(r.rdpClipboardSync))
-        add(String(localized: "RDP 新窗口全屏"), onOff(l.rdpWindowFullscreen), onOff(r.rdpWindowFullscreen))
         if out.isEmpty { out.append(Field(label: String(localized: "设置"), local: "—", remote: "—")) }
         return out
     }

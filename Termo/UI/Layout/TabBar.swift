@@ -67,7 +67,6 @@ struct TabChip: View {
         case .terminal: return "terminal"
         case .files: return "folder"
         case .editor: return "doc.text"
-        case .rdp: return "display"
         }
     }
 
@@ -76,7 +75,7 @@ struct TabChip: View {
     private func tabIcon(active: Bool) -> some View {
         let fg = active ? Pal.text : Pal.overlay
         if tab.kind == .overview, let host = model.host(tab.hostId), let fontName = OSLogo.fontName,
-           let logo = OSLogo.info(for: host.isRDP ? "windows" : (host.specs?.os ?? host.os)) {
+           let logo = OSLogo.info(for: host.specs?.os ?? host.os) {
             // 固定宽度：标签行宽度不足时图标不会被当成唯一柔性元素压扁（标题已 fixedSize、关闭按钮已定宽）。
             Text(logo.glyph).font(.custom(fontName, size: 12)).foregroundStyle(fg).frame(width: 12)
         } else {

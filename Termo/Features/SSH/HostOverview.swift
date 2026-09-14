@@ -20,34 +20,21 @@ struct HostOverview: View {
                     }
                 }
                 // 端口用 String() 包一层：Text 的 LocalizedStringKey 插值会给裸整数加千分符（20,241）。
-                Text(isRDP ? "\(host.ipOrHost) · 端口 \(String(host.rdp?.port ?? 3389))"
-                           : "\(host.addr) · 端口 \(String(host.port))")
+                Text("\(host.ipOrHost) · 端口 \(String(host.ssh?.port ?? 22))")
                     .font(.system(size: 13)).foregroundStyle(Pal.subtext)
                     .privacyBlur(model.privacyMode)
                     .padding(.top, 6).padding(.bottom, 16)
 
-                if isRDP {
-                    // RDP 主机：只提供「远程桌面」与「编辑」，无 SSH 的终端/文件/转发/监控。
-                    // 已有连接（标签或新窗口）时「远程桌面」显示运行中 + 呼吸点，点击寻回而非新建。
-                    HStack(spacing: 10) {
-                        rdpAction(running: model.rdpHosts.contains(host.id)) { model.openHostRDP(host) }
-                        action("pencil", String(localized: "编辑")) { model.editingRDPHost = host }
-                    }
-                    .padding(.bottom, 26)
-                } else {
-                    specsRow
+                specsRow
 
-                    HStack(spacing: 10) {
-                        action("terminal", String(localized: "终端"), primary: true) { model.openHostTerminal(host) }
-                            .contextMenu { Button("新建终端") { model.openHostTerminal(host, forceNew: true) } }
-                        action("folder", String(localized: "文件 (SFTP)"), loading: model.openingFilesHostId == host.id) { model.openHostFiles(host) }
-                        action("arrow.left.arrow.right", String(localized: "端口转发"), badge: model.hasRunningForward(hostId: host.id)) { model.openForwardPanel(host) }
-                        action("pencil", String(localized: "编辑")) { model.beginEditHost(host) }
-                    }
-                    .padding(.bottom, 26)
+                HStack(spacing: 10) {
+                    action("terminal", String(localized: "终端"), primary: true) { model.openHostTerminal(host) }
+                        .contextMenu { Button("新建终端") { model.openHostTerminal(host, forceNew: true) } }
+                    action("folder", String(localized: "文件 (SFTP)"), loading: model.openingFilesHostId == host.id) { model.openHostFiles(host) }
+                    action("arrow.left.arrow.right", String(localized: "端口转发"), badge: model.hasRunningForward(hostId: host.id)) { model.openForwardPanel(host) }
+                    action("pencil", String(localized: "编辑")) { model.beginEditHost(host) }
                 }
-
-                if isRDP { rdpInfoSection }
+                .padding(.bottom, 26)
 
                 if !host.notes.isEmpty {
                     Text("备注").font(.system(size: 12)).foregroundStyle(Pal.overlay).padding(.bottom, 8)
@@ -70,24 +57,19 @@ struct HostOverview: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         // 监控只在概览可见时跑：切到此 tab 开始采集，切走（视图移出）几秒后自动停流，保持轻量。
-        // RDP 主机无 SSH 监控，整套探测/采集生命周期跳过。
         .onAppear {
-            guard !isRDP else { return }
             model.probeHostIfNeeded(liveHost)
             model.overviewAppeared(liveHost)
         }
         // 「每次询问」主机：取得本会话密码后（needsAuth 由 true→false），开始采集。
         .onChange(of: needsAuth) { stillNeeds in
-            if !isRDP, !stillNeeds {
+            if !stillNeeds {
                 model.probeHostIfNeeded(liveHost)
                 model.overviewAppeared(liveHost)
             }
         }
-        .onDisappear { if !isRDP { model.overviewDisappeared(host.id) } }
+        .onDisappear { model.overviewDisappeared(host.id) }
     }
-
-    /// 是否为 RDP（远程桌面）主机：决定概览页展示哪套操作、是否走 SSH 监控生命周期。
-    private var isRDP: Bool { host.isRDP }
 
     /// 实时主机：host 是 Workspace 传入的快照，输密码等变化要从 model 取最新值（HostOverview 已 @ObservedObject model）。
     private var liveHost: Host { model.host(host.id) ?? host }
@@ -126,51 +108,17 @@ struct HostOverview: View {
         }
     }
 
-    /// RDP 主机的「连接信息」卡：静态展示连接配置（地址/账号/分辨率/安全层等），充实概览页内容，不涉及监控。
-    @ViewBuilder
-    private var rdpInfoSection: some View {
-        if let r = host.rdp {
-            let items: [(String, String, Bool)] = {
-                var a: [(String, String, Bool)] = []                 // (标签, 值, 是否随脱敏模糊)
-                if !host.os.isEmpty { a.append((String(localized: "系统"), host.os, false)) }
-                a.append((String(localized: "地址"), r.host, true))
-                a.append((String(localized: "端口"), String(r.port), false))
-                a.append((String(localized: "用户名"), r.user, true))
-                if !r.domain.isEmpty { a.append((String(localized: "域"), r.domain, false)) }
-                a.append((String(localized: "默认分辨率"), "\(r.width) × \(r.height)", false))
-                a.append((String(localized: "色深"), "\(r.colorDepth) 位", false))
-                a.append((String(localized: "安全层"), r.security.label, false))
-                if !host.group.isEmpty { a.append((String(localized: "分组"), host.group, false)) }
-                return a
-            }()
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle").font(.system(size: 10, weight: .semibold))
-                    Text("连接信息").font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundStyle(Pal.overlay)
-
-                LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading),
-                                    GridItem(.flexible(), alignment: .leading)],
-                          alignment: .leading, spacing: 16) {
-                    ForEach(items, id: \.0) { label, value, blur in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(label).font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                            Text(value).font(.system(size: 13, weight: .medium)).foregroundStyle(Pal.text)
-                                .textSelection(.enabled)
-                                .lineLimit(1).truncationMode(.middle)
-                                .privacyBlur(blur && model.privacyMode)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Pal.fill(0.045), in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Pal.fill(0.09), lineWidth: 0.5))
+    private var statusBadge: some View {
+        let (label, fg, bg): (String, Color, Color) = {
+            switch host.status {
+            case .online: return (String(localized: "在线"), Pal.green, Pal.green.opacity(0.15))
+            case .offline: return (String(localized: "离线"), Pal.overlay, Pal.overlay.opacity(0.15))
+            case .unknown: return (String(localized: "未知"), Pal.yellow, Pal.yellow.opacity(0.15))
             }
-            .padding(.bottom, 24)
-        }
+        }()
+        return Text(label).font(.system(size: 11)).foregroundStyle(fg)
+            .padding(.horizontal, 9).padding(.vertical, 3)
+            .background(bg, in: RoundedRectangle(cornerRadius: 6))
     }
 
     @ViewBuilder
@@ -199,45 +147,6 @@ struct HostOverview: View {
             Text(label).font(.system(size: 11)).foregroundStyle(Pal.overlay)
             Text(value).font(.system(size: 13, weight: .medium)).foregroundStyle(Pal.text)
         }
-    }
-
-    private var statusBadge: some View {
-        let (label, fg, bg): (String, Color, Color) = {
-            switch host.status {
-            case .online: return (String(localized: "在线"), Pal.green, Pal.green.opacity(0.15))
-            case .offline: return (String(localized: "离线"), Pal.overlay, Pal.overlay.opacity(0.15))
-            case .unknown: return (String(localized: "未知"), Pal.yellow, Pal.yellow.opacity(0.15))
-            }
-        }()
-        return Text(label).font(.system(size: 11)).foregroundStyle(fg)
-            .padding(.horizontal, 9).padding(.vertical, 3)
-            .background(bg, in: RoundedRectangle(cornerRadius: 6))
-    }
-
-    /// RDP「远程桌面」卡：已有连接时标签转绿显示「运行中」并在右上角呼吸点，点击寻回既有连接。
-    @ViewBuilder
-    private func rdpAction(running: Bool, _ act: @escaping () -> Void) -> some View {
-        Button(action: act) {
-            VStack(spacing: 8) {
-                Image(systemName: "display").font(.system(size: 21))
-                    .foregroundStyle(Pal.mauve)
-                    .frame(height: 24)
-                Text(running ? "远程桌面 · 运行中" : "远程桌面")
-                    .font(.system(size: 12))
-                    .foregroundStyle(running ? Pal.green : Pal.text)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Pal.mauve.opacity(0.25), lineWidth: 1))
-            .overlay(alignment: .topTrailing) {
-                if running { BreathingDot().padding(8) }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .pointerCursor()
     }
 
     @ViewBuilder

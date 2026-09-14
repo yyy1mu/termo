@@ -6,7 +6,7 @@ struct Snippet: Identifiable, Codable, Hashable {
     let id: String
     var name: String
     var content: String        // 命令正文，支持多行
-    var group: String          // 所属分组（与主机/ RDP 分组一致；空视作「未分组」）
+    var group: String          // 所属分组（与主机分组一致；空视作「未分组」）
     let createdAt: Date
     var updatedAt: Date
 

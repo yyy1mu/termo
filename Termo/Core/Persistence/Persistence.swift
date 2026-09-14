@@ -142,7 +142,6 @@ enum HostStore {
             }
             if let pw {
                 if hosts[i].ssh != nil { hosts[i].ssh?.password = pw }
-                else if hosts[i].rdp != nil { hosts[i].rdp?.password = pw }
             }
         }
         if migrated { HostKeychain.saveAll(combined) }   // 旧条目并入合并条目，下次起只需一次授权
@@ -155,7 +154,6 @@ enum HostStore {
         for h in hosts {
             // 「每次询问」的密码是本会话内存值，绝不落盘（冷启动后需重新输入）。
             if let ssh = h.ssh, ssh.authMethod != .ask, !ssh.password.isEmpty { pwMap[h.id] = ssh.password }
-            else if let rdp = h.rdp, !rdp.password.isEmpty { pwMap[h.id] = rdp.password }
         }
         HostKeychain.saveAll(pwMap)
         if let data = try? JSONEncoder().encode(hosts) {
