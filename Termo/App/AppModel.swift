@@ -349,6 +349,9 @@ final class AppModel: ObservableObject {
         return termTabs.count == 1 ? termTabs[0].id : nil
     }
 
+    /// 向目标终端注入一行命令（伴随面板动作复用，如 tmux 接入）。run=true 时追加回车执行。
+    func sendTextToTerminal(_ text: String, run: Bool) { deliverSnippet(text, run: run) }
+
     private func deliverSnippet(_ text: String, run: Bool) {
         guard let id = snippetTargetTabId(), let tv = terminals[id] else {
             snippetNotice = String(localized: "请先打开并切到一个终端，再运行片段。")

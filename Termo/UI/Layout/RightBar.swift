@@ -122,6 +122,16 @@ struct CompanionPanel: View {
                         state: model.browserState(for: Self.companionTabId, host: host),
                         host: host, model: model)
                 }
+            case .tmux:
+                if let host { TmuxPanel(model: model, host: host) }
+            case .services:
+                if let host { ServicesPanel(model: model, host: host) }
+            case .processes:
+                if let host { ProcessesPanel(model: model, host: host) }
+            case .network:
+                if let host { NetworkPanel(model: model, host: host) }
+            case .docker:
+                if let host { DockerPanel(model: model, host: host) }
             case .monitor:
                 if let host {
                     MonitorPanel(monitor: model.hostMonitor(for: host))

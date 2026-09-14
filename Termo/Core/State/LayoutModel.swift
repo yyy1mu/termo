@@ -23,12 +23,17 @@ final class LayoutModel: ObservableObject {
 
 /// 右侧功能栏条目：伴随面板按「跟随当前主机」展开（SFTP/监控/转发需要主机上下文；片段/同步为全局）。
 enum RightPanel: String, CaseIterable, Hashable {
-    case sftp, monitor, forward, snippets, sync
+    case sftp, tmux, services, processes, network, monitor, docker, forward, snippets, sync
 
     var symbol: String {
         switch self {
         case .sftp: return "folder"
+        case .tmux: return "rectangle.split.2x2"
+        case .services: return "gearshape.2"
+        case .processes: return "chart.bar"
+        case .network: return "network"
         case .monitor: return "waveform.path.ecg"
+        case .docker: return "shippingbox"
         case .forward: return "arrow.left.arrow.right"
         case .snippets: return "chevron.left.forwardslash.chevron.right"
         case .sync: return "arrow.triangle.2.circlepath"
@@ -38,7 +43,12 @@ enum RightPanel: String, CaseIterable, Hashable {
     var title: String {
         switch self {
         case .sftp: return String(localized: "文件 (SFTP)")
+        case .tmux: return "tmux"
+        case .services: return String(localized: "系统服务")
+        case .processes: return String(localized: "进程管理")
+        case .network: return String(localized: "网络连接")
         case .monitor: return String(localized: "监控")
+        case .docker: return "Docker"
         case .forward: return String(localized: "端口转发")
         case .snippets: return String(localized: "代码片段")
         case .sync: return String(localized: "同步")
@@ -48,8 +58,8 @@ enum RightPanel: String, CaseIterable, Hashable {
     /// 是否需要一台已选中的 SSH 主机（否则显示占位提示）。
     var needsHost: Bool {
         switch self {
-        case .sftp, .monitor, .forward: return true
         case .snippets, .sync: return false
+        default: return true
         }
     }
 }

@@ -30,6 +30,7 @@
 		4E8BB08836DC765A3793C7BB /* SFTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40368D0C3B6906325B722EE0 /* SFTPClient.swift */; };
 		5006CD805681677B0CF1953B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8153CA939F7EA1C538726203 /* SettingsView.swift */; };
 		50A266AC1A12B573BBAA2DF1 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 9AFD70D7F0CA6271D43F4764 /* SwiftTerm */; };
+		523376E8B7B15E65028AD2B5 /* ExecPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA592A6DEDAE371DE78D8B2 /* ExecPanels.swift */; };
 		54ED47672872B75CE5DB286F /* KeysPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1983EEAC0FFD7F2C8003C88B /* KeysPanel.swift */; };
 		563B0D4BCEE69D24F6157952 /* PortForward.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FE548D65E22CCE9FF8E686 /* PortForward.swift */; };
 		5A98EB5B5D35F85E9D0876B6 /* AskPasswordDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7EC3A802375763DAFCB55EB /* AskPasswordDialog.swift */; };
@@ -173,6 +174,7 @@
 		E5758B8305160B2F0356D7F6 /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		E7EC3A802375763DAFCB55EB /* AskPasswordDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskPasswordDialog.swift; sourceTree = "<group>"; };
 		EC2740433D28692622FE7281 /* AppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfo.swift; sourceTree = "<group>"; };
+		ECA592A6DEDAE371DE78D8B2 /* ExecPanels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecPanels.swift; sourceTree = "<group>"; };
 		EF1A4E31A396CBDCD57DF2AB /* PortForwardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardView.swift; sourceTree = "<group>"; };
 		F38CB670FB02EF6AF5CEBDF9 /* HostKeyDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostKeyDialog.swift; sourceTree = "<group>"; };
 		FA3E0ECD927BE5B8E2E188AF /* Snippet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snippet.swift; sourceTree = "<group>"; };
@@ -222,6 +224,14 @@
 				E3B549B96E762A0F96435705 /* TestConnectionView.swift */,
 			);
 			path = SSH;
+			sourceTree = "<group>";
+		};
+		0818308FAD800F4DE1829F56 /* Companion */ = {
+			isa = PBXGroup;
+			children = (
+				ECA592A6DEDAE371DE78D8B2 /* ExecPanels.swift */,
+			);
+			path = Companion;
 			sourceTree = "<group>";
 		};
 		1840729531F1BDECC4EBF7CB /* Layout */ = {
@@ -390,6 +400,7 @@
 		713185579EA6849360671971 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				0818308FAD800F4DE1829F56 /* Companion */,
 				72438338F9A6C303CCAF3E6A /* File */,
 				C0314B4F5AD73CBBD4B0DA31 /* Keys */,
 				6DA9F55B9DD65CB51199DD53 /* PortForward */,
@@ -747,6 +758,7 @@
 				FE471C6B3046358BF4827EA1 /* BackgroundCenterView.swift in Sources */,
 				3239FF73BCD4D44A485CC1F9 /* BundleResources.swift in Sources */,
 				B239A88ECF733A6D9281BB9A /* Components.swift in Sources */,
+				523376E8B7B15E65028AD2B5 /* ExecPanels.swift in Sources */,
 				0F66A021071A0C65CCF4B324 /* FileBrowser.swift in Sources */,
 				AB040BAAE224C9A3DC34AC2A /* FileExtract.swift in Sources */,
 				275AC8E86EC97CCE744A5AE1 /* FileIcons.swift in Sources */,
