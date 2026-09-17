@@ -653,9 +653,10 @@ final class AppModel: ObservableObject {
     }
 
     // ---------- 系统信息探测 ----------
-    /// 远端一次性探测脚本：输出多行 key=value。MEM/DISK/VRAM 输出原始字节（客户端再按
+    /// 远端一次性探测脚本：输出多行 key=value。MEM/DISK 输出原始字节（客户端再按
     /// 1000 进制统一格式化，避免 free -h/df -h 的 Gi/Mi 单位浮动）；DISK 为「已用 总量」两个字节数；
-    /// VRAM/GPU 仅在有 NVIDIA 显卡（nvidia-smi 可用）时非空。
+    /// VRAM 每卡一行（MiB，客户端按 1024 进制 GiB 显示，与监控卡片口径一致）、GPU 每卡一行型号
+    /// （去引号：nvidia-smi 会给含逗号的型号名加引号）；二者仅在有 NVIDIA 显卡（nvidia-smi 可用）时输出。
     private static let probeScript = """
     . /etc/os-release 2>/dev/null
     echo "OS=${PRETTY_NAME:-$(uname -sr)}"
@@ -664,9 +665,8 @@ final class AppModel: ObservableObject {
     [ -z "$mem" ] && mem=$(sysctl -n hw.memsize 2>/dev/null)
     echo "MEM=$mem"
     echo "DISK=$(df -k / 2>/dev/null | awk 'NR==2{printf "%.0f %.0f", $3*1024, $2*1024}')"
-    vram=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | awk '{s+=$1} END{if(s>0) printf "%.0f", s*1048576}')
-    echo "VRAM=$vram"
-    echo "GPU=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
+    nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | awk '$1 ~ /^[0-9]+$/{print "VRAM="$1}'
+    nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | awk '{gsub(/"/,""); print "GPU="$0}'
     """
 
     /// 系统信息缓存有效期：探测结果(OS/配置/磁盘)在此时间内复用，不重新 SSH 探测。
@@ -695,6 +695,8 @@ final class AppModel: ObservableObject {
         probingHosts.remove(id)
         guard let idx = hosts.firstIndex(where: { $0.id == id }) else { return }
         var specs = HostSpecs()
+        var vramMiB: [Int64] = []    // 每卡一行显存（MiB）
+        var gpuNames: [String] = []  // 每卡一行型号
         for line in output.split(separator: "\n") {
             guard let eq = line.firstIndex(of: "=") else { continue }
             let key = String(line[line.startIndex..<eq]).trimmingCharacters(in: .whitespaces)
@@ -709,10 +711,18 @@ final class AppModel: ObservableObject {
                 if p.count == 2, let u = Int64(p[0]), let t = Int64(p[1]) {
                     specs.disk = "\(Self.fmtBytes(u)) / \(Self.fmtBytes(t))"
                 }
-            case "VRAM": if let b = Int64(val), b > 0 { specs.vram = Self.fmtBytes(b) }
-            case "GPU": specs.gpu = val
+            case "VRAM": if let m = Int64(val), m > 0 { vramMiB.append(m) }
+            case "GPU": if !val.isEmpty { gpuNames.append(val) }
             default: break
             }
+        }
+        // 显存与型号按卡数对齐展示：多卡同型号/同容量用「×N」标明，避免把多卡总和误读为单卡规格。
+        if !vramMiB.isEmpty { specs.vram = Self.fmtVram(vramMiB) }
+        if !gpuNames.isEmpty {
+            specs.gpu = gpuNames.count > 1
+                ? (Set(gpuNames).count == 1 ? "\(gpuNames[0]) ×\(gpuNames.count)"
+                                            : "\(gpuNames[0]) 等 \(gpuNames.count) 张")
+                : gpuNames[0]
         }
         guard !specs.isEmpty else { return }   // 探测失败（连接/认证失败）则保留原样
         specs.probedAt = Date()                // 标记探测时间，供 TTL 缓存判定
@@ -728,6 +738,16 @@ final class AppModel: ObservableObject {
         f.allowedUnits = [.useKB, .useMB, .useGB, .useTB]
         f.countStyle = .decimal
         return f.string(fromByteCount: bytes)
+    }
+
+    /// 各卡显存（MiB）→ 与监控卡片一致的 1024 进制 GiB 文案：多卡同容量显示「40.0 GiB ×4」，
+    /// 容量不一显示合计「160.0 GiB」，单卡即单值。
+    private static func fmtVram(_ perCardMiB: [Int64]) -> String {
+        let gib: (Int64) -> String = { String(format: "%.1f", Double($0) / 1024) }
+        if perCardMiB.count > 1, Set(perCardMiB).count == 1 {
+            return "\(gib(perCardMiB[0])) GiB ×\(perCardMiB.count)"
+        }
+        return "\(gib(perCardMiB.reduce(0, +))) GiB"
     }
 
     // ---------- 在线状态检测 ----------
@@ -1076,6 +1096,9 @@ final class AppModel: ObservableObject {
     private func makeTerminal(ssh: SSHConnection? = nil, hostId: String? = nil, tabId: Int) -> LocalProcessTerminalView {
         // PacedTerminalView：重写粘贴为分片限速 + 括号粘贴，根治粘贴长命令被远端 tty 灌爆而截断/错行。
         let tv = PacedTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 480))
+        // SwiftTerm 内建一个 legacy 风格 NSScroller（private 无公开开关，init 时已挂为子视图），
+        // 常显在右缘——从子视图里找出来隐藏；滚轮/触控板滚动不受影响。
+        tv.subviews.compactMap { $0 as? NSScroller }.forEach { $0.isHidden = true }
         tv.font = currentTerminalFont()
         applyTheme(to: tv)
         applyTerminalConfig(to: tv)
@@ -1103,13 +1126,15 @@ final class AppModel: ObservableObject {
         return tv
     }
 
-    /// 在给定终端视图上（重新）发起 SSH 连接：用 libssh2 驱动接管输入/输出/cwd/退出，注入 OSC 7 钩子与初始命令。
-    /// 重连复用同一终端视图，滚动历史得以保留——先关旧驱动（停 pump + 释放通道与会话）再建新驱动。
+    /// 在给定终端视图上（重新）发起 SSH 连接：驱动经该主机的 [[TerminalSessionHub]] 取共享会话
+    /// （已有存活连接则只开新 shell 通道，不再登录），注入 OSC 7 钩子与初始命令。
+    /// 重连复用同一终端视图，滚动历史得以保留——先关旧驱动（停 pump + 释放通道）再建新驱动。
     private func startTerminalProcess(tv: LocalProcessTerminalView, ssh: SSHConnection, tabId: Int, hostId: String?) {
         termDrivers[tabId]?.onTerminated = nil      // 旧驱动退出回调失效，避免拆除时误触重连
         termDrivers[tabId]?.close()
         let term = tv.getTerminal()
-        let driver = SSHTerminalDriver(tv: tv, ssh: ssh)
+        let hub = hostId.map { terminalHub(for: $0) } ?? TerminalSessionHub()
+        let driver = SSHTerminalDriver(tv: tv, ssh: ssh, hub: hub)
         driver.onCwd = { [weak self] path in
             Task { @MainActor in self?.handleTerminalCwd(tabId: tabId, path: path) }
         }
@@ -1245,10 +1270,24 @@ final class AppModel: ObservableObject {
         addTab(.overview, title: host.name, hostId: host.id)
     }
 
+    // ---------- 终端共享会话（每主机一条连接，多终端复用通道） ----------
+    private var terminalHubs: [String: TerminalSessionHub] = [:]
+    private func terminalHub(for hostId: String) -> TerminalSessionHub {
+        if let h = terminalHubs[hostId] { return h }
+        let h = TerminalSessionHub()
+        terminalHubs[hostId] = h
+        return h
+    }
+
     /// 打开终端：默认复用该主机已打开的终端标签（不新建）；forceNew=true 则强制新建（右键「新建终端」）。
+    /// 该主机已有存活终端连接时，新建走通道复用：跳过密码/连接验证弹窗，不重新 SSH 登录。
     func openHostTerminal(_ host: Host, forceNew: Bool = false) {
         if !forceNew, let existing = tabs.first(where: { $0.kind == .terminal && $0.hostId == host.id }) {
             activeTabId = existing.id
+            return
+        }
+        if forceNew, terminalHubs[host.id]?.hasLiveSession == true {
+            openTerminalTab(host.id)
             return
         }
         requireAuth(host) { [weak self] in
@@ -1968,6 +2007,22 @@ final class AppModel: ObservableObject {
     func requestRenameTab(_ id: Int) {
         guard let tab = tabs.first(where: { $0.id == id }) else { return }
         pendingTabRename = TabRenameContext(id: id, currentTitle: tab.title)
+    }
+
+    /// 终端视图右键「重命名标签」：按视图找回标签再弹输入框。
+    func requestRenameTab(terminalView tv: LocalProcessTerminalView) {
+        guard let tabId = terminals.first(where: { $0.value === tv })?.key else { return }
+        requestRenameTab(tabId)
+    }
+
+    /// 终端视图右键「复制会话」：同一主机再开一个终端（经共享连接秒开，不重新登录）。
+    /// 本地终端无主机可复用，点了无效。
+    func duplicateSession(terminalView tv: LocalProcessTerminalView) {
+        guard let tabId = terminals.first(where: { $0.value === tv })?.key,
+              let tab = tabs.first(where: { $0.id == tabId }),
+              tab.kind == .terminal,
+              let host = host(tab.hostId) else { return }
+        openHostTerminal(host, forceNew: true)
     }
 
     /// 重命名标签：与其它标签同名则拒绝（便于区分），否则原地改名。

@@ -252,15 +252,20 @@ struct DiskUsage: Identifiable {
 }
 
 /// 单块 GPU 的实时状态（来自 nvidia-smi；显存以 MiB 计）。
+/// 数值字段均可选：vGPU/MIG/WSL 等环境 nvidia-smi 会输出 [N/A]/[Not Supported]，解析为 nil，UI 显示「—」而非假 0。
 struct GPUInfo: Identifiable {
     var id: Int { index }
     let index: Int
     let name: String
-    let utilPercent: Double
-    let memUsedMB: Int64
-    let memTotalMB: Int64
-    let tempC: Int
-    var memPercent: Double { memTotalMB > 0 ? Double(memUsedMB) / Double(memTotalMB) * 100 : 0 }
+    let utilPercent: Double?
+    let memUsedMB: Int64?
+    let memTotalMB: Int64?
+    let tempC: Int?
+    /// 显存占用比；任一值不可用（[N/A]）时为 nil，调用方据此跳过进度条。
+    var memPercent: Double? {
+        guard let used = memUsedMB, let total = memTotalMB, total > 0 else { return nil }
+        return Double(used) / Double(total) * 100
+    }
 }
 
 /// 一帧网速采样（字节/秒），用于网络波动折线图。

@@ -55,7 +55,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3827CF9BD8686ACED0D922E6"
             BuildableName = "Termo.app"
-            BlueprintName = "Termo-Watch"
             ReferencedContainer = "container:Termo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -72,7 +71,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3827CF9BD8686ACED0D922E6"
             BuildableName = "Termo.app"
-            BlueprintName = "Termo-Watch"
             ReferencedContainer = "container:Termo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

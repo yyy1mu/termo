@@ -92,6 +92,7 @@
 		E2EECA718684D03CF8345249 /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1626E272150021A09FC31784 /* Workspace.swift */; };
 		E6BFAC96BEDB66DBA492C523 /* HostKeyVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = C703EECD0742870CD6D43856 /* HostKeyVerifier.swift */; };
 		E82806E27A86F286792F164A /* KeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 650DB60AA2A221003E5EAA5A /* KeyStore.swift */; };
+		E83A1A2C18F1BCADC317FD53 /* TerminalSessionHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14FA718BDEFECD13079CC69 /* TerminalSessionHub.swift */; };
 		EB0212D223E2A86D4E68DE88 /* IOSHostRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F79339F958298791E09CDF21 /* IOSHostRepository.swift */; };
 		F5B3AE3D0DA903464CC16F47 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7F11BB7AEF9BDB198C9803A9 /* CoreFoundation.framework */; };
 		F8EE9711E450E3D8C106045C /* BackgroundActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7024DA152ABF9F72C989A474 /* BackgroundActivity.swift */; };
@@ -176,6 +177,7 @@
 		9C26B0F2AE3943DEC875BE48 /* Termo-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Termo-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		9DE0DE66B1418BAB8B1F0F73 /* AppIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppIcon.png; sourceTree = "<group>"; };
 		A1239B55F5573C3CD7FCA137 /* TermoSSHDispatch.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TermoSSHDispatch.c; sourceTree = "<group>"; };
+		A14FA718BDEFECD13079CC69 /* TerminalSessionHub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSessionHub.swift; sourceTree = "<group>"; };
 		A1C9C7C264181C1C658F930C /* SyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModels.swift; sourceTree = "<group>"; };
 		A67AE3D18D0C1243CFB8D557 /* font-logos.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "font-logos.ttf"; sourceTree = "<group>"; };
 		AE623D081B326C025E0118B3 /* SnippetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetStore.swift; sourceTree = "<group>"; };
@@ -598,6 +600,7 @@
 			isa = PBXGroup;
 			children = (
 				B0FF5367FD75FA678A82796A /* SSHTerminalDriver.swift */,
+				A14FA718BDEFECD13079CC69 /* TerminalSessionHub.swift */,
 				507FF5447F03353EF481A8B0 /* TerminalSurface.swift */,
 			);
 			path = Terminal;
@@ -932,6 +935,7 @@
 				B3ABCC2C2D678CE2E3B4F20D /* TabBar.swift in Sources */,
 				676AA5CF6C60708F710B1EA1 /* TabScrollView.swift in Sources */,
 				12692E67AF93F18760DBDDE0 /* TabsModel.swift in Sources */,
+				E83A1A2C18F1BCADC317FD53 /* TerminalSessionHub.swift in Sources */,
 				82564CB03E98959D9890E2AF /* TerminalSurface.swift in Sources */,
 				1FAFCA582661FF50BE800F7C /* TermoApp.swift in Sources */,
 				AEF5C9FED582E0E87C101FE8 /* TermoSSHDispatch.c in Sources */,
@@ -1132,7 +1136,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = (
-					"$(SRCROOT)/Build/russh/aarch64-apple-darwin",
+					"$(SRCROOT)/Build/russh/universal",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
@@ -1187,7 +1191,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = (
-					"$(SRCROOT)/Build/russh/aarch64-apple-darwin",
+					"$(SRCROOT)/Build/russh/universal",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
@@ -1283,7 +1287,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = (
-					"$(SRCROOT)/Build/russh/aarch64-apple-darwin",
+					"$(SRCROOT)/Build/russh/universal",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
@@ -1337,7 +1341,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = (
-					"$(SRCROOT)/Build/russh/aarch64-apple-darwin",
+					"$(SRCROOT)/Build/russh/universal",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (

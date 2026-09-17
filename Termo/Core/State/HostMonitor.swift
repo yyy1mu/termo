@@ -70,7 +70,7 @@ final class HostMonitor: ObservableObject {
     /// 远端内联采样脚本：无 /proc 立即报 NOPROC 退出；否则每 interval 秒输出一帧，以 === 分隔。
     /// CPU 输出整机与每核（cpu / cpuN）；网络累计排除回环 lo 并把网卡名冒号换空格再取字段，避免高流量字节数
     /// 与冒号粘连错位；磁盘只列真实块设备（/dev/ 开头）的各挂载点；有 nvidia-smi 时每块 GPU 一行（| 分隔，
-    /// 容纳含空格的型号名）。内存单位 kB、磁盘 1K 块、显存 MiB。
+    /// 容纳含空格/逗号的型号名）。内存单位 kB、磁盘 1K 块、显存 MiB。
     private static let script = """
     [ -r /proc/stat ] || { echo NOPROC; exit 0; }
     command -v nvidia-smi >/dev/null 2>&1 && HASGPU=1 || HASGPU=0
@@ -81,7 +81,9 @@ final class HostMonitor: ObservableObject {
       echo "UP $(cut -d" " -f1 /proc/uptime)"
       echo "LOAD $(cut -d" " -f1-3 /proc/loadavg)"
       df -kP 2>/dev/null | awk 'NR>1 && index($1,"/dev/")==1{print "DISK "$6" "$3" "$2}'
-      [ "$HASGPU" = 1 ] && nvidia-smi --query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits 2>/dev/null | awk -F", *" '{print "GPU "$1"|"$2"|"$3"|"$4"|"$5"|"$6}'
+      # name 放查询列最后：nvidia-smi 对含逗号的型号名会加引号，awk 的正则 FS 不认引号；
+      # 故从行尾固定取数字列、剩余段重组为 name（并去引号），避免字段整体错位。
+      [ "$HASGPU" = 1 ] && nvidia-smi --query-gpu=index,utilization.gpu,memory.used,memory.total,temperature.gpu,name --format=csv,noheader,nounits 2>/dev/null | awk -F", *" '{name=$6; for(i=7;i<=NF;i++) name=name", "$i; gsub(/"/,"",name); print "GPU "$1"|"name"|"$2"|"$3"|"$4"|"$5}'
       echo "==="
       sleep __INTERVAL__
     done
@@ -273,16 +275,18 @@ final class HostMonitor: ObservableObject {
                 }
             case "GPU":
                 // GPU i|name|util|memUsedMB|memTotalMB|temp；型号名含空格，按 | 重组解析。
+                // vGPU/MIG/WSL 上 nvidia-smi 会输出 [N/A]/[Not Supported]：Double/Int64 转换失败即存 nil，
+                // 由 UI 显示「—」，不折叠成 0 冒充真实数据。
                 let f = p.dropFirst().joined(separator: " ")
                     .split(separator: "|", omittingEmptySubsequences: false)
                     .map { $0.trimmingCharacters(in: .whitespaces) }
                 if f.count >= 6, let idx = Int(f[0]) {
                     m.gpus.append(GPUInfo(
                         index: idx, name: f[1],
-                        utilPercent: Double(f[2]) ?? 0,
-                        memUsedMB: Int64(f[3]) ?? 0,
-                        memTotalMB: Int64(f[4]) ?? 0,
-                        tempC: Int(f[5]) ?? 0))
+                        utilPercent: Double(f[2]),
+                        memUsedMB: Int64(f[3]),
+                        memTotalMB: Int64(f[4]),
+                        tempC: Int(f[5])))
                 }
             default:
                 break

@@ -74,7 +74,7 @@ targets:
         HEADER_SEARCH_PATHS:
           - $(SRCROOT)/Termo/Features/SSH/Engine                                # TermoSSHCore.h / TermoRusshCore.h
         LIBRARY_SEARCH_PATHS:
-          - $(SRCROOT)/Build/russh/aarch64-apple-darwin   # libtermo_ssh.a（russh 静态库，见 scripts/build-russh.sh）
+          - $(SRCROOT)/Build/russh/universal   # libtermo_ssh.a（russh 通用静态库，见 scripts/build-russh.sh）
         OTHER_LDFLAGS:
           - -ltermo_ssh  # Rust SSH 引擎（russh 0.63.3 + ring；符号 termo_russh_*）
           - -liconv      # ring/系统层依赖

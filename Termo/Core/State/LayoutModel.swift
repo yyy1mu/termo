@@ -21,7 +21,8 @@ final class LayoutModel: ObservableObject {
 
 /// 右侧功能栏条目：以当前主机与终端上下文为中心；全局同步位于设置。
 enum RightPanel: String, CaseIterable, Hashable {
-    case sftp, tmux, services, processes, network, monitor, docker, forward, snippets
+    // 声明顺序即右侧栏按钮顺序：高频核心功能（监控/文件/tmux/转发/片段）在前，主机巡检工具在后。
+    case monitor, sftp, tmux, forward, snippets, services, processes, network, docker
 
     var symbol: String {
         switch self {

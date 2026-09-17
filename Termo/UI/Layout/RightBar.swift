@@ -142,9 +142,15 @@ struct CompanionPanel: View {
                 if let host { DockerPanel(model: model, host: host) }
             case .monitor:
                 if let host {
-                    MonitorPanel(monitor: model.hostMonitor(for: host))
-                        .padding(.horizontal, 16)
-                        .padding(.top, 14)
+                    // 必须滚动承载：多 GPU/多磁盘时内容超出右栏高度；
+                    // 且要顶对齐——裸放会在剩余高度里垂直居中，顶部留出大片死白。
+                    ScrollView(.vertical) {
+                        MonitorPanel(monitor: model.hostMonitor(for: host))
+                            .padding(.horizontal, 16)
+                            .padding(.top, 14)
+                            .padding(.bottom, 16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             case .forward:
                 if let host {

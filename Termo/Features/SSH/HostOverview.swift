@@ -25,6 +25,8 @@ struct HostOverview: View {
                         HStack(spacing: 10) {
                             Image(systemName: "network")
                             Text("\(liveHost.ipOrHost):\(liveHost.ssh?.port ?? 22)")
+                                .lineLimit(1)
+                                .truncationMode(.middle)
                                 .privacyBlur(model.privacyMode)
                             if liveHost.status == .online, let ms = liveHost.latencyMs {
                                 Text("·")
@@ -253,6 +255,7 @@ struct HostOverview: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(label).font(.system(size: 13, weight: .semibold))
                     Text(detail).font(.system(size: 11)).opacity(0.78)
+                        .lineLimit(1)
                 }
             }
             .foregroundStyle(primary ? Color.white : Pal.text)
@@ -277,23 +280,6 @@ struct HostOverview: View {
 
 }
 
-/// 呼吸状态点：绿色实心点 + 向外扩散渐隐的光环，表示「运行中」。
-private struct BreathingDot: View {
-    @State private var pulse = false
-    var body: some View {
-        ZStack {
-            Circle().fill(Pal.green.opacity(0.5))
-                .frame(width: 8, height: 8)
-                .scaleEffect(pulse ? 2.2 : 1)
-                .opacity(pulse ? 0 : 0.6)
-            Circle().fill(Pal.green).frame(width: 7, height: 7)
-        }
-        .onAppear {
-            withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) { pulse = true }
-        }
-    }
-}
-
 /// 主机概览的实时监控面板（macOS 原生风格）：CPU 每核热力方块、内存、GPU 卡片阵列、多磁盘、网络与运行时长。
 /// 数据来自 [[HostMonitor]] 的流式采样；分区按数据自适应，无 GPU 时隐藏该区，核多则热力方块自动换行。
 struct MonitorPanel: View {
@@ -308,19 +294,21 @@ struct MonitorPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Text("监控").font(.system(size: 12)).foregroundStyle(Pal.overlay)
                 Circle().fill(monitor.phase == .live ? Self.green : Pal.overlay).frame(width: 6, height: 6)
                 if !settings.monitorNoticeHidden && !settings.monitorNoticeAckedThisSession {
                     Text("提示：本监控仅进行数据采集与状态读取，不会在目标机器内执行或部署任何 shell 脚本。")
                         .font(.system(size: 10)).foregroundStyle(Pal.overlay).lineLimit(2)
+                    // 窄面板（右侧栏）下提示文本折成两行；按钮放 Spacer 之后钉在右缘，
+                    // 避免跟在文本尾部、折行后悬空压在第二行文字上。
+                    Spacer(minLength: 4)
                     Button { settings.monitorNoticeAckedThisSession = true } label: {
                         Text("我已知晓").font(.system(size: 10, weight: .medium)).foregroundStyle(Pal.mauve)
                     }
                     .buttonStyle(.plain)
                     .pointerCursor()
                     .tooltip(String(localized: "本次启动内不再显示；如需永久关闭，请在「设置 - 通用」开启「隐藏监控提示」。"))
-                    Spacer(minLength: 0)
                 }
             }
             content
@@ -363,6 +351,7 @@ struct MonitorPanel: View {
                         Spacer()
                         plainNum(String(format: String(localized: "负载 %.2f / %.2f / %.2f"), m.load1, m.load5, m.load15),
                                  size: 10, design: .monospaced, color: Pal.overlay)
+                            .lineLimit(1)
                     }
                     if m.perCore.isEmpty {
                         Text("采样中…").font(.system(size: 10)).foregroundStyle(Pal.overlay)
@@ -455,21 +444,36 @@ struct MonitorPanel: View {
                         .padding(.horizontal, 5).padding(.vertical, 1)
                         .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 3))
                     Spacer(minLength: 4)
-                    num("\(g.tempC)°", size: 10, weight: .bold, color: Self.purple)
+                    num(g.tempC.map { "\($0)°" } ?? "—", size: 10, weight: .bold, color: Self.purple)
                 }
-                HStack(alignment: .bottom) {
-                    num("\(Int(g.utilPercent))%", size: 17, weight: .bold, color: Pal.textBright)
-                    Spacer(minLength: 6)
-                    gpuDots(g.utilPercent)
+                // 利用率不可用（[N/A]，如 vGPU/MIG/WSL）时显示「—」并跳过点阵与进度条，不用 0% 冒充。
+                if let util = g.utilPercent {
+                    HStack(alignment: .bottom) {
+                        num("\(Int(util))%", size: 17, weight: .bold, color: Pal.textBright)
+                        Spacer(minLength: 6)
+                        gpuDots(util)
+                    }
+                    bar(util, color: Self.purple)
+                } else {
+                    HStack(alignment: .bottom) {
+                        num("—", size: 17, weight: .bold, color: Pal.textBright)
+                        Spacer(minLength: 6)
+                    }
                 }
-                bar(g.utilPercent, color: Self.purple)
                 HStack {
                     Text("显存").font(.system(size: 9)).foregroundStyle(Pal.overlay)
                     Spacer()
-                    plainNum("\(gib(g.memUsedMB)) / \(gib(g.memTotalMB)) GB", size: 9, design: .monospaced, color: Pal.overlay)
+                    plainNum(vramText(g), size: 9, design: .monospaced, color: Pal.overlay)
                 }
             }
         }
+    }
+
+    /// 显存明细：已用/总量任一不可用（[N/A]）则该侧显示「—」。
+    private func vramText(_ g: GPUInfo) -> String {
+        let used = g.memUsedMB.map { gib($0) } ?? "—"
+        let total = g.memTotalMB.map { gib($0) } ?? "—"
+        return "\(used) / \(total) GiB"
     }
 
     /// GPU 迷你点阵：5×2 共 10 颗点，按利用率点亮前 N 颗（紫），其余灰。
@@ -501,6 +505,7 @@ struct MonitorPanel: View {
                                 .frame(height: geo.size.height)
                             netStats(m, stacked: stacked).fixedSize()
                         }
+                        .clipped()
                     }
                     .frame(height: 36)
                 }
@@ -565,10 +570,12 @@ struct MonitorPanel: View {
                     .lineLimit(1).truncationMode(.middle)
                 Spacer()
                 num("\(Int(percent))%", size: 11, design: .default, color: Pal.subtext)
+                    .frame(width: 34, alignment: .trailing)
             }
             bar(percent, color: critical ? Pal.red : color)
             HStack {
                 plainNum(left, size: 10, design: .monospaced, color: Pal.overlay)
+                    .lineLimit(1)
                 Spacer()
                 Text(critical ? "CRITICAL" : right)
                     .font(.system(size: 9, weight: critical ? .bold : .regular))

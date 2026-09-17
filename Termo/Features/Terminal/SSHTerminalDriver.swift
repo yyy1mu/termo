@@ -5,12 +5,14 @@ import SwiftTerm
 /// 把用户输入/尺寸变化写入远端 PTY，把远端输出 `feed` 回视图——替代 `LocalProcessTerminalView` 起的
 /// `/usr/bin/ssh` 子进程（终端类型全仓不变，仅 SSH 终端换掉这条传输层）。
 ///
-/// 一个驱动 = 一条 dedicated `SSHSession` + 一个 C 层非阻塞 shell 泵线程（读/写/resize 全在该线程，杜绝
-/// libssh2 并发）。退出码：远端 shell 退出码；掉线=255，与 ssh 对齐以触发上层重连。
+/// 一个驱动 = 共享会话（[[TerminalSessionHub]]，同主机终端复用一条连接）上的一个 shell 通道
+/// + 一个 C 层非阻塞泵任务（读/写/resize 全在该任务，并发安全）。驱动只持有通道，连接生命周期归 hub。
+/// 退出码：远端 shell 退出码；掉线=255，与 ssh 对齐以触发上层重连。
 final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendable {
     private weak var tv: LocalProcessTerminalView?
     private let ssh: SSHConnection
-    private var session: SSHSession?
+    private let hub: TerminalSessionHub
+    private var session: SSHSession?             // hub 的共享会话，close 时只 release 不 close
     private var shell: OpaquePointer?            // TermoSSHShell*
     private var closed = false
     private var terminatedReported = false
@@ -18,25 +20,23 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
     var onCwd: ((String) -> Void)?
     var onTerminated: ((Int32?) -> Void)?
 
-    init(tv: LocalProcessTerminalView, ssh: SSHConnection) {
+    init(tv: LocalProcessTerminalView, ssh: SSHConnection, hub: TerminalSessionHub) {
         self.tv = tv
         self.ssh = ssh
+        self.hub = hub
         super.init()
     }
 
     // MARK: 连接 / 关闭
 
-    /// 后台建连 + 开 shell + 启泵；连接/开壳失败按掉线(255)上报以触发重连。
+    /// 后台取共享会话（无则新建登录）+ 开 shell 通道 + 启泵；失败按掉线(255)上报以触发重连。
     /// `initialLine` 在登录后注入（OSC7 钩子 + 可选 cd/初始命令）。
     func connect(cols: Int, rows: Int, initialLine: String) {
         let conn = ssh
+        let hub = self.hub
         DispatchQueue.global().async { [weak self] in
             guard let self else { return }
-            let a = conn.libssh2Auth
-            guard let session = try? SSHSession.connect(host: conn.host, port: conn.port, user: conn.user,
-                                                        password: a.password, keyPath: a.keyPath,
-                                                        keyPassphrase: a.keyPassphrase),
-                  let raw = session.rawHandle else {
+            guard let session = try? hub.acquire(conn), let raw = session.rawHandle else {
                 DispatchQueue.main.async { self.reportClosed(255) }   // 连接失败 → 当掉线触发重连
                 return
             }
@@ -45,14 +45,15 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
             guard let sh = termo_ssh_shell_open(raw, Int32(cols), Int32(rows),
                                                 Self.onData, Self.onClosed, box, &err, 256) else {
                 Unmanaged<SSHTerminalDriver>.fromOpaque(box).release()
-                session.close()
+                hub.invalidate(session)     // 开通道失败：连接多半已死（或不可再用），作废让下次重新登录
+                hub.release(session)
                 DispatchQueue.main.async { self.reportClosed(255) }
                 return
             }
             DispatchQueue.main.async {
                 if self.closed {                 // 建连期间已被关闭：拆掉刚建的
                     termo_ssh_shell_close(sh)
-                    session.close()
+                    hub.release(session)
                     return
                 }
                 self.session = session
@@ -67,14 +68,14 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
         }
     }
 
-    /// 停泵 + 释放通道 + 关闭底层会话。幂等。
+    /// 停泵 + 释放通道 + 归还共享会话引用（连接本身由 hub 在最后一个标签关闭时回收）。幂等。
     func close() {
         guard !closed else { return }
         closed = true
         let sh = shell; shell = nil
         let sess = session; session = nil
         if let sh { termo_ssh_shell_close(sh) }     // 停 pump（join）→ 触发 on_closed 释放 box
-        sess?.close()
+        if let sess { hub.release(sess) }
     }
 
     /// 写入一段文本（初始命令注入用）。
@@ -91,6 +92,8 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
     private func reportClosed(_ code: Int32) {
         guard !terminatedReported else { return }
         terminatedReported = true
+        // 连接断开（255）且非主动关闭 → 作废共享会话：其上其余 shell 随之断开，各标签重连合并为一次登录。
+        if code == 255, !closed, let session { hub.invalidate(session) }
         onTerminated?(code)
     }
 

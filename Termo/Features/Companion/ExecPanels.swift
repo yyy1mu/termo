@@ -19,17 +19,18 @@ final class ExecPanelState: ObservableObject {
     @Published var stdout = ""
     @Published var query = ""
 
-    private let fs: RemoteFS
+    /// 取最新凭证的闭包：「每次询问」主机输过密码后 host.ssh 会更新，值类型快照会过期，须实时取。
+    private let sshProvider: @MainActor () -> SSHConnection
     let command: String
 
-    init(ssh: SSHConnection, command: String) {
-        fs = RemoteFS(ssh)
+    init(ssh: @escaping @MainActor () -> SSHConnection, command: String) {
+        sshProvider = ssh
         self.command = command
     }
 
     func load() async {
         phase = .loading
-        let r = await fs.run(command, timeout: 25)
+        let r = await RemoteFS(sshProvider()).run(command, timeout: 25)
         let out = String(decoding: r.data, as: UTF8.self)
         if r.code < 0 {
             let msg = String(decoding: r.stderr, as: UTF8.self)
@@ -46,6 +47,12 @@ final class ExecPanelState: ObservableObject {
     }
 
     func refresh() { Task { await load() } }
+
+    /// 动作命令失败时把 stderr 反馈为错误状态（骨架顶部刷新按钮可重试恢复）。
+    func reportFailure(_ stderr: Data) {
+        let msg = String(decoding: stderr, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        phase = .failed(msg.isEmpty ? String(localized: "命令执行失败") : msg)
+    }
 }
 
 // MARK: - 面板骨架
@@ -164,13 +171,15 @@ struct TmuxPanel: View {
     @ObservedObject var model: AppModel
     let host: Host
     @StateObject private var state: ExecPanelState
+    @State private var pendingKill: TmuxSession? = nil   // 删除会话确认弹窗
 
     init(model: AppModel, host: Host) {
         self.model = model
         self.host = host
         _state = StateObject(wrappedValue: ExecPanelState(
-            ssh: host.ssh ?? SSHConnection(),
-            command: #"sh -lc 'command -v tmux >/dev/null 2>&1 && tmux ls 2>/dev/null || echo "__UNSUPPORTED__未安装 tmux"'"#))
+            ssh: { liveSSH(model, host) },
+            // 先单独判未安装（输出哨兵串并正常退出）；无会话时 tmux ls 退出码 1，吞掉显示空列表而非误报未安装。
+            command: #"sh -lc 'command -v tmux >/dev/null 2>&1 || { echo "__UNSUPPORTED__未安装 tmux"; exit 0; }; tmux ls 2>/dev/null || true'"#))
     }
 
     private struct TmuxSession: Identifiable {
@@ -187,11 +196,25 @@ struct TmuxPanel: View {
             let name = String(line[..<colon]).trimmingCharacters(in: .whitespaces)
             guard !name.isEmpty else { return nil }
             var windows = 1
-            if let wRange = line.range(of: #"\d+(?= windows?)"#, options: .regularExpression) {
-                windows = Int(line[wRange]) ?? 1
+            // 只在首个冒号之后的子串里匹配窗口数，避免会话名本身含「3 windows」字样时取错
+            let rest = line[line.index(after: colon)...]
+            if let wRange = rest.range(of: #"\d+(?= windows?)"#, options: .regularExpression) {
+                windows = Int(rest[wRange]) ?? 1
             }
             return TmuxSession(id: name, windows: windows, attached: line.contains("(attached)"))
         }
+    }
+
+    /// 面板动作统一入口：经登录 shell 执行（exec 本身无 PATH 初始化，tmux 可能在 /usr/local/bin 等），
+    /// 成功刷新列表；失败把 stderr 反馈到面板错误状态（刷新按钮可重试）。
+    private func act(_ script: String, timeout: Double = 15) async {
+        let r = await RemoteFS(liveSSH(model, host)).run("sh -lc \(Self.shellQuote(script))", timeout: timeout)
+        if r.code == 0 { state.refresh() } else { state.reportFailure(r.stderr) }
+    }
+
+    /// 单引号 shell 转义（' → '\''）：tmux 会话名可含空格/$/反引号等，拼进命令前必须转义。
+    private static func shellQuote(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     var body: some View {
@@ -206,8 +229,7 @@ struct TmuxPanel: View {
                     PanelActionButton(symbol: "plus", accent: Pal.mauve, help: String(localized: "新建会话")) {
                         Task {
                             let next = (Self.parse(state.stdout).compactMap { Int($0.name) }.max() ?? 0) + 1
-                            let r = await RemoteFS(host.ssh ?? SSHConnection()).run("tmux new -d -s \(next)", timeout: 15)
-                            if r.code == 0 { state.refresh() }
+                            await act("tmux new -d -s \(next)")
                         }
                     }
                     Spacer()
@@ -229,19 +251,33 @@ struct TmuxPanel: View {
                     PanelActionButton(symbol: "terminal", accent: Pal.mauve, help: String(localized: "接入会话")) {
                         model.openHostTerminal(host)
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                            model.sendTextToTerminal("tmux attach -t \(s.name)", run: true)
+                            model.sendTextToTerminal("tmux attach -t \(Self.shellQuote("=" + s.name))", run: true)
                         }
                     }
                     PanelActionButton(symbol: "trash", accent: Pal.red, help: String(localized: "删除会话")) {
-                        Task {
-                            let r = await RemoteFS(host.ssh ?? SSHConnection()).run("tmux kill-session -t \(s.name)", timeout: 15)
-                            if r.code == 0 { state.refresh() }
-                        }
+                        pendingKill = s
                     }
                 }
             }
         }
         .onAppear { state.refresh() }
+        .overlay {
+            // 删除确认：attached 会话删除会立即断开其中的终端，文案加重提示
+            if let s = pendingKill {
+                ConfirmDialog(
+                    title: "删除会话「\(s.name)」？",
+                    message: s.attached
+                        ? "该会话当前有终端接入，删除会立即断开其中所有连接，且不可恢复。"
+                        : "删除后不可恢复。",
+                    confirmTitle: "删除", destructive: true,
+                    onConfirm: {
+                        pendingKill = nil
+                        Task { await act("tmux kill-session -t \(Self.shellQuote("=" + s.name))") }
+                    },
+                    onCancel: { pendingKill = nil }
+                )
+            }
+        }
     }
 }
 
@@ -256,7 +292,7 @@ struct ServicesPanel: View {
         self.model = model
         self.host = host
         _state = StateObject(wrappedValue: ExecPanelState(
-            ssh: host.ssh ?? SSHConnection(),
+            ssh: { liveSSH(model, host) },
             command: #"sh -lc 'command -v systemctl >/dev/null 2>&1 && systemctl list-units --type=service --all --plain --no-legend --no-pager 2>/dev/null | head -150 || echo "__UNSUPPORTED__非 systemd 系统"'"#))
     }
 
@@ -283,7 +319,7 @@ struct ServicesPanel: View {
 
     private func act(_ action: String, _ unit: String) {
         Task {
-            let r = await RemoteFS(host.ssh ?? SSHConnection()).run("systemctl \(action) -- \(unit) </dev/null", timeout: 20)
+            let r = await RemoteFS(liveSSH(model, host)).run("systemctl \(action) -- \(unit) </dev/null", timeout: 20)
             if r.code == 0 { state.refresh() }
         }
     }
@@ -356,7 +392,7 @@ struct ProcessesPanel: View {
         self.model = model
         self.host = host
         _state = StateObject(wrappedValue: ExecPanelState(
-            ssh: host.ssh ?? SSHConnection(),
+            ssh: { liveSSH(model, host) },
             command: #"sh -lc 'ps -eo pid=,user=,pcpu=,pmem=,rss=,etime=,comm= --sort=-rss 2>/dev/null | head -45'"#))
     }
 
@@ -424,7 +460,7 @@ struct ProcessesPanel: View {
                     Spacer()
                     PanelActionButton(symbol: "xmark", accent: Pal.red, help: String(localized: "结束进程")) {
                         Task {
-                            let r = await RemoteFS(host.ssh ?? SSHConnection()).run("kill -- \(p.pid)", timeout: 15)
+                            let r = await RemoteFS(liveSSH(model, host)).run("kill -- \(p.pid)", timeout: 15)
                             if r.code == 0 { state.refresh() }
                         }
                     }
@@ -447,7 +483,7 @@ struct NetworkPanel: View {
         self.model = model
         self.host = host
         _state = StateObject(wrappedValue: ExecPanelState(
-            ssh: host.ssh ?? SSHConnection(),
+            ssh: { liveSSH(model, host) },
             command: #"sh -lc 'command -v ss >/dev/null 2>&1 && ss -tunapH 2>/dev/null | head -260 || echo "__UNSUPPORTED__缺少 ss 工具"'"#))
     }
 
@@ -532,7 +568,7 @@ struct DockerPanel: View {
         self.model = model
         self.host = host
         _state = StateObject(wrappedValue: ExecPanelState(
-            ssh: host.ssh ?? SSHConnection(),
+            ssh: { liveSSH(model, host) },
             command: #"sh -lc 'command -v docker >/dev/null 2>&1 && { echo "==PS=="; docker ps -a --format "{{.Names}}|{{.Image}}|{{.Status}}" 2>/dev/null; echo "==IMAGES=="; docker images --format "{{.Repository}}:{{.Tag}}|{{.Size}}" 2>/dev/null; echo "==VOLUMES=="; docker volume ls --format "{{.Name}}" 2>/dev/null; echo "==NETWORKS=="; docker network ls --format "{{.Name}}|{{.Driver}}" 2>/dev/null; } || echo "__UNSUPPORTED__未安装 Docker"'"#))
     }
 
@@ -572,7 +608,7 @@ struct DockerPanel: View {
 
     private func act(_ action: String, _ name: String) {
         Task {
-            let r = await RemoteFS(host.ssh ?? SSHConnection()).run("docker \(action) -- \(name) </dev/null", timeout: 30)
+            let r = await RemoteFS(liveSSH(model, host)).run("docker \(action) -- \(name) </dev/null", timeout: 30)
             if r.code == 0 { state.refresh() }
         }
     }
@@ -640,6 +676,12 @@ struct DockerPanel: View {
 }
 
 // MARK: - 工具
+
+/// 按 hostId 从 AppModel 取最新 SSH 凭证：「每次询问」主机输过密码后，面板持有的 host 是值类型快照（无密码），须实时取。
+@MainActor
+private func liveSSH(_ model: AppModel, _ host: Host) -> SSHConnection {
+    model.host(host.id)?.ssh ?? host.ssh ?? SSHConnection()
+}
 
 private func formatSizeKB(_ kb: Int) -> String {
     if kb >= 1024 * 1024 { return String(format: "%.1f GB", Double(kb) / 1024 / 1024) }

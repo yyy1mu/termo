@@ -176,11 +176,17 @@ struct TabChip: View {
         .onHover { hover = $0 }
         .accessibilityIdentifier(String(tab.id))
         .contextMenu {
+            // 复制会话：同主机再开一个终端（经共享连接，不重新登录）；仅 SSH 终端标签显示。
+            if tab.kind == .terminal, let host = model.host(tab.hostId) {
+                Button { model.openHostTerminal(host, forceNew: true) } label: {
+                    Label("复制会话", systemImage: "plus.square.on.square")
+                }
+            }
+            Button { model.requestRenameTab(tab.id) } label: { Label("重命名", systemImage: "pencil") }
+            Divider()
             Button { model.closeTab(tab.id) } label: { Label("关闭当前", systemImage: "xmark") }
             Button { model.closeOtherTabs(keep: tab.id) } label: { Label("关闭其他", systemImage: "xmark.circle") }
             Button { model.closeAllTabs() } label: { Label("关闭所有", systemImage: "xmark.octagon") }
-            Divider()
-            Button { model.requestRenameTab(tab.id) } label: { Label("重命名", systemImage: "pencil") }
         }
     }
 }

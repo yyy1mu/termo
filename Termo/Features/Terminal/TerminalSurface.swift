@@ -103,6 +103,15 @@ struct TerminalSurface: NSViewRepresentable {
 
         menu.addItem(.separator())
 
+        // 会话操作：复制会话（同主机新终端，走共享连接不重新登录；本地终端点了无效）/ 重命名标签。
+        // 不设快捷键——⌘D 等在终端里有自身语义（EOF），不能占用。
+        menu.addItem(NSMenuItem(title: String(localized: "复制会话"),
+                                action: #selector(TerminalActions.duplicateSession(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: String(localized: "重命名标签"),
+                                action: #selector(TerminalActions.renameSessionTab(_:)), keyEquivalent: ""))
+
+        menu.addItem(.separator())
+
         let search = NSMenuItem(title: String(localized: "搜索"), action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
         search.keyEquivalentModifierMask = .command
         search.tag = Int(NSFindPanelAction.showFindPanel.rawValue)
@@ -182,6 +191,8 @@ final class TerminalSessionDelegate: NSObject, LocalProcessTerminalViewDelegate 
 
 @objc protocol TerminalActions {
     func clearTerminal(_ sender: Any?)
+    func duplicateSession(_ sender: Any?)
+    func renameSessionTab(_ sender: Any?)
 }
 
 extension LocalProcessTerminalView: TerminalActions {
@@ -189,6 +200,16 @@ extension LocalProcessTerminalView: TerminalActions {
         let terminal = getTerminal()
         terminal.feed(text: "\u{0C}")
         terminal.resetToInitialState()
+    }
+
+    /// 右键「复制会话」：按视图找回标签，同主机再开一个终端（经共享连接，不重新登录）。
+    func duplicateSession(_ sender: Any?) {
+        DispatchQueue.main.async { AppModel.shared.duplicateSession(terminalView: self) }
+    }
+
+    /// 右键「重命名标签」：等同标签右键菜单的重命名（弹输入框）。
+    func renameSessionTab(_ sender: Any?) {
+        DispatchQueue.main.async { AppModel.shared.requestRenameTab(terminalView: self) }
     }
 }
 
