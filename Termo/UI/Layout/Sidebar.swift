@@ -184,6 +184,21 @@ struct Sidebar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain).pointerCursor()
+        .contextMenu {
+            // 会话操作
+            Button("切换到会话") { model.activeTabId = tab.id }
+            Button("关闭会话") { model.closeTab(tab.id) }
+            // 该会话所属主机的全部主机动作（与服务器列表右键一致）
+            if let host = model.host(tab.hostId) {
+                Divider()
+                Button("打开终端") { model.openHostTerminal(host) }
+                Button("新建终端") { model.openHostTerminal(host, forceNew: true) }
+                Button("打开文件") { model.openHostFiles(host) }
+                Button("编辑主机") { model.beginEditHost(host) }
+                Divider()
+                Button("删除主机", role: .destructive) { model.requestDeleteHost(host) }
+            }
+        }
     }
 
 
