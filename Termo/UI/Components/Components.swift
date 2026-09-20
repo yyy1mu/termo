@@ -137,6 +137,10 @@ extension Binding where Value == String {
     }
 }
 
+/// 项目文本输入约定：一律用本组件/ThemedTextEditor/ThemedSecureField（底层 field editor/
+/// NSTextView 承载，响应链 paste:/cut:/copy: 可达 → ⌘V⌘C⌘X⌘A 正常）。
+/// ⚠️ 禁用 SwiftUI `TextField(axis: .vertical)`——它不走 field editor，菜单 ⌘V 失效
+/// （AI 输入框曾踩坑，现用 AIInputField NSTextView 封装，见 AIPanel.swift）。
 struct ThemedTextField: View {
     private let prompt: Text
     @Binding var text: String
