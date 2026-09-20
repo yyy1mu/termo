@@ -127,7 +127,7 @@ struct CompanionPanel: View {
             case .sftp:
                 if let host {
                     FileBrowser(
-                        state: model.browserState(for: Self.companionTabId, host: host),
+                        state: model.browserState(for: FileWorkspaceModel.companionTabId, host: host),
                         host: host, model: model)
                 }
             case .tmux:

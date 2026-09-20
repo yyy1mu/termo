@@ -1007,7 +1007,7 @@ final class AppModel: ObservableObject {
         if let c = terminalConns[tabId], c.phase == .dropped { c.phase = .live; c.attempt = 0 }
         guard tabCwd[tabId] != path else { return }   // 去重：同一目录不重复定位（OSC 7 每次提示符都会发）
         tabCwd[tabId] = path
-        fileTreeStates[tabId]?.reveal(path)
+        fileWorkspace.revealInFileTree(tabId: tabId, path: path)
     }
 
     /// SSH 登录后注入的 OSC 7 钩子：bash/zsh 在每次提示符上报当前目录。
@@ -1435,48 +1435,30 @@ final class AppModel: ObservableObject {
         }
     }
 
-    // ---------- 文件浏览状态 ----------
-    private var browserStates: [Int: BrowserState] = [:]
+    // ---------- 文件域状态（缓存/重连联动已拆至 FileWorkspaceModel）----------
+    let fileWorkspace = FileWorkspaceModel()
 
     func browserState(for tabId: Int, host: Host) -> BrowserState {
-        if let s = browserStates[tabId] { return s }
-        let s = BrowserState(fs: RemoteFS(host.ssh ?? SSHConnection()))
-        browserStates[tabId] = s
-        return s
+        fileWorkspace.browserState(for: tabId, host: host)
     }
 
     /// 侧栏文件树状态（按主机缓存，活动栏「文件」用）。
     // 文件树状态按「标签」分离（同主机的多个会话各自独立）；底层 SSH 连接由会话池按主机复用。
-    private var fileTreeStates: [Int: FileTreeState] = [:]
     func fileTreeState(forTab tabId: Int, host: Host) -> FileTreeState {
-        if let s = fileTreeStates[tabId] { return s }
-        let s = FileTreeState(fs: RemoteFS(host.ssh ?? SSHConnection()), revealOnLoad: tabCwd[tabId])
-        fileTreeStates[tabId] = s
-        return s
+        fileWorkspace.fileTreeState(forTab: tabId, host: host, cwd: tabCwd[tabId])
     }
 
     /// 主机级「资源管理器」树（所有编辑器标签共用一棵，高亮跟随当前打开的文件，不随每个文件重载）。
-    private var hostExplorerTrees: [String: FileTreeState] = [:]
     func explorerTree(for host: Host) -> FileTreeState {
-        if let s = hostExplorerTrees[host.id] { return s }
-        let s = FileTreeState(fs: RemoteFS(host.ssh ?? SSHConnection()), revealOnLoad: nil)
-        hostExplorerTrees[host.id] = s
-        return s
+        fileWorkspace.explorerTree(for: host)
     }
 
     /// 网络恢复后重置所有文件视图的底层连接，使下次操作自动重建 SFTP（而非一直降级为 shell）。
     /// 先按主机各清一次 stale ControlMaster（去重，避免多视图重复 ssh -O exit），再重置各视图 SFTP 会话并重载。
     private func reconnectFileViewsAfterNetworkChange() {
-        var done = Set<String>()
-        for tab in tabs {
-            guard let hid = tab.hostId, !done.contains(hid),
-                  let ssh = hosts.first(where: { $0.id == hid })?.ssh else { continue }
-            done.insert(hid)
-            RemoteFS(ssh).closeMaster()
-        }
-        for (_, b) in browserStates { b.reconnect() }
-        for (_, t) in fileTreeStates { t.reconnect() }
-        for (_, t) in hostExplorerTrees { t.reconnect() }
+        fileWorkspace.reconnectAll(
+            tabHostPairs: tabs.map { ($0.id, $0.hostId) },
+            sshByHostId: Dictionary(uniqueKeysWithValues: hosts.map { ($0.id, $0.ssh ?? SSHConnection()) }))
     }
 
     /// 面包屑点击：切到「文件」侧栏并在资源管理器里展开/选中该路径（目录或文件）。
@@ -1487,12 +1469,7 @@ final class AppModel: ObservableObject {
 
     /// 在主机资源管理器树里展开并选中某文件（已存在则原地 reveal，不存在则以该路径初始化）。
     private func revealInExplorer(_ path: String, host: Host) {
-        if let tree = hostExplorerTrees[host.id] {
-            tree.reveal(path)
-        } else {
-            hostExplorerTrees[host.id] = FileTreeState(
-                fs: RemoteFS(host.ssh ?? SSHConnection()), revealOnLoad: path)
-        }
+        fileWorkspace.revealInExplorer(path, host: host)
     }
 
     @discardableResult
@@ -1719,15 +1696,8 @@ final class AppModel: ObservableObject {
     /// 文件变更后（上传落地 / 解压完成）：只**局部**刷新该主机各缓存文件树/浏览器里「指定目录」这一层——
     /// 重列该目录、保留其余展开，不全量重载；树中未加载该目录的直接跳过（node 查找命中失败即返回，无网络开销）。
     private func refreshTrees(host: Host, dir: String) {
-        Task { @MainActor in
-            if let t = hostExplorerTrees[host.id] { _ = await t.refreshDir(dir) }   // 编辑器侧栏共用的主机级树
-            for (tabId, t) in fileTreeStates where tabHostId(tabId) == host.id {     // 各会话 tab 的文件树
-                _ = await t.refreshDir(dir)
-            }
-            for (tabId, b) in browserStates where tabHostId(tabId) == host.id && b.path == dir {  // 正展示该目录的 SFTP 浏览器
-                b.reload()
-            }
-        }
+        fileWorkspace.refreshTrees(host: host, dir: dir,
+                                   tabHostPairs: tabs.map { ($0.id, $0.hostId) })
     }
 
     private func tabHostId(_ tabId: Int) -> String? {
@@ -2072,9 +2042,7 @@ final class AppModel: ObservableObject {
         termDelegates.removeValue(forKey: id)
         termDrivers.removeValue(forKey: id)
         // 取消该标签未完成的文件操作并释放浏览/树状态（按标签独立，关即释放）
-        browserStates[id]?.cancel()
-        browserStates.removeValue(forKey: id)
-        fileTreeStates.removeValue(forKey: id)
+        fileWorkspace.closeTab(id)
         terminalConns.removeValue(forKey: id)   // 关标签即弃用其连接态
         terminalReconnectWork[id]?.cancel()      // 撤销该标签挂起的重连，避免关闭后仍唤醒
         terminalReconnectWork.removeValue(forKey: id)
