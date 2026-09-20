@@ -9,6 +9,11 @@ struct AIPanel: View {
     @ObservedObject private var theme = ThemeManager.shared
     /// 输入框内容驱动高度（1~4 行），由 AIInputField 的 Coordinator 回写。
     @State private var inputHeight: CGFloat = 34
+    /// 用户拖动调整的手动高度（nil=跟随内容自动）；拖一次后手动优先，双击手柄恢复自动。
+    @State private var manualInputHeight: CGFloat? = nil
+    @State private var dragBaseHeight: CGFloat? = nil
+
+    private var effectiveInputHeight: CGFloat { manualInputHeight ?? inputHeight }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -224,7 +229,9 @@ struct AIPanel: View {
     private var inputBar: some View {
         VStack(spacing: 0) {
             Rectangle().fill(Pal.border).frame(height: 1)
-            HStack(alignment: .bottom, spacing: 8) {
+            resizeHandle
+            // 发送按钮收进输入框内右下角（ChatGPT/Cursor 风格），容器即输入框
+            ZStack(alignment: .bottomTrailing) {
                 ZStack(alignment: .topLeading) {
                     if chat.input.isEmpty {
                         Text(chat.mode == .chat ? "描述任务或提问…" : "描述你要解决的问题…")
@@ -233,24 +240,55 @@ struct AIPanel: View {
                             .allowsHitTesting(false)
                     }
                     AIInputField(text: $chat.input, height: $inputHeight) { chat.send(model: model) }
-                        .frame(height: inputHeight)
+                        .frame(height: effectiveInputHeight)
                         .padding(.horizontal, 6).padding(.vertical, 3)
                 }
                 .frame(minHeight: 34)
-                .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
 
                 if chat.sending {
                     iconBarButton("stop.fill", active: true, tint: Pal.red,
                                   help: String(localized: "停止")) { chat.cancel() }
+                        .padding(6)
                 } else {
                     iconBarButton("arrow.up", active: chat.canSend, tint: Pal.mauve,
                                   help: String(localized: "发送")) { chat.send(model: model) }
-                    .disabled(!chat.canSend)
+                        .disabled(!chat.canSend)
+                        .padding(6)
                 }
             }
+            .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
             .padding(10)
-            .background(Pal.crust)
         }
+        .background(Pal.crust)
+    }
+
+    /// 输入区顶部的上下拖动手柄：拉高/压低输入框（34~260pt）；双击恢复内容自适应。
+    private var resizeHandle: some View {
+        Color.clear
+            .frame(height: 9)
+            .overlay {
+                RoundedRectangle(cornerRadius: 1.5).fill(Pal.overlay.opacity(0.45))
+                    .frame(width: 36, height: 3)
+            }
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                switch phase {
+                case .active: NSCursor.resizeUpDown.push()
+                case .ended: NSCursor.pop()
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { v in
+                        if dragBaseHeight == nil { dragBaseHeight = effectiveInputHeight }
+                        if let base = dragBaseHeight {
+                            manualInputHeight = min(max(base - v.translation.height, 34), 260)
+                        }
+                    }
+                    .onEnded { _ in dragBaseHeight = nil }
+            )
+            .onTapGesture(count: 2) { manualInputHeight = nil }
+            .help(String(localized: "拖动调整输入区高度（双击恢复自动）"))
     }
 
     /// 输入区统一规格的图标按钮（30x30）：active 时高亮主色。
