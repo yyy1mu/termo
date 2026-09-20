@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// AI 助手伴随面板：会话消息流 + 命令卡片 + 输入区。
-/// 命令卡片三个动作：复制 / 插入终端 / 请求执行（执行需用户批准，见 AIExecuteConfirmDialog）。
+/// 命令卡片两个动作：复制 / 输入终端（命令放到当前终端提示符，用户回车即批准+执行，无弹窗）。
 struct AIPanel: View {
     @ObservedObject var model: AppModel
     /// 绑定当前终端标签的会话（由 RightBar 按 activeTabId 从 AIChatStore 取得）
@@ -51,7 +51,7 @@ struct AIPanel: View {
     private var emptyHint: some View {
         VStack(spacing: 10) {
             Image(systemName: "sparkles").font(.system(size: 26)).foregroundStyle(Pal.mauve.opacity(0.8))
-            Text("向 AI 描述你要做什么，它会给命令；命令卡片可「插入终端」或「请求执行」（执行前会再问你一次）。")
+            Text("向 AI 描述你要做什么，它会给命令；命令卡片可「复制」或「输入终端」（命令放到当前终端，回车即执行）。")
                 .font(.system(size: 12)).foregroundStyle(Pal.subtext)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -91,12 +91,11 @@ struct AIPanel: View {
         }
     }
 
-    /// 绑定指示头：显示当前会话绑定的终端标签，切终端即切会话。
+    /// 绑定指示条：只显示当前会话绑定的终端标签（面板框架头部已有「AI 助手 · 主机」
+    /// 标题，不再重复）；切终端即切会话。
     private var bindingHeader: some View {
         let boundTab = model.activeTabId.flatMap { id in model.tabs.first(where: { $0.id == id }) }
-        return HStack(spacing: 6) {
-            Image(systemName: "sparkles").font(.system(size: 11)).foregroundStyle(Pal.mauve)
-            Text("AI 助手").font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.text)
+        return HStack {
             Spacer()
             HStack(spacing: 4) {
                 Image(systemName: boundTab == nil ? "circle.dashed" : "terminal")
@@ -108,7 +107,7 @@ struct AIPanel: View {
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 6))
         }
-        .padding(.horizontal, 12).padding(.vertical, 8)
+        .padding(.horizontal, 12).padding(.top, 8)
     }
 
     private func assistantBlock(_ msg: AIMessage) -> some View {
