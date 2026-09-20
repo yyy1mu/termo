@@ -171,9 +171,8 @@ struct CompanionPanel: View {
                 if let host { DockerPanel(model: model, host: host) }
             case .monitor:
                 if let host {
-                    // 必须滚动承载：多 GPU/多磁盘时内容超出右栏高度；
-                    // 且要顶对齐——裸放会在剩余高度里垂直居中，顶部留出大片死白。
-                    ScrollView(.vertical) {
+                    // 高度自适应：内容超出可用高度时整体等比缩小，一页展示、永不滚动。
+                    FitToHeight {
                         MonitorPanel(monitor: model.hostMonitor(for: host))
                             .padding(.horizontal, 12)
                             .padding(.top, 8)

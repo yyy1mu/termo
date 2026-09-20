@@ -68,3 +68,34 @@ struct PanelEmptyState: View {
         .padding(.horizontal, 20)
     }
 }
+
+private struct FitToHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// 高度自适应容器：量出内容自然高度，超过可用高度时整体等比缩小（scaleEffect），
+/// 保证一页展示、**永不滚动**（用户要求：监控面板任何机器都必须一页）。
+/// 布局始终在容器宽度下进行（换行/网格按真实宽度计算），缩放只做视觉变换、不触发重排，
+/// 故无测量-缩放反馈环；放不下时右侧留少量空白（内容左上对齐）。
+struct FitToHeight<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+    @State private var naturalHeight: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { geo in
+            let scale = naturalHeight > 0 ? min(1, geo.size.height / naturalHeight) : 1
+            content()
+                .fixedSize(horizontal: false, vertical: true)   // 按容器宽度量自然高度
+                .background(
+                    GeometryReader { inner in
+                        Color.clear.preference(key: FitToHeightKey.self, value: inner.size.height)
+                    }
+                )
+                .scaleEffect(scale, anchor: .topLeading)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+                .clipped()
+        }
+        .onPreferenceChange(FitToHeightKey.self) { naturalHeight = $0 }
+    }
+}
