@@ -9,28 +9,98 @@ struct SyncPanel: View {
     @State private var confirmOverwrite = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                overview
-                masterSection
-                actionsSection
-                statusSection
-                disclosure(title: "WebDAV 连接", symbol: "externaldrive.connected.to.line.below",
-                           expanded: showConfiguration) {
-                    showConfiguration.toggle()
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    overview
+                    masterSection
+                    actionsSection
+                    statusSection
+                    disclosure(title: "WebDAV 连接", symbol: "externaldrive.connected.to.line.below",
+                               expanded: showConfiguration) {
+                        showConfiguration.toggle()
+                    }
+                    if showConfiguration { webdavSection }
+                    disclosure(title: "备份与高级操作", symbol: "archivebox",
+                               expanded: showAdvanced) {
+                        showAdvanced.toggle()
+                        if !showAdvanced { confirmOverwrite = false }
+                    }
+                    if showAdvanced { advancedSection }
                 }
-                if showConfiguration { webdavSection }
-                disclosure(title: "备份与高级操作", symbol: "archivebox",
-                           expanded: showAdvanced) {
-                    showAdvanced.toggle()
-                    if !showAdvanced { confirmOverwrite = false }
-                }
-                if showAdvanced { advancedSection }
+                .padding(16)
             }
-            .padding(16)
+            if let preview = sync.pendingPreview {
+                previewDialog(preview).transition(.opacity)
+            }
         }
         .onAppear {
             if !sync.config.isComplete { showConfiguration = true }
+        }
+    }
+
+    /// 同步信息确认弹层：展示双边数据规模，确认后才真正合并（不改数据则取消）。
+    private func previewDialog(_ p: SyncModel.SyncPreview) -> some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture { sync.cancelPreview() }
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 13)).foregroundStyle(Pal.mauve)
+                    Text("确认同步信息").font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.text)
+                    Spacer()
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    previewLine("本机", "\(p.localHosts) 台主机（密码 \(p.localPasswords) 个）· \(p.localKeys) 把密钥 · \(p.localSnippets) 条片段")
+                    previewLine("云端", "\(p.remoteHosts) 台主机（密码 \(p.remotePasswords) 个）· \(p.remoteKeys) 把密钥 · \(p.remoteSnippets) 条片段")
+                    previewLine("合并后", "\(p.mergedHosts) 台主机 · \(p.mergedKeys) 把密钥 · \(p.mergedSnippets) 条片段")
+                    if p.conflicts > 0 {
+                        previewLine("冲突", "\(p.conflicts) 处（确认后逐项选择保留哪边）", color: Pal.yellow)
+                    }
+                }
+
+                Text("同步内容：主机与密码、密钥（含私钥）、代码片段、端口转发与设置（外观模式含跟随系统、语言、终端字体/光标、传输、监控等）。\(p.uploadAfter ? "合并结果将回传云端。" : "仅应用到本机，不回传云端。")")
+                    .font(.system(size: 10)).foregroundStyle(Pal.overlay)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 10) {
+                    Spacer()
+                    Button { sync.cancelPreview() } label: {
+                        Text("取消").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
+                            .padding(.horizontal, 14).padding(.vertical, 7)
+                            .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 7))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain).pointerCursor()
+                    Button {
+                        Task { await sync.confirmPreview(model: model) }
+                    } label: {
+                        Text("开始合并").font(.system(size: 12, weight: .medium)).foregroundStyle(.white)
+                            .padding(.horizontal, 16).padding(.vertical, 7)
+                            .background(Pal.mauve, in: RoundedRectangle(cornerRadius: 7))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain).pointerCursor()
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: 420)
+            .background(Pal.solidMantle, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Pal.border, lineWidth: 1))
+            .shadow(color: .black.opacity(0.4), radius: 20, y: 6)
+            .padding(12)
+        }
+    }
+
+    private func previewLine(_ label: String, _ text: String, color: Color = Pal.text) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(label).font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.subtext)
+                .frame(width: 44, alignment: .leading)
+            Text(text).font(.system(size: 11)).foregroundStyle(color)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -81,7 +151,7 @@ struct SyncPanel: View {
     private var actionsSection: some View {
         VStack(alignment: .leading, spacing: 9) {
             Button {
-                Task { await sync.mergeSync(model: model) }
+                Task { await sync.requestMerge(model: model, uploadAfter: true) }
             } label: {
                 HStack(spacing: 9) {
                     Image(systemName: "arrow.triangle.2.circlepath")
@@ -98,7 +168,7 @@ struct SyncPanel: View {
                 .font(.system(size: 10)).foregroundStyle(Pal.overlay)
             actionRow("下载并合并到本机", symbol: "arrow.down.to.line",
                       detail: "保留本机独有项，不回传远端") {
-                Task { await sync.importFromWebDAV(model: model) }
+                Task { await sync.requestMerge(model: model, uploadAfter: false) }
             }
             Text("合并不会同步删除。某项若只在另一台设备上存在，会重新带回本机。")
                 .font(.system(size: 10)).foregroundStyle(Pal.overlay)

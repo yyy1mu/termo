@@ -71,7 +71,21 @@ final class SyncModel: ObservableObject {
     }
 
     /// 双向合并同步：下载 → 解密 → 合并 → 加密上传 → 应用。上传失败时不改动本机。
-    func mergeSync(model: AppModel) async {
+    /// 合并预检：双边数据规模，给用户确认后再真正应用（不改任何数据）。
+    struct SyncPreview: Identifiable {
+        let id = UUID()
+        let result: SyncMergeResult
+        let uploadAfter: Bool   // true=合并同步（回传云端）；false=仅下载导入
+        let localHosts, localPasswords, localKeys, localSnippets: Int
+        let remoteHosts, remotePasswords, remoteKeys, remoteSnippets: Int
+        let mergedHosts, mergedKeys, mergedSnippets: Int
+        var conflicts: Int { result.conflicts.count }
+    }
+    @Published var pendingPreview: SyncPreview?
+
+    /// 点「合并同步/下载合并」：下载解密并合并出预览弹确认——此步不改任何数据。
+    /// 远端无备份时：合并同步直接以本机创建；仅导入则提示无备份。
+    func requestMerge(model: AppModel, uploadAfter: Bool) async {
         guard validateConfig(), validateMaster() else { return }
         saveConfig()
         await perform {
@@ -81,39 +95,44 @@ final class SyncModel: ObservableObject {
                 remoteData = nil
             }
             guard let remoteData else {
-                guard self.masterPassword.count >= 8 else { throw SyncUIError.weakMaster }
-                try await self.upload(local)
-                return String(localized: "远端无备份，已用本机数据创建")
+                if uploadAfter {
+                    guard self.masterPassword.count >= 8 else { throw SyncUIError.weakMaster }
+                    try await self.upload(local)
+                    return String(localized: "远端无备份，已用本机数据创建")
+                }
+                return String(localized: "远端没有可下载的备份")
             }
             let remote = try await self.decode(remoteData)
             let result = SyncEngine.merge(local: local, remote: remote)
-            guard result.conflicts.isEmpty else {
-                self.pendingMerge = PendingMerge(result: result, uploadAfter: true)
-                return String(localized: "发现 \(result.conflicts.count) 处冲突，请选择保留哪边")
-            }
-            try await self.upload(result.merged)
-            SyncEngine.apply(result.merged, to: model)
-            return self.summary(result)
+            self.pendingPreview = SyncPreview(
+                result: result, uploadAfter: uploadAfter,
+                localHosts: local.hosts.count, localPasswords: local.hostPasswords.count,
+                localKeys: local.keys.count, localSnippets: local.snippets.count,
+                remoteHosts: remote.hosts.count, remotePasswords: remote.hostPasswords.count,
+                remoteKeys: remote.keys.count, remoteSnippets: remote.snippets.count,
+                mergedHosts: result.merged.hosts.count, mergedKeys: result.merged.keys.count,
+                mergedSnippets: result.merged.snippets.count
+            )
+            return nil
         }
     }
 
-    /// 仅从 WebDAV 导入：下载 → 解密 → 合并 → 应用（不回传）。
-    func importFromWebDAV(model: AppModel) async {
-        guard validateConfig(), validateMaster() else { return }
-        saveConfig()
+    /// 确认预览：无冲突直接应用（按需回传云端）；有冲突进入冲突选择器（沿用原有流程）。
+    func confirmPreview(model: AppModel) async {
+        guard let p = pendingPreview else { return }
+        pendingPreview = nil
         await perform {
-            let remoteData = try await WebDAVClient.download(self.config)
-            let remote = try await self.decode(remoteData)
-            let local = SyncEngine.makePayload(model: model)
-            let result = SyncEngine.merge(local: local, remote: remote)
-            guard result.conflicts.isEmpty else {
-                self.pendingMerge = PendingMerge(result: result, uploadAfter: false)
-                return String(localized: "发现 \(result.conflicts.count) 处冲突，请选择保留哪边")
+            guard p.result.conflicts.isEmpty else {
+                self.pendingMerge = PendingMerge(result: p.result, uploadAfter: p.uploadAfter)
+                return String(localized: "发现 \(p.result.conflicts.count) 处冲突，请选择保留哪边")
             }
-            SyncEngine.apply(result.merged, to: model)
-            return self.summary(result)
+            if p.uploadAfter { try await self.upload(p.result.merged) }
+            SyncEngine.apply(p.result.merged, to: model)
+            return self.summary(p.result)
         }
     }
+
+    func cancelPreview() { pendingPreview = nil }
 
     /// 以本机数据覆盖远端备份（单向上传，不做合并）。
     func uploadLocal(model: AppModel) async {
