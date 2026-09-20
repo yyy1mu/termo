@@ -62,12 +62,16 @@ enum KeyKeychain {
 
     /// 一次性迁移：旧私钥条目读出来按新访问控制重写（只跑一次；失败跳过不影响功能）。
     static func migrateAccessControlOnce() {
-        let flag = "keychain.biometric.keys.v1"
+        let flag = "keychain.biometric.keys.v2"
         guard !UserDefaults.standard.bool(forKey: flag) else { return }
-        UserDefaults.standard.set(true, forKey: flag)
         let map = loadAll()
-        guard !map.isEmpty else { return }
-        saveAll(map)
+        if map.isEmpty { UserDefaults.standard.set(true, forKey: flag); return }
+        saveAll(map)   // delete + add（含访问控制）
+        if loadAll() == map {
+            UserDefaults.standard.set(true, forKey: flag)
+        } else {
+            NSLog("[Keychain] SSH 私钥迁移未完成——下次启动重试")
+        }
     }
 
     static func privateKey(_ id: String) -> String? { loadAll()[id] }

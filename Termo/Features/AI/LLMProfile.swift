@@ -22,8 +22,14 @@ struct LLMProfile: Equatable {
     """
 
     /// 服务端点与模型名按 provider 归类（OpenAI 兼容一律 POST {base}/v1/chat/completions）。
-    var chatCompletionsURL: URL? { URL(string: baseURL.trimmingCharacters(in: .whitespaces).hasSuffix("/")
-        ? baseURL + "v1/chat/completions" : baseURL + "/v1/chat/completions") }
+    /// 归一化：容忍尾部 "/" 与用户按各家文档习惯多填的 "/v1"（防双 /v1 → 404）。
+    var chatCompletionsURL: URL? {
+        var base = baseURL.trimmingCharacters(in: .whitespaces)
+        while base.hasSuffix("/") { base.removeLast() }
+        if base.hasSuffix("/v1") { base = String(base.dropLast(3)) }
+        guard !base.isEmpty else { return nil }
+        return URL(string: base + "/v1/chat/completions")
+    }
 }
 
 enum LLMProvider: String, CaseIterable, Hashable {
@@ -85,12 +91,16 @@ enum LLMSettingsStore {
 
     /// 一次性迁移：旧 API Key 条目按新访问控制重写（只跑一次；失败跳过）。
     static func migrateAccessControlOnce() {
-        let flag = "keychain.biometric.llm.v1"
+        let flag = "keychain.biometric.llm.v2"
         guard !UserDefaults.standard.bool(forKey: flag) else { return }
-        UserDefaults.standard.set(true, forKey: flag)
         let k = apiKey
-        guard !k.isEmpty else { return }
+        if k.isEmpty { UserDefaults.standard.set(true, forKey: flag); return }
         apiKey = k
+        if apiKey == k {
+            UserDefaults.standard.set(true, forKey: flag)
+        } else {
+            NSLog("[Keychain] LLM Key 迁移未完成——下次启动重试")
+        }
     }
 
     /// 配置是否完整可发起请求（baseURL + apiKey + model 非空）。

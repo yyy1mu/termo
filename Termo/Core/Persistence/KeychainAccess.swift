@@ -17,7 +17,7 @@ enum KeychainAccess {
         SecAccessControlCreateWithFlags(
             nil,
             kSecAttrAccessibleAfterFirstUnlock,
-            [.biometryCurrentSet, .or, .devicePasscode],
+            .userPresence,   // = Touch ID 或设备密码（macOS 上兼容性最好的组合）
             nil
         )
     }
