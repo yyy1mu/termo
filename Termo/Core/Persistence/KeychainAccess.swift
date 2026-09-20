@@ -14,7 +14,11 @@ enum KeychainAccess {
     /// 用户是否已做过选择（首次启动引导弹窗只在未选择时显示一次）。
     static var isChosen: Bool { UserDefaults.standard.object(forKey: prefKey) != nil }
 
+    /// 重入保护：重写过程中禁止再次触发（避免并发 delete/add 竞态丢数据）。
+    static var isSyncing = false
+
     /// 选择/切换入口：写偏好并同步重写全部机密条目。
+    /// 重写全程只做内存/属性级操作，**不读条目数据**（读数据会触发系统认证弹窗并阻塞 UI）。
     static func setEnabled(_ v: Bool) {
         UserDefaults.standard.set(v, forKey: prefKey)
         syncAllIfNeeded()
@@ -22,6 +26,15 @@ enum KeychainAccess {
 
     /// 启动时同步入口：三个 store 各自查状态戳，模式没变就零开销跳过。
     static func syncAllIfNeeded() {
+        guard !isSyncing else { return }
+        isSyncing = true
+        defer { isSyncing = false }
+        // 清理旧版一次性迁移哨兵（v1/v2 已被状态戳机制取代）
+        for k in ["keychain.biometric.v1", "keychain.biometric.v2",
+                  "keychain.biometric.keys.v1", "keychain.biometric.keys.v2",
+                  "keychain.biometric.llm.v1", "keychain.biometric.llm.v2"] {
+            UserDefaults.standard.removeObject(forKey: k)
+        }
         HostKeychain.syncAccessControl()
         KeyKeychain.syncAccessControl()
         LLMSettingsStore.syncAccessControl()

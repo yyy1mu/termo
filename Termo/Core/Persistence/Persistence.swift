@@ -115,12 +115,24 @@ enum HostKeychain {
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         KeychainAccess.attach(&add)
-        let st = SecItemAdd(add as CFDictionary, nil)
-        var v: AnyObject?
-        if st == errSecSuccess, SecItemCopyMatching(q as CFDictionary, &v) == errSecSuccess {
+        var st = SecItemAdd(add as CFDictionary, nil)
+        if st != errSecSuccess {
+            // 兜底：无 ACL 重写——任何情况下数据都不能丢（delete 与 add 之间强退由 add 兜底保证可恢复）
+            var plain = base
+            plain[kSecValueData as String] = data
+            plain[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+            st = SecItemAdd(plain as CFDictionary, nil)
+            NSLog("[Keychain] ACL 写入失败已回退无 ACL 保存（\(st)）")
+        }
+        // 验证只查属性（不读数据 → 不触发认证弹窗、不阻塞主线程）
+        var attrQ = base
+        attrQ[kSecReturnAttributes as String] = true
+        attrQ[kSecMatchLimit as String] = kSecMatchLimitOne
+        var ao: AnyObject?
+        if st == errSecSuccess, SecItemCopyMatching(attrQ as CFDictionary, &ao) == errSecSuccess {
             UserDefaults.standard.set(want, forKey: key)
         } else {
-            NSLog("[Keychain] 主机密码访问控制同步未完成（add=\(st)）——下次启动重试")
+            NSLog("[Keychain] 主机密码访问控制同步未完成——下次启动重试")
         }
     }
 

@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct SettingsView: View {
+    @State private var biometricOn = KeychainAccess.enabled
     @ObservedObject var model: AppModel
     @ObservedObject private var theme = ThemeManager.shared
     @ObservedObject private var settings = AppSettings.shared
@@ -189,12 +190,6 @@ struct SettingsView: View {
                 ThemedToggle(isOn: $settings.confirmHostDelete)
             }
 
-            settingRow(String(localized: "指纹验证（Touch ID）"), description: String(localized: "用 Touch ID 或设备密码保护钥匙串中的密码、SSH 私钥与 API Key；关闭后恢复默认免提示")) {
-                ThemedToggle(isOn: Binding(
-                    get: { KeychainAccess.enabled },
-                    set: { KeychainAccess.setEnabled($0) }
-                ))
-            }
         }
     }
 
@@ -261,9 +256,16 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 24) {
             sectionHeader(String(localized: "安全"))
 
-            Text(String(localized: "安全相关设置会随功能更新逐步增加。"))
-                .font(.system(size: 12)).foregroundStyle(Pal.overlay)
+            settingRow(String(localized: "指纹验证（Touch ID）"), description: String(localized: "用 Touch ID 或设备密码保护钥匙串中存储的主机密码、SSH 私钥与 API Key；开启后读取这些数据时会弹出系统验证。关闭则恢复默认（签名构建通常免提示）")) {
+                ThemedToggle(isOn: $biometricOn)
+                    .onChange(of: biometricOn) { on in KeychainAccess.setEnabled(on) }
+            }
+
+            Text(String(localized: "切换开关会立即以新模式重写钥匙串条目（数据不丢失）。若系统弹出验证，完成 Touch ID 或输入密码即可。"))
+                .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .onAppear { biometricOn = KeychainAccess.enabled }
     }
 
     private func chooseDownloadDir() {

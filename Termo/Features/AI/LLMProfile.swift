@@ -99,6 +99,7 @@ enum LLMSettingsStore {
         let k = apiKey
         if k.isEmpty { UserDefaults.standard.set(want, forKey: key); return }
         apiKey = k
+        // 验证读回（apiKey getter 已去空白；失败仅不记状态，下次重试，数据已在条目里）
         if apiKey == k {
             UserDefaults.standard.set(want, forKey: key)
         } else {
