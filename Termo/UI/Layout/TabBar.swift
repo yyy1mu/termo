@@ -83,19 +83,6 @@ struct TabBar: View {
                 .coordinateSpace(.named("tabstrip"))
                 .onPreferenceChange(TabFramesKey.self) { frames = $0 }
             }
-            if AppEnv.localTerminalEnabled {   // MAS 沙盒下隐藏本地终端入口
-                Button {
-                    model.openLocalTerminal()
-                } label: {
-                    Image(systemName: "terminal")
-                        .font(.system(size: 13)).foregroundStyle(Pal.subtext)
-                        .frame(width: 30, height: 30)
-                        .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 7))
-                }
-                .buttonStyle(.plain)
-                .pointerCursor()
-                .help(String(localized: "新建本地终端"))
-            }
         }
         .padding(.horizontal, 10)
         .frame(maxWidth: .infinity)

@@ -68,6 +68,12 @@ struct Sidebar: View {
                 } else {
                     ScrollView { hostList }.padding(.top, 6)
                 }
+                // 服务器段底部固定入口：新建服务器 + 本地终端（本地在服务器之下）
+                VStack(alignment: .leading, spacing: 2) {
+                    sidebarActionRow("plus.square", "新建服务器") { model.showAddHost = true }
+                    sidebarActionRow("terminal", "本地终端") { model.openLocalTerminal() }
+                }
+                .padding(.horizontal, 8).padding(.vertical, 6)
             case .sessions:
                 sessionsList
             }
@@ -83,6 +89,23 @@ struct Sidebar: View {
     }
 
     /// 头部右侧的三段切换（图标 + tooltip，宽度受限不摆文字标签）。
+    /// 侧栏动作行：图标 + 文字，主机列表同款行高。
+    private func sidebarActionRow(_ symbol: String, _ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: symbol)
+                    .font(.system(size: 12)).foregroundStyle(Pal.mauve)
+                    .frame(width: 22, height: 22)
+                    .background(Pal.mauve.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
+                Text(title).font(.system(size: 12)).foregroundStyle(Pal.subtext)
+                Spacer()
+            }
+            .padding(.horizontal, 10).padding(.vertical, 7)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).pointerCursor()
+    }
+
     private var segmentSwitcher: some View {
         HStack(spacing: 2) {
             ForEach(SidebarSegment.allCases, id: \.self) { seg in
