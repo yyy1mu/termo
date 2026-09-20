@@ -35,6 +35,13 @@ final class NetworkMonitor {
 
 /// 单台主机的实时监控。复用 SSH 跑一段内联 /proc 采样循环，流式解析每帧并发布指标。
 /// 服务器不落任何文件，停止即终止远端进程；CPU 占用与网速由相邻两帧差值在本地算出。
+///
+/// **连接策略——每主机独占一条连接，不复用终端会话（有意为之，勿"优化"掉）：**
+/// 监控的生命周期（App 存活期间持续采样、主机无任何标签时仍可后台运行）与终端标签的
+/// 生命周期（随标签关闭而结束）完全不同。若复用 [[TerminalSessionHub]] 的共享会话：
+/// - 用户关掉所有终端标签 → hub 归零关连接 → 监控被迫断流重连（或被迫联动关闭，均反直觉）；
+/// - 监控的长连接把 hub 的引用计数永久占住 → 主机最后一个终端标签永远关不掉连接。
+/// 故与 SFTP 一样走「独占连接」语义；会话池的 TTL 机制也与之无关（监控连接是长跑非闲置）。
 @MainActor
 final class HostMonitor: ObservableObject {
     enum Phase: Equatable { case connecting, live, unsupported, error }
