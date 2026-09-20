@@ -184,20 +184,13 @@ struct Sidebar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain).pointerCursor()
+        // 会话右键与服务器右键职责分离：这里只管会话本身（切换/关闭/重命名）；
+        // 主机级操作在「服务器」列表的右键里。
         .contextMenu {
-            // 会话操作
             Button("切换到会话") { model.activeTabId = tab.id }
+            Button("重命名") { model.requestRenameTab(tab.id) }
+            Divider()
             Button("关闭会话") { model.closeTab(tab.id) }
-            // 该会话所属主机的全部主机动作（与服务器列表右键一致）
-            if let host = model.host(tab.hostId) {
-                Divider()
-                Button("打开终端") { model.openHostTerminal(host) }
-                Button("新建终端") { model.openHostTerminal(host, forceNew: true) }
-                Button("打开文件") { model.openHostFiles(host) }
-                Button("编辑主机") { model.beginEditHost(host) }
-                Divider()
-                Button("删除主机", role: .destructive) { model.requestDeleteHost(host) }
-            }
         }
     }
 

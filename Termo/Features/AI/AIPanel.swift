@@ -342,6 +342,9 @@ struct AIInputField: NSViewRepresentable {
         let scroll = NSScrollView()
         scroll.documentView = tv
         scroll.hasVerticalScroller = true
+        // overlay 样式 + 自动隐藏：默认 legacy 滚动条在输入框里显示成常驻浅色胶囊（UI 很怪）
+        scroll.scrollerStyle = .overlay
+        scroll.autohidesScrollers = true
         scroll.drawsBackground = false
         return scroll
     }
