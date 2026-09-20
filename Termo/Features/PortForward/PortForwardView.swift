@@ -110,18 +110,10 @@ struct PortForwardView: View {
 
     // MARK: - 顶部
 
+    /// 面板框架头部已有「端口转发 · 主机」标题与关闭键——这里只留新建规则按钮条，
+    /// 不再重复标题（截图里的双头部问题）。
     private var header: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "arrow.left.arrow.right")
-                .font(.system(size: 14, weight: .medium)).foregroundStyle(Pal.mauve)
-                .frame(width: 30, height: 30)
-                .background(Pal.mauve.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("端口转发").font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.text)
-                Text(host.name)
-                    .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                    .lineLimit(1).truncationMode(.middle)
-            }
+        HStack {
             Spacer()
             if formRule == nil {
                 Button { startNew() } label: {
@@ -138,7 +130,7 @@ struct PortForwardView: View {
                 .pointerCursor()
             }
         }
-        .padding(.horizontal, 18).padding(.vertical, 14)
+        .padding(.horizontal, 18).padding(.vertical, 8)
     }
 
     // MARK: - 规则列表
