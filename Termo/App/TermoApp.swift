@@ -56,6 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         tray = TrayController(onShow: { [weak self] in self?.showMainWindow() },
                               onQuit: { [weak self] in self?.forceQuit() })
         NSApp.activate(ignoringOtherApps: true)
+        installEditKeyFallback()
         // 窗口此刻已创建；记录主窗口并接管其关闭行为（隐藏到托盘）。延迟一拍确保 WindowGroup 已出窗口。
         DispatchQueue.main.async { [weak self] in self?.attachMainWindow() }
     }
@@ -70,6 +71,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
+    /// ⌘V/⌘C/⌘X/⌘A 兜底：自定义主菜单的 Edit 项经响应链分发；当自动验证把某项
+    /// 禁用（首响应者未被识别为可编辑，如 SwiftUI 某些承载形态）时，按键事件会以
+    /// keyDown 形式落到窗口——此时沿响应链直接重发编辑动作；能处理则消费，否则放行。
+    /// 菜单正常命中时 keyDown 根本不会到达这里，不会重复触发。
+    private static let editSelectors: [String: Selector] = [
+        "v": #selector(NSText.paste(_:)),
+        "c": #selector(NSText.copy(_:)),
+        "x": #selector(NSText.cut(_:)),
+        "a": #selector(NSText.selectAll(_:)),
+        "z": Selector(("undo:")),
+    ]
+
+    private func installEditKeyFallback() {
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { ev in
+            guard ev.modifierFlags.contains(.command),
+                  ev.modifierFlags.intersection([.option, .control, .shift]).isEmpty,
+                  let chars = ev.charactersIgnoringModifiers, chars.count == 1,
+                  let sel = Self.editSelectors[chars.lowercased()]
+            else { return ev }
+            return NSApp.sendAction(sel, to: nil, from: ev) ? nil : ev
+        }
+    }
+
     /// 从托盘恢复：切回常规激活策略（恢复 Dock 图标与主菜单），前置并激活主窗口。
     /// 现场重新解析窗口（orderOut 后窗口仍在 NSApp.windows 列表中），不依赖可能过期的 mainWindow。
     /// 托盘图标常驻、从不被 orderOut，故无需在此唤回（参见 hideToTray 的窗口过滤说明）。
@@ -79,6 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if mainWindow == nil, let w { mainWindow = w; w.delegate = self }
         w?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        installEditKeyFallback()
         applyAppIcon()   // .accessory→.regular 重建 Dock 图标时系统会重解析，需重新断言，否则回落为通用「exec」占位图标
     }
 
@@ -249,6 +274,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         aboutWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        installEditKeyFallback()
     }
 
     private func applyAppIcon() {
