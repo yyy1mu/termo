@@ -184,13 +184,19 @@ struct Sidebar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain).pointerCursor()
-        // 会话右键与服务器右键职责分离：这里只管会话本身（切换/关闭/重命名）；
-        // 主机级操作在「服务器」列表的右键里。
+        // 会话右键与服务器右键职责分离：这里管会话本身；主机级操作在「服务器」列表右键。
+        // 原顶部标签页右键的有用功能全部收拢到这里（复制会话/重命名/关闭三件套）。
         .contextMenu {
             Button("切换到会话") { model.activeTabId = tab.id }
+            // 复制会话：同主机再开一个终端（经共享连接，不重新登录）；仅 SSH 会话显示。
+            if tab.kind == .terminal, let host = model.host(tab.hostId) {
+                Button("复制会话") { model.openHostTerminal(host, forceNew: true) }
+            }
             Button("重命名") { model.requestRenameTab(tab.id) }
             Divider()
             Button("关闭会话") { model.closeTab(tab.id) }
+            Button("关闭其他会话") { model.closeOtherTabs(keep: tab.id) }
+            Button("关闭所有会话") { model.closeAllTabs() }
         }
     }
 
