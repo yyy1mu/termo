@@ -46,7 +46,7 @@ struct HostOverview: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     sectionHeading("快速操作", detail: "连接、传输与维护")
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 8)], spacing: 8) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 8)], spacing: 8) {
                         actionTile("terminal", "终端", detail: "打开交互会话", primary: true) {
                             model.openHostTerminal(liveHost)
                         }
@@ -232,13 +232,13 @@ struct HostOverview: View {
                             primary: Bool = false, loading: Bool = false, badge: Bool = false,
                             _ act: @escaping () -> Void) -> some View {
         Button(action: act) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 9) {
                 HStack {
                     if loading {
                         ProgressView().controlSize(.small)
                     } else {
                         Image(systemName: symbol)
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.system(size: 16, weight: .medium))
                     }
                     Spacer()
                     if badge {
@@ -256,9 +256,9 @@ struct HostOverview: View {
                 }
             }
             .foregroundStyle(primary ? Color.white : Pal.text)
-            .padding(.horizontal, 10).padding(.vertical, 8)
+            .padding(.horizontal, 12).padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 56)
+            .frame(height: 72)
             .background(
                 primary ? Pal.mauve : Pal.card,
                 in: RoundedRectangle(cornerRadius: 12)
