@@ -149,44 +149,40 @@ struct MonitorPanel: View {
 
     private func gpuSection(_ gpus: [GPUInfo]) -> some View {
         section("bolt", String(localized: "图形处理器 (\(gpus.count))")) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 10)], alignment: .leading, spacing: 10) {
-                ForEach(gpus) { g in gpuCard(g) }
+            card {
+                // 每卡一行：多 GPU 服务器（8 卡等）一屏可展示，不再是大卡片阵列
+                VStack(spacing: 5) {
+                    ForEach(gpus) { g in gpuRow(g) }
+                }
             }
         }
     }
 
-    private func gpuCard(_ g: GPUInfo) -> some View {
-        card {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text(g.name).font(.system(size: 9, weight: .medium)).foregroundStyle(Pal.subtext)
-                        .lineLimit(1).truncationMode(.tail)
-                        .padding(.horizontal, 5).padding(.vertical, 1)
-                        .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 3))
-                    Spacer(minLength: 4)
-                    num(g.tempC.map { "\($0)°" } ?? "—", size: 10, weight: .bold, color: Self.purple)
-                }
-                // 利用率不可用（[N/A]，如 vGPU/MIG/WSL）时显示「—」并跳过点阵与进度条，不用 0% 冒充。
-                if let util = g.utilPercent {
-                    HStack(alignment: .bottom) {
-                        num("\(Int(util))%", size: 14, weight: .bold, color: Pal.textBright)
-                        Spacer(minLength: 6)
-                        gpuDots(util)
-                    }
-                    bar(util, color: Self.purple)
-                } else {
-                    HStack(alignment: .bottom) {
-                        num("—", size: 14, weight: .bold, color: Pal.textBright)
-                        Spacer(minLength: 6)
-                    }
-                }
-                HStack {
-                    Text("显存").font(.system(size: 9)).foregroundStyle(Pal.overlay)
-                    Spacer()
-                    plainNum(vramText(g), size: 9, design: .monospaced, color: Pal.overlay)
-                }
+    /// 单行 GPU：型号(截断) + 利用率/点阵 + 迷你条 + 温度 + 显存。
+    private func gpuRow(_ g: GPUInfo) -> some View {
+        HStack(spacing: 8) {
+            Text(g.name).font(.system(size: 9, weight: .medium)).foregroundStyle(Pal.subtext)
+                .lineLimit(1).truncationMode(.tail)
+                .padding(.horizontal, 5).padding(.vertical, 1)
+                .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 3))
+                .frame(width: 92, alignment: .leading)
+            // 利用率不可用（[N/A]，如 vGPU/MIG/WSL）显示「—」，不用 0% 冒充。
+            if let util = g.utilPercent {
+                num("\(Int(util))%", size: 11, weight: .bold, color: Pal.textBright)
+                    .frame(width: 34, alignment: .leading)
+                gpuDots(util)
+            } else {
+                num("—", size: 11, weight: .bold, color: Pal.textBright)
+                    .frame(width: 34, alignment: .leading)
             }
+            Spacer(minLength: 4)
+            num(g.tempC.map { "\($0)°" } ?? "—", size: 10, weight: .bold, color: Self.purple)
+                .frame(width: 32, alignment: .trailing)
+            plainNum(vramText(g), size: 9, design: .monospaced, color: Pal.overlay)
+                .frame(width: 96, alignment: .trailing)
+                .lineLimit(1)
         }
+        .frame(height: 18)
     }
 
     /// 显存明细：已用/总量任一不可用（[N/A]）则该侧显示「—」。
@@ -206,7 +202,7 @@ struct MonitorPanel: View {
                     .frame(width: 3, height: 3)
             }
         }
-        .frame(width: 24)
+        .frame(width: 19)
         .animation(.easeOut(duration: 0.3), value: lit)
     }
 
