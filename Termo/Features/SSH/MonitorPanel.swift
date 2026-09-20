@@ -25,8 +25,12 @@ struct MonitorPanel: View {
     @ViewBuilder
     private var content: some View {
         if let m = monitor.metrics {
-            cpuSection(m)
-            memorySection(m)
+            // 自适应并排：面板够宽（≥~430pt）CPU/内存同一行两列，窄面板自动上下堆叠
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 10)],
+                      alignment: .leading, spacing: 10) {
+                cpuSection(m)
+                memorySection(m)
+            }
             if !m.gpus.isEmpty { gpuSection(m.gpus) }
             if !m.disks.isEmpty { diskSection(m.disks) }
             networkSection(m)
