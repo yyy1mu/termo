@@ -78,8 +78,19 @@ enum LLMSettingsStore {
             guard !newValue.isEmpty, let data = newValue.data(using: .utf8) else { return }
             var q = base
             q[kSecValueData as String] = data
+            KeychainAccess.attach(&q)
             SecItemAdd(q as CFDictionary, nil)
         }
+    }
+
+    /// 一次性迁移：旧 API Key 条目按新访问控制重写（只跑一次；失败跳过）。
+    static func migrateAccessControlOnce() {
+        let flag = "keychain.biometric.llm.v1"
+        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        UserDefaults.standard.set(true, forKey: flag)
+        let k = apiKey
+        guard !k.isEmpty else { return }
+        apiKey = k
     }
 
     /// 配置是否完整可发起请求（baseURL + apiKey + model 非空）。

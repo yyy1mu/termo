@@ -82,11 +82,38 @@ enum HostKeychain {
             var add = base
             add[kSecValueData as String] = data
             add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+            KeychainAccess.attach(&add)   // 生物识别/设备密码提示（替代登录密码提示）
             let addStatus = SecItemAdd(add as CFDictionary, nil)
             if addStatus != errSecSuccess { NSLog("[Keychain] 密码保存失败（add=\(addStatus)）") }
         } else if updateStatus != errSecSuccess {
             NSLog("[Keychain] 密码保存失败（update=\(updateStatus)）——可能是钥匙串条目由其它签名的构建创建，需先删除旧条目")
         }
+    }
+
+    /// 一次性迁移：旧条目（无生物识别访问控制）读出来按新参数重写。
+    /// 迁移过程本身需再输一次密码，此后永久走「Touch ID 或设备密码」提示。
+    /// 用 delete+add（update 不能改访问控制属性）；失败（ACL 拒绝/其它签名构建创建）则跳过，功能不受影响。
+    static func migrateAccessControlOnce() {
+        let flag = "keychain.biometric.v1"
+        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        UserDefaults.standard.set(true, forKey: flag)
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: combinedService,
+            kSecAttrAccount as String: combinedAccount,
+        ]
+        var q = base
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: AnyObject?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
+              let data = out as? Data else { return }
+        SecItemDelete(base as CFDictionary)
+        var add = base
+        add[kSecValueData as String] = data
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        KeychainAccess.attach(&add)
+        _ = SecItemAdd(add as CFDictionary, nil)
     }
 
     static func load(_ hostId: String) -> String {

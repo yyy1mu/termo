@@ -56,7 +56,18 @@ enum KeyKeychain {
         guard !map.isEmpty, let data = try? JSONEncoder().encode(map) else { return }
         var q = base
         q[kSecValueData as String] = data
+        KeychainAccess.attach(&q)   // 生物识别/设备密码提示
         SecItemAdd(q as CFDictionary, nil)
+    }
+
+    /// 一次性迁移：旧私钥条目读出来按新访问控制重写（只跑一次；失败跳过不影响功能）。
+    static func migrateAccessControlOnce() {
+        let flag = "keychain.biometric.keys.v1"
+        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        UserDefaults.standard.set(true, forKey: flag)
+        let map = loadAll()
+        guard !map.isEmpty else { return }
+        saveAll(map)
     }
 
     static func privateKey(_ id: String) -> String? { loadAll()[id] }

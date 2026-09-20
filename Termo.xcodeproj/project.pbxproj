@@ -57,6 +57,7 @@
 		8390C591F279720FA6FCA3D9 /* TermoWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F7AF1F5B7CD19C5C2E16A9 /* TermoWatchApp.swift */; };
 		8464D0FD217B85C17A9013F3 /* AIPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBDE9CCEA6CC6EF59526110D /* AIPanel.swift */; };
 		893D5A57A34EC7276CBC91F3 /* MonitorPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F35E5D3C97554962746E969 /* MonitorPanel.swift */; };
+		8C49600FD95401FD7487500E /* KeychainAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8851B53175FC19BA6E38E74E /* KeychainAccess.swift */; };
 		8E3B08A126CAA5DE8124C315 /* SyncCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE23E262C9D525A094244A7B /* SyncCrypto.swift */; };
 		8EDFD4A742997CCB799687E5 /* FileTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800B3BEE581D0FE8185ABEE1 /* FileTree.swift */; };
 		8F7C594C7C052F6512B65A8A /* SyncPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88E879F74C0907E243220AF /* SyncPanel.swift */; };
@@ -179,6 +180,7 @@
 		8153CA939F7EA1C538726203 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8300E11FCBE31D2420DD073A /* WatchHostInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHostInbox.swift; sourceTree = "<group>"; };
 		862C497DDA041A73F78FEA04 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		8851B53175FC19BA6E38E74E /* KeychainAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainAccess.swift; sourceTree = "<group>"; };
 		88FE548D65E22CCE9FF8E686 /* PortForward.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForward.swift; sourceTree = "<group>"; };
 		8B98C4B8B210F38C372B2955 /* Termo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Termo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8C2B346E9462FFBEA66D9E8F /* SSHSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHSession.swift; sourceTree = "<group>"; };
@@ -383,6 +385,7 @@
 		3AFCB9F440EDEFFCA68ABE58 /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
+				8851B53175FC19BA6E38E74E /* KeychainAccess.swift */,
 				650DB60AA2A221003E5EAA5A /* KeyStore.swift */,
 				1C321CE8CC691865AB47896F /* Persistence.swift */,
 				AE623D081B326C025E0118B3 /* SnippetStore.swift */,
@@ -939,6 +942,7 @@
 				6B0558540093B6422EBFB23A /* KeySheets.swift in Sources */,
 				E82806E27A86F286792F164A /* KeyStore.swift in Sources */,
 				7715578FC742A02AA06A2A93 /* KeyTools.swift in Sources */,
+				8C49600FD95401FD7487500E /* KeychainAccess.swift in Sources */,
 				54ED47672872B75CE5DB286F /* KeysPanel.swift in Sources */,
 				F0095BB8757798C383587A85 /* LLMProfile.swift in Sources */,
 				3CB26182AE9092AB27045790 /* LayoutModel.swift in Sources */,

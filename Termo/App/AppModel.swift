@@ -875,6 +875,11 @@ final class AppModel: ObservableObject {
     static let shared = AppModel()
 
     private init() {
+        // Keychain 访问控制一次性迁移：旧条目（无生物识别控制）按新参数重写一次，
+        // 此后读取提示从「登录密码」变为「Touch ID 或设备密码」（见 KeychainAccess.swift）。
+        HostKeychain.migrateAccessControlOnce()
+        KeyKeychain.migrateAccessControlOnce()
+        LLMSettingsStore.migrateAccessControlOnce()
         // 从磁盘加载主机与会话历史
         hosts = HostStore.loadHosts()
         sessions = HostStore.loadSessions()
