@@ -171,7 +171,13 @@ final class AIChatState: ObservableObject {
         }
     }
 
-    func clear() { messages.removeAll(); errorText = nil }
+    /// 清空会话：消息/错误清空，同时停掉 agent 回读循环与流式输出。
+    func clear() {
+        cancel()
+        sending = false
+        messages.removeAll()
+        errorText = nil
+    }
 }
 
 /// 会话注册表（Multiton）：按终端标签 id 持有独立会话，切标签即切会话。

@@ -116,6 +116,17 @@ struct AIPanel: View {
             .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 6))
             Spacer()
             modeSwitch
+            Button { chat.clear() } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 11))
+                    .foregroundStyle(chat.messages.isEmpty ? Pal.overlay.opacity(0.4) : Pal.overlay)
+                    .frame(width: 24, height: 24)
+                    .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 6))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).pointerCursor()
+            .disabled(chat.messages.isEmpty)
+            .help(String(localized: "清空会话"))
         }
         .padding(.horizontal, 12).padding(.top, 8)
     }
@@ -239,7 +250,15 @@ struct AIPanel: View {
                             .padding(.horizontal, 12).padding(.vertical, 11)
                             .allowsHitTesting(false)
                     }
-                    AIInputField(text: $chat.input, height: $inputHeight) { chat.send(model: model) }
+                    AIInputField(
+                        text: $chat.input,
+                        // 手动拖高时忽略内容高度回写：否则 回写→@State→layout→updateNSView
+                        // 形成反馈环，拖动过程 UI 抖动
+                        height: Binding(
+                            get: { inputHeight },
+                            set: { if manualInputHeight == nil { inputHeight = $0 } }
+                        )
+                    ) { chat.send(model: model) }
                         .frame(height: effectiveInputHeight)
                         .padding(.horizontal, 6).padding(.vertical, 3)
                 }
@@ -260,6 +279,8 @@ struct AIPanel: View {
             .padding(10)
         }
         .background(Pal.crust)
+        // 拖动是逐帧改变量，动画只会表现为抖动——输入区高度变化不走动画
+        .animation(nil, value: effectiveInputHeight)
     }
 
     /// 输入区顶部的上下拖动手柄：拉高/压低输入框（34~260pt）；双击恢复内容自适应。
