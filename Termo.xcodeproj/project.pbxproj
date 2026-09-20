@@ -53,6 +53,7 @@
 		791DFE9DEAD1061E2296BB15 /* Tooltip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A4DA8CC82A64EB068CBD823 /* Tooltip.swift */; };
 		82564CB03E98959D9890E2AF /* TerminalSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507FF5447F03353EF481A8B0 /* TerminalSurface.swift */; };
 		8390C591F279720FA6FCA3D9 /* TermoWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F7AF1F5B7CD19C5C2E16A9 /* TermoWatchApp.swift */; };
+		893D5A57A34EC7276CBC91F3 /* MonitorPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F35E5D3C97554962746E969 /* MonitorPanel.swift */; };
 		8E3B08A126CAA5DE8124C315 /* SyncCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE23E262C9D525A094244A7B /* SyncCrypto.swift */; };
 		8EDFD4A742997CCB799687E5 /* FileTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800B3BEE581D0FE8185ABEE1 /* FileTree.swift */; };
 		8F7C594C7C052F6512B65A8A /* SyncPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88E879F74C0907E243220AF /* SyncPanel.swift */; };
@@ -130,7 +131,7 @@
 		00D690BC4B87701F1703B64F /* FileOpDialogs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOpDialogs.swift; sourceTree = "<group>"; };
 		022AEDEEEA2726ED9937BBC7 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		09193A7184944CAF7E27F8D3 /* OSLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLogo.swift; sourceTree = "<group>"; };
-		0972F9D146D84483F7A39E3D /* TermoCore */ = {isa = PBXFileReference; lastKnownFileType = folder; path = TermoCore; sourceTree = SOURCE_ROOT; };
+		0972F9D146D84483F7A39E3D /* TermoCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TermoCore; path = TermoCore; sourceTree = SOURCE_ROOT; };
 		0A9624A842CEA091C1638BE8 /* SyncModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModel.swift; sourceTree = "<group>"; };
 		0BB120BE0A8466FDD6051FDD /* KeyTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyTools.swift; sourceTree = "<group>"; };
 		1626E272150021A09FC31784 /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
@@ -163,6 +164,7 @@
 		7197CFB2ABD4958688C7F12B /* WebDAVClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVClient.swift; sourceTree = "<group>"; };
 		75740BD11A4036590AF39490 /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
 		7F11BB7AEF9BDB198C9803A9 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+		7F35E5D3C97554962746E969 /* MonitorPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorPanel.swift; sourceTree = "<group>"; };
 		800B3BEE581D0FE8185ABEE1 /* FileTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTree.swift; sourceTree = "<group>"; };
 		8153CA939F7EA1C538726203 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8300E11FCBE31D2420DD073A /* WatchHostInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHostInbox.swift; sourceTree = "<group>"; };
@@ -174,7 +176,7 @@
 		922A429B171BE608DC237A98 /* FileOps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOps.swift; sourceTree = "<group>"; };
 		960BB4F03437160E388C0A01 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		97C01B588AF3997065188F43 /* IOSHostsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSHostsView.swift; sourceTree = "<group>"; };
-		9C26B0F2AE3943DEC875BE48 /* Termo-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; name = "Termo-iOS.app"; path = Termo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9C26B0F2AE3943DEC875BE48 /* Termo-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Termo-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		9DE0DE66B1418BAB8B1F0F73 /* AppIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppIcon.png; sourceTree = "<group>"; };
 		A1239B55F5573C3CD7FCA137 /* TermoSSHDispatch.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TermoSSHDispatch.c; sourceTree = "<group>"; };
 		A14FA718BDEFECD13079CC69 /* TerminalSessionHub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSessionHub.swift; sourceTree = "<group>"; };
@@ -196,7 +198,7 @@
 		C62CC3928D2886D20B479A59 /* NerdFontIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NerdFontIcons.swift; sourceTree = "<group>"; };
 		C703EECD0742870CD6D43856 /* HostKeyVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostKeyVerifier.swift; sourceTree = "<group>"; };
 		C88E879F74C0907E243220AF /* SyncPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPanel.swift; sourceTree = "<group>"; };
-		CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "Termo-Watch.app"; path = Termo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Termo-Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D026950CEB9B2C8A1AE92AF6 /* BundleResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResources.swift; sourceTree = "<group>"; };
 		D0F4CFDE3083C63221444816 /* RightBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightBar.swift; sourceTree = "<group>"; };
 		D172F44C6B1D699CB9362786 /* SSHKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKey.swift; sourceTree = "<group>"; };
@@ -262,6 +264,7 @@
 				F38CB670FB02EF6AF5CEBDF9 /* HostKeyDialog.swift */,
 				C703EECD0742870CD6D43856 /* HostKeyVerifier.swift */,
 				DCED3CB381B1EBDA09D6F705 /* HostOverview.swift */,
+				7F35E5D3C97554962746E969 /* MonitorPanel.swift */,
 				E3B549B96E762A0F96435705 /* TestConnectionView.swift */,
 			);
 			path = SSH;
@@ -904,6 +907,7 @@
 				54ED47672872B75CE5DB286F /* KeysPanel.swift in Sources */,
 				3CB26182AE9092AB27045790 /* LayoutModel.swift in Sources */,
 				D1246FC441226EB86256B996 /* Models.swift in Sources */,
+				893D5A57A34EC7276CBC91F3 /* MonitorPanel.swift in Sources */,
 				0405FB6989ADD59280F4C50B /* NerdFontIcons.swift in Sources */,
 				6C6B11DD0113F6AB39E48742 /* Notifier.swift in Sources */,
 				B01DA0D4E8AD4CB41D738701 /* OSLogo.swift in Sources */,
@@ -1118,7 +1122,7 @@
 		4737907BF17204385CE4FC98 /* ReleaseMAS */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(ARCHS_STANDARD)";
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_OPTIMIZATION = space;
 				CODE_SIGN_ENTITLEMENTS = "Termo-MAS.entitlements";
@@ -1127,13 +1131,17 @@
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/Termo/Features/SSH/Engine";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Termo/Features/SSH/Engine",
+				);
 				INFOPLIST_FILE = Termo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/Build/russh/universal";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Build/russh/universal",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"-ltermo_ssh",
@@ -1170,7 +1178,7 @@
 		68617F7FA2F240908BD1F960 /* DebugMAS */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(ARCHS_STANDARD)";
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Termo-MAS.entitlements";
 				COMBINE_HIDPI_IMAGES = YES;
@@ -1178,13 +1186,17 @@
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/Termo/Features/SSH/Engine";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Termo/Features/SSH/Engine",
+				);
 				INFOPLIST_FILE = Termo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/Build/russh/universal";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Build/russh/universal",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"-ltermo_ssh",
@@ -1262,7 +1274,7 @@
 		92F7E487E56B677442FB84BE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(ARCHS_STANDARD)";
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Termo.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -1270,13 +1282,17 @@
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/Termo/Features/SSH/Engine";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Termo/Features/SSH/Engine",
+				);
 				INFOPLIST_FILE = Termo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/Build/russh/universal";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Build/russh/universal",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"-ltermo_ssh",
@@ -1311,7 +1327,7 @@
 		CDA89A2683E5576E77F50189 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(ARCHS_STANDARD)";
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_OPTIMIZATION = space;
 				CODE_SIGN_ENTITLEMENTS = Termo.entitlements;
@@ -1320,13 +1336,17 @@
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/Termo/Features/SSH/Engine";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Termo/Features/SSH/Engine",
+				);
 				INFOPLIST_FILE = Termo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/Build/russh/universal";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Build/russh/universal",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"-ltermo_ssh",
