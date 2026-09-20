@@ -17,11 +17,15 @@ struct AIMessage: Identifiable {
 }
 
 /// AI 面板会话状态：消息列表 + 输入 + 发送/取消 + 命令卡片抽取 + 执行结果回显。
-/// 会话为单例（右侧伴随面板随窗口只开一处；主机上下文随活动标签变化）。
+/// 每个终端标签一个实例（见 AIChatStore），随标签绑定；tabId=nil 为未绑定终端的通用会话。
 @MainActor
 final class AIChatState: ObservableObject {
-    static let shared = AIChatState()
-    private init() {}
+    /// 绑定的终端标签 id（nil=通用会话：未开终端时也能单独问 AI）。
+    let tabId: Int?
+
+    init(tabId: Int? = nil) {
+        self.tabId = tabId
+    }
 
     @Published var messages: [AIMessage] = []
     @Published var input = ""
@@ -137,4 +141,33 @@ final class AIChatState: ObservableObject {
     }
 
     func clear() { messages.removeAll(); errorText = nil }
+}
+
+/// 会话注册表（Multiton）：按终端标签 id 持有独立会话，切标签即切会话。
+/// 标签关闭时 discard 回收，避免随标签数无限增长。
+@MainActor
+final class AIChatStore {
+    static let shared = AIChatStore()
+    private init() {}
+
+    private var sessions: [Int: AIChatState] = [:]
+    private var scratch: AIChatState? = nil   // 未绑定终端的通用会话（懒创建）
+
+    func session(for tabId: Int?) -> AIChatState {
+        guard let tabId else {
+            if let scratch { return scratch }
+            let s = AIChatState(tabId: nil)
+            scratch = s
+            return s
+        }
+        if let s = sessions[tabId] { return s }
+        let s = AIChatState(tabId: tabId)
+        sessions[tabId] = s
+        return s
+    }
+
+    func discard(tabId: Int) {
+        sessions.removeValue(forKey: tabId)
+        if scratch?.tabId == nil { /* scratch 与标签无关，不回收 */ }
+    }
 }

@@ -125,7 +125,10 @@ struct CompanionPanel: View {
         } else {
             switch panel {
             case .ai:
-                AIPanel(model: model)
+                // 会话按终端标签绑定（Multiton）：切标签 = 换会话实例；
+                // .id 驱动 SwiftUI 重建视图并切换被观察的 chat 对象。
+                AIPanel(model: model, chat: AIChatStore.shared.session(for: model.activeTabId))
+                    .id(model.activeTabId)
             case .sftp:
                 if let host {
                     FileBrowser(

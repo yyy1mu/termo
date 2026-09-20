@@ -2111,6 +2111,7 @@ final class AppModel: ObservableObject {
         terminalReconnectWork[id]?.cancel()      // 撤销该标签挂起的重连，避免关闭后仍唤醒
         terminalReconnectWork.removeValue(forKey: id)
         terminalCommands.removeValue(forKey: id)
+        AIChatStore.shared.discard(tabId: id)   // 该终端的 AI 会话一并回收
         tabCwd.removeValue(forKey: id)
         if activeTabId == id {
             activeTabId = tabs.isEmpty ? nil : tabs[min(idx, tabs.count - 1)].id
