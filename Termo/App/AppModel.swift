@@ -1168,6 +1168,7 @@ final class AppModel: ObservableObject {
         }
         tv.terminalDelegate = driver                // 接管输入/resize/cwd（替代 LocalProcessTerminalView 自身）
         termDrivers[tabId] = driver
+        markCompletionReady(tabId, ready: command == nil)   // 登录 shell 才有完成钩子
         driver.connect(cols: term.cols, rows: term.rows, initialLine: initialCommandLine(ssh), command: command)
     }
 
@@ -1334,6 +1335,14 @@ final class AppModel: ObservableObject {
 
     // ---------- 命令完成等待（Agent 精确等结果，见 SSHTerminalDriver 的 OSC 133;D 解析）----------
     private var commandWaiters: [Int: CheckedContinuation<CommandResult, Never>] = [:]
+    /// 装了完成钩子的终端（登录 shell 才会注入 initialLine；tmux/本地终端没有）。
+    /// 没装钩子的终端等完成标记永远不来——Agent 必须走尾部兜底而非干等。
+    private(set) var completionReadyTabs: Set<Int> = []
+
+    /// startTerminalProcess 接线处调用：登录 shell（command==nil）才标记。
+    func markCompletionReady(_ tabId: Int, ready: Bool) {
+        if ready { completionReadyTabs.insert(tabId) } else { completionReadyTabs.remove(tabId) }
+    }
 
     /// 等待指定终端下一条命令完成（退出码+输出切片）。超时兜底给当前记录尾部，不让 Agent 卡死
     /// （钩子未装上/命令超长时降级为近似行为）。
@@ -2150,6 +2159,7 @@ final class AppModel: ObservableObject {
         terminalCommands.removeValue(forKey: id)
         AIChatStore.shared.discard(tabId: id)   // 该终端的 AI 会话一并回收
         TerminalTranscriptStore.shared.discard(tabId: id)   // 命令/输出记录一并回收
+        completionReadyTabs.remove(id)
         tabCwd.removeValue(forKey: id)
         if activeTabId == id {
             activeTabId = tabs.isEmpty ? nil : tabs[min(idx, tabs.count - 1)].id
