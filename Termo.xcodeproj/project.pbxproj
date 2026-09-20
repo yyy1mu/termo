@@ -54,6 +54,7 @@
 		766D139DE85662003CB933E0 /* AddHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333A99410F1C608823899399 /* AddHostView.swift */; };
 		7715578FC742A02AA06A2A93 /* KeyTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB120BE0A8466FDD6051FDD /* KeyTools.swift */; };
 		791DFE9DEAD1061E2296BB15 /* Tooltip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A4DA8CC82A64EB068CBD823 /* Tooltip.swift */; };
+		7F50CDAE2D7F5728702DB230 /* PanelScaffold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5D80AF970876D86C94E240 /* PanelScaffold.swift */; };
 		82564CB03E98959D9890E2AF /* TerminalSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507FF5447F03353EF481A8B0 /* TerminalSurface.swift */; };
 		8390C591F279720FA6FCA3D9 /* TermoWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F7AF1F5B7CD19C5C2E16A9 /* TermoWatchApp.swift */; };
 		8464D0FD217B85C17A9013F3 /* AIPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBDE9CCEA6CC6EF59526110D /* AIPanel.swift */; };
@@ -155,6 +156,7 @@
 		0972F9D146D84483F7A39E3D /* TermoCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TermoCore; path = TermoCore; sourceTree = SOURCE_ROOT; };
 		0A9624A842CEA091C1638BE8 /* SyncModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModel.swift; sourceTree = "<group>"; };
 		0BB120BE0A8466FDD6051FDD /* KeyTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyTools.swift; sourceTree = "<group>"; };
+		0C5D80AF970876D86C94E240 /* PanelScaffold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelScaffold.swift; sourceTree = "<group>"; };
 		11B2B402776CAFFC53593578 /* TerminalTranscript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTranscript.swift; sourceTree = "<group>"; };
 		1626E272150021A09FC31784 /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
 		172B7815060BD98DE4B52BAD /* SSHSessionPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHSessionPool.swift; sourceTree = "<group>"; };
@@ -367,6 +369,7 @@
 			children = (
 				B5D622C08849A6205DE9113D /* BackgroundCenterView.swift */,
 				022AEDEEEA2726ED9937BBC7 /* Components.swift */,
+				0C5D80AF970876D86C94E240 /* PanelScaffold.swift */,
 				002943114034A286D5FDC8CF /* TabScrollView.swift */,
 				6A4DA8CC82A64EB068CBD823 /* Tooltip.swift */,
 			);
@@ -1014,6 +1017,7 @@
 				0405FB6989ADD59280F4C50B /* NerdFontIcons.swift in Sources */,
 				6C6B11DD0113F6AB39E48742 /* Notifier.swift in Sources */,
 				B01DA0D4E8AD4CB41D738701 /* OSLogo.swift in Sources */,
+				7F50CDAE2D7F5728702DB230 /* PanelScaffold.swift in Sources */,
 				DC82E921312D10CFF921F97B /* Persistence.swift in Sources */,
 				563B0D4BCEE69D24F6157952 /* PortForward.swift in Sources */,
 				9EBF1625176E56AEFCEDB5A0 /* PortForwardView.swift in Sources */,

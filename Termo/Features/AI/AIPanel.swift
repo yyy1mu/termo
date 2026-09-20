@@ -56,28 +56,17 @@ struct AIPanel: View {
     }
 
     private var emptyHint: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "sparkles").font(.system(size: 26)).foregroundStyle(Pal.mauve.opacity(0.8))
-            Text(chat.mode == .chat
-                 ? "对话模式：描述你要做什么，AI 给出命令；命令卡片可「复制」或「输入终端」（放到当前终端，回车执行）。"
-                 : "Agent 模式：描述你要解决的问题；AI 给出命令，点「批准执行」后在当前终端运行，AI 自动读取输出继续下一步，直到解决。")
-                .font(.system(size: 12)).foregroundStyle(Pal.subtext)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            if !LLMSettingsStore.isConfigured(LLMSettingsStore.load()) {
-                Button { model.showSettings = true; model.settingsTab = .ai } label: {
-                    Text("先去配置 LLM（设置 → AI 助手）").font(.system(size: 12))
-                        .foregroundStyle(Pal.mauve)
-                        .padding(.horizontal, 12).padding(.vertical, 6)
-                        .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).pointerCursor()
-            }
-        }
-        .padding(.top, 40)
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity)
+        PanelEmptyState(
+            symbol: "sparkles",
+            title: "",
+            detail: chat.mode == .chat
+                ? String(localized: "对话模式：描述你要做什么，AI 给出命令；命令卡片可「复制」或「输入终端」（放到当前终端，回车执行）。")
+                : String(localized: "Agent 模式：描述你要解决的问题；AI 给出命令，点「批准执行」后在当前终端运行，AI 自动读取输出继续下一步，直到解决。"),
+            actionTitle: LLMSettingsStore.isConfigured(LLMSettingsStore.load())
+                ? nil : String(localized: "先去配置 LLM（设置 → AI 助手）"),
+            action: { model.showSettings = true; model.settingsTab = .ai },
+            symbolColor: Pal.mauve.opacity(0.8)
+        )
     }
 
     private func messageRow(_ msg: AIMessage) -> some View {

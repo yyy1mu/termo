@@ -158,25 +158,13 @@ struct PortForwardView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Spacer()
-            Image(systemName: "arrow.left.arrow.right")
-                .font(.system(size: 30)).foregroundStyle(Pal.overlay)
-            Text("还没有转发规则").font(.system(size: 13)).foregroundStyle(Pal.subtext)
-            Text("通过 SSH 隧道安全访问服务器内网服务，无需在服务器安装任何东西。")
-                .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                .multilineTextAlignment(.center).frame(maxWidth: 320)
-            Button { startNew() } label: {
-                Text("新建规则").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.mauve)
-                    .padding(.horizontal, 14).padding(.vertical, 7)
-                    .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .pointerCursor()
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        PanelEmptyState(
+            symbol: "arrow.left.arrow.right",
+            title: String(localized: "还没有转发规则"),
+            detail: String(localized: "通过 SSH 隧道安全访问服务器内网服务，无需在服务器安装任何东西。"),
+            actionTitle: String(localized: "新建规则"),
+            action: startNew
+        )
     }
 
     private func startNew() {
