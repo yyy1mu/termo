@@ -72,7 +72,8 @@ enum LLMSettingsStore {
             guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
                   let data = out as? Data,
                   let s = String(data: data, encoding: .utf8) else { return "" }
-            return s
+            // 防御：历史版本可能存入带换行的 Key（粘贴时带入）→ "Bearer sk-xx\n" 直接 401
+            return s.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         set {
             let base: [String: Any] = [
@@ -81,7 +82,8 @@ enum LLMSettingsStore {
                 kSecAttrAccount as String: keyAccount,
             ]
             SecItemDelete(base as CFDictionary)
-            guard !newValue.isEmpty, let data = newValue.data(using: .utf8) else { return }
+            let v = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !v.isEmpty, let data = v.data(using: .utf8) else { return }
             var q = base
             q[kSecValueData as String] = data
             KeychainAccess.attach(&q)
@@ -89,17 +91,18 @@ enum LLMSettingsStore {
         }
     }
 
-    /// 一次性迁移：旧 API Key 条目按新访问控制重写（只跑一次；失败跳过）。
-    static func migrateAccessControlOnce() {
-        let flag = "keychain.biometric.llm.v2"
-        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+    /// 与用户偏好同步访问控制（逻辑同 HostKeychain.syncAccessControl）。
+    static func syncAccessControl() {
+        let key = "keychain.acl.llm"
+        let want = KeychainAccess.enabled ? "on" : "off"
+        guard UserDefaults.standard.string(forKey: key) != want else { return }
         let k = apiKey
-        if k.isEmpty { UserDefaults.standard.set(true, forKey: flag); return }
+        if k.isEmpty { UserDefaults.standard.set(want, forKey: key); return }
         apiKey = k
         if apiKey == k {
-            UserDefaults.standard.set(true, forKey: flag)
+            UserDefaults.standard.set(want, forKey: key)
         } else {
-            NSLog("[Keychain] LLM Key 迁移未完成——下次启动重试")
+            NSLog("[Keychain] LLM Key 访问控制同步未完成——下次启动重试")
         }
     }
 

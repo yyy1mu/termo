@@ -60,17 +60,18 @@ enum KeyKeychain {
         SecItemAdd(q as CFDictionary, nil)
     }
 
-    /// 一次性迁移：旧私钥条目读出来按新访问控制重写（只跑一次；失败跳过不影响功能）。
-    static func migrateAccessControlOnce() {
-        let flag = "keychain.biometric.keys.v2"
-        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+    /// 与用户偏好同步访问控制（逻辑同 HostKeychain.syncAccessControl）。
+    static func syncAccessControl() {
+        let key = "keychain.acl.keys"
+        let want = KeychainAccess.enabled ? "on" : "off"
+        guard UserDefaults.standard.string(forKey: key) != want else { return }
         let map = loadAll()
-        if map.isEmpty { UserDefaults.standard.set(true, forKey: flag); return }
-        saveAll(map)   // delete + add（含访问控制）
+        if map.isEmpty { UserDefaults.standard.set(want, forKey: key); return }
+        saveAll(map)
         if loadAll() == map {
-            UserDefaults.standard.set(true, forKey: flag)
+            UserDefaults.standard.set(want, forKey: key)
         } else {
-            NSLog("[Keychain] SSH 私钥迁移未完成——下次启动重试")
+            NSLog("[Keychain] SSH 私钥访问控制同步未完成——下次启动重试")
         }
     }
 

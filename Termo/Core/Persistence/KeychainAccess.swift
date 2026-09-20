@@ -1,20 +1,36 @@
 import Foundation
 import Security
 
-/// Keychain 访问控制：让本 App 存的所有机密条目的读取提示从「输入登录密码」
-/// 变为「Touch ID 或设备密码」（macOS 系统级，无需自研弹窗）。
+/// Keychain 访问控制（用户可选）：开启后本 App 存的机密条目（主机密码 / SSH 私钥 / LLM Key）
+/// 的读取提示变为「Touch ID 或设备密码」；关闭则回退默认行为（配合签名构建通常免提示）。
 ///
-/// 背景：未签名/ad-hoc 构建读 Keychain 时，macOS 每次启动都要输一次登录密码，
-/// 体验很差。给条目加 `SecAccessControl`（biometryCurrentSet OR devicePasscode）后，
-/// 系统提示自动变为生物识别优先——有 Touch ID 的机器按一下手指，没有则输设备密码。
-///
-/// 注意：已存在的旧条目（无访问控制）行为不变——需要一次性迁移（读取后用新参数重写一次，
-/// 迁移过程本身只需再输一次密码，此后永久走生物识别）。
+/// 首次启动由引导弹窗让用户选择（见 TermoApp 的 isChosen 分支），设置 → 通用 可随时切换。
+/// 每次状态切换都会把已有条目按新模式重写（见各 store 的 syncAccessControl，重写后验证读回）。
 enum KeychainAccess {
-    /// 生成访问控制对象；macOS 12+ 支持。失败（极老系统/无生物识别）返回 nil，
-    /// 调用方应跳过该属性（行为回退为默认登录密码提示，不破坏功能）。
+    private static let prefKey = "keychain.biometric.enabled"
+
+    /// 是否已开启指纹/设备密码验证（未选择时视为关）。
+    static var enabled: Bool { UserDefaults.standard.bool(forKey: prefKey) }
+    /// 用户是否已做过选择（首次启动引导弹窗只在未选择时显示一次）。
+    static var isChosen: Bool { UserDefaults.standard.object(forKey: prefKey) != nil }
+
+    /// 选择/切换入口：写偏好并同步重写全部机密条目。
+    static func setEnabled(_ v: Bool) {
+        UserDefaults.standard.set(v, forKey: prefKey)
+        syncAllIfNeeded()
+    }
+
+    /// 启动时同步入口：三个 store 各自查状态戳，模式没变就零开销跳过。
+    static func syncAllIfNeeded() {
+        HostKeychain.syncAccessControl()
+        KeyKeychain.syncAccessControl()
+        LLMSettingsStore.syncAccessControl()
+    }
+
+    /// 生成访问控制对象；关闭时返回 nil（条目按默认模式写入）。
     static func control() -> SecAccessControl? {
-        SecAccessControlCreateWithFlags(
+        guard enabled else { return nil }
+        return SecAccessControlCreateWithFlags(
             nil,
             kSecAttrAccessibleAfterFirstUnlock,
             .userPresence,   // = Touch ID 或设备密码（macOS 上兼容性最好的组合）
@@ -22,7 +38,7 @@ enum KeychainAccess {
         )
     }
 
-    /// 在 SecItemAdd 的查询里注入访问控制（若可用）。
+    /// 在 SecItemAdd 的查询里注入访问控制（若可用/已开启）。
     static func attach(_ query: inout [String: Any]) {
         if let c = control() {
             query[kSecAttrAccessControl as String] = c

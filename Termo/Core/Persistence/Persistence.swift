@@ -90,12 +90,12 @@ enum HostKeychain {
         }
     }
 
-    /// 一次性迁移：旧条目（无生物识别访问控制）读出来按新参数重写。
-    /// 迁移过程本身需再输一次密码，此后永久走「Touch ID 或设备密码」提示。
-    /// 用 delete+add（update 不能改访问控制属性）；失败（ACL 拒绝/其它签名构建创建）则跳过，功能不受影响。
-    static func migrateAccessControlOnce() {
-        let flag = "keychain.biometric.v2"
-        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+    /// 与用户偏好（KeychainAccess.enabled）同步访问控制：状态戳不一致才重写一次。
+    /// 重写后验证读回成功才记状态戳；失败（弹窗取消等）下次启动自动重试，避免静默丢数据。
+    static func syncAccessControl() {
+        let key = "keychain.acl.hosts"
+        let want = KeychainAccess.enabled ? "on" : "off"
+        guard UserDefaults.standard.string(forKey: key) != want else { return }
         let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: combinedService,
@@ -107,7 +107,7 @@ enum HostKeychain {
         var out: AnyObject?
         guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
               let data = out as? Data else {
-            UserDefaults.standard.set(true, forKey: flag)   // 无旧条目：无需迁移
+            UserDefaults.standard.set(want, forKey: key)   // 无旧条目：直接记状态
             return
         }
         SecItemDelete(base as CFDictionary)
@@ -116,12 +116,11 @@ enum HostKeychain {
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         KeychainAccess.attach(&add)
         let st = SecItemAdd(add as CFDictionary, nil)
-        // 验证读回成功才算完成（哨兵不置位 → 下次启动自动重试，避免静默丢数据）
         var v: AnyObject?
         if st == errSecSuccess, SecItemCopyMatching(q as CFDictionary, &v) == errSecSuccess {
-            UserDefaults.standard.set(true, forKey: flag)
+            UserDefaults.standard.set(want, forKey: key)
         } else {
-            NSLog("[Keychain] 主机密码迁移未完成（add=\(st)）——下次启动重试")
+            NSLog("[Keychain] 主机密码访问控制同步未完成（add=\(st)）——下次启动重试")
         }
     }
 

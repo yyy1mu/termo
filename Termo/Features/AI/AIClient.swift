@@ -22,10 +22,14 @@ actor AIClient {
                     guard let url = profile.chatCompletionsURL else {
                         throw ClientError(message: "Base URL 无效")
                     }
+                    let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !key.isEmpty else {
+                        throw ClientError(message: "API Key 未配置：请到 设置 → AI 助手 粘贴并保存")
+                    }
                     var req = URLRequest(url: url)
                     req.httpMethod = "POST"
                     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+                    req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
                     req.timeoutInterval = 120
                     let body: [String: Any] = [
                         "model": profile.model,
@@ -40,6 +44,9 @@ actor AIClient {
                         throw ClientError(message: "响应不是 HTTP")
                     }
                     guard http.statusCode == 200 else {
+                        if http.statusCode == 401 {
+                            throw ClientError(message: "API Key 无效或未保存成功——请到 设置 → AI 助手 重新粘贴 Key 并点保存")
+                        }
                         var snippet = ""
                         for try await line in bytes.lines.prefix(40) { snippet += line + "\n" }
                         throw ClientError(message: "HTTP \(http.statusCode)：\(snippet.prefix(300))")
@@ -72,10 +79,12 @@ actor AIClient {
     /// 非流式一次性请求（设置页「测试连接」用）：拿到完整文本或错误。
     static func ping(profile: LLMProfile, apiKey: String) async throws -> String {
         guard let url = profile.chatCompletionsURL else { throw ClientError(message: "Base URL 无效") }
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { throw ClientError(message: "API Key 未配置：请粘贴 Key 并保存") }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         req.timeoutInterval = 30
         req.httpBody = try JSONSerialization.data(withJSONObject: [
             "model": profile.model,

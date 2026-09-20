@@ -188,6 +188,13 @@ struct SettingsView: View {
             settingRow(String(localized: "删除主机前确认"), description: String(localized: "删除主机时弹出确认弹窗，避免误删")) {
                 ThemedToggle(isOn: $settings.confirmHostDelete)
             }
+
+            settingRow(String(localized: "指纹验证（Touch ID）"), description: String(localized: "用 Touch ID 或设备密码保护钥匙串中的密码、SSH 私钥与 API Key；关闭后恢复默认免提示")) {
+                ThemedToggle(isOn: Binding(
+                    get: { KeychainAccess.enabled },
+                    set: { KeychainAccess.setEnabled($0) }
+                ))
+            }
         }
     }
 

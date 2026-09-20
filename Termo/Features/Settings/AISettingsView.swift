@@ -122,7 +122,7 @@ extension SettingsView {
             p.temperature = temperature
             p.systemPrompt = systemPrompt
             LLMSettingsStore.save(p)
-            LLMSettingsStore.apiKey = apiKey.trimmingCharacters(in: .whitespaces)
+            LLMSettingsStore.apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
             testResult = (true, String(localized: "已保存"))
         }
 
