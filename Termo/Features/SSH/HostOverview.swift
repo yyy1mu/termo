@@ -48,9 +48,8 @@ struct HostOverview: View {
                             model.openHostTerminal(liveHost)
                         }
                         .contextMenu { Button("新建终端") { model.openHostTerminal(liveHost, forceNew: true) } }
-                        actionTile("folder", "文件", detail: "浏览 SFTP",
-                                   loading: model.openingFilesHostId == host.id) {
-                            model.openHostFiles(liveHost)
+                        actionTile("folder", "文件", detail: "在右侧面板浏览 SFTP") {
+                            model.openCompanionFiles()
                         }
                         actionTile("arrow.left.arrow.right", "端口转发", detail: "管理隧道",
                                    badge: model.hasRunningForward(hostId: host.id)) {

@@ -14,6 +14,8 @@ import SwiftUI
 final class LayoutModel: ObservableObject {
     /// 左侧栏宽度(像素)。0 视为折叠。
     @Published var sidebarWidth: CGFloat = 252
+    /// 右侧功能面板手动宽度（nil=按窗口自适应）；对所有功能面板统一生效。
+    @Published var rightPanelManualWidth: CGFloat? = nil
     /// 右侧伴随面板；nil = 收起。
     @Published var rightPanel: RightPanel? = nil
 

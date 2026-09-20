@@ -27,6 +27,7 @@ final class AppModel: ObservableObject {
     // 标签状态独立成 [[TabsModel]]：TabBar/Workspace 只观察它，不被本对象其它 @Published 牵动重算。
     // 下面两个转发计算属性让 AppModel 内部大量 tabs/activeTabId 引用零改动；视图层改为观察 tabsModel。
     let tabsModel = TabsModel()
+    let layoutModel = LayoutModel()   // 布局单例归 AppModel 持有（视图层经 model.layoutModel 观察同一实例）
     var tabs: [TabItem] {
         get { tabsModel.tabs }
         set { tabsModel.tabs = newValue }
@@ -1488,39 +1489,9 @@ final class AppModel: ObservableObject {
         connectingContinuation = nil
     }
 
-    // 正在打开「文件 (SFTP)」的主机 id：指纹预检/连接较慢时，概览页的 SFTP 卡片显示加载中，给高延迟主机即时反馈。
-    @Published var openingFilesHostId: String? = nil
-
-    func openHostFiles(_ host: Host) {
-        // 同一主机已有文件标签则切过去
-        if let existing = tabs.first(where: { $0.kind == .files && $0.hostId == host.id }) {
-            activeTabId = existing.id
-            return
-        }
-        requireAuth(host) { [weak self] in self?.proceedFiles(host.id) }
-    }
-
-    /// 「每次询问」首次（未验证）先走连接验证弹窗后再开文件；已验证或密码/密钥直接开。
-    private func proceedFiles(_ hostId: String) {
-        guard let host = hosts.first(where: { $0.id == hostId }) else { return }
-        if host.ssh?.authMethod == .ask, !askVerifiedHosts.contains(hostId) {
-            connectThen(hostId, hint: String(localized: "正在打开文件…")) { [weak self] in self?.startOpenHostFiles(hostId) }
-        } else {
-            startOpenHostFiles(hostId)
-        }
-    }
-
-    private func startOpenHostFiles(_ hostId: String) {
-        guard let host = hosts.first(where: { $0.id == hostId }) else { return }
-        guard openingFilesHostId != host.id else { return }   // 防连点重复发起
-        openingFilesHostId = host.id
-        Task {
-            defer { openingFilesHostId = nil }   // 成功开标签 / 取消 / 失败都清除加载态
-            guard await verifyHostKey(host) else { return }
-            addTab(.files, title: host.name, hostId: host.id)
-            recordSession(hostId: host.id, kind: .files, detail: String(localized: "文件浏览"))
-            prewarmExplorer(for: host)
-        }
+    /// 文件浏览改走右侧伴随面板（SFTP），不再开独立文件标签。
+    func openCompanionFiles() {
+        layoutModel.rightPanel = .sftp
     }
 
     /// 首次连接验证主机指纹：已知 → 直接放行；未知 → 弹窗让用户核对后决定。返回是否继续连接。

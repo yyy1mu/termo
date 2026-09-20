@@ -389,7 +389,6 @@ struct HostRow: View {
         .contextMenu {
             Button("打开终端") { model.openHostTerminal(host) }
             Button("新建终端") { model.openHostTerminal(host, forceNew: true) }
-            Button("打开文件") { model.openHostFiles(host) }
             Button("编辑主机") { model.beginEditHost(host) }
             Divider()
             Button("删除主机", role: .destructive) { model.requestDeleteHost(host) }

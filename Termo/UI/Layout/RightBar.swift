@@ -70,6 +70,7 @@ struct CompanionPanel: View {
     @ObservedObject var tabs: TabsModel
     let panelWidth: CGFloat
     @ObservedObject private var theme = ThemeManager.shared
+    @State private var dragBaseWidth: CGFloat? = nil
 
     /// 伴随面板固定用一个负的伪 tabId 存 FileBrowser 状态（真实 tabId 从 1 递增，永不冲突）。
     private static let companionTabId = -1
@@ -84,6 +85,29 @@ struct CompanionPanel: View {
             }
             .frame(width: panelWidth)
             .background(Pal.mantle)
+            // 左缘拖宽手柄：宽度写入 LayoutModel，对所有功能面板统一生效（260~560pt）
+            .overlay(alignment: .leading) {
+                Color.clear
+                    .frame(width: 7)
+                    .contentShape(Rectangle())
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active: NSCursor.resizeLeftRight.push()
+                        case .ended: NSCursor.pop()
+                        }
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { v in
+                                if dragBaseWidth == nil { dragBaseWidth = panelWidth }
+                                if let base = dragBaseWidth {
+                                    layout.rightPanelManualWidth = min(max(base - v.translation.width, 260), 560)
+                                }
+                            }
+                            .onEnded { _ in dragBaseWidth = nil }
+                    )
+                    .help(String(localized: "拖动调整功能面板宽度"))
+            }
             .overlay(alignment: .leading) {
                 Rectangle().fill(Pal.border).frame(width: 1)
             }

@@ -263,12 +263,19 @@ struct ContentView: View {
     // 观察全局单例（其生命周期由 AppModel.shared 静态属性持有，不归视图所有，故用 ObservedObject）。
     @ObservedObject private var model = AppModel.shared
     // 侧栏宽度独立成一个对象,拖动它不会牵动 TabBar/Workspace 重算(见 LayoutModel)。
-    @StateObject private var layout = LayoutModel()
+    // 布局单例由 AppModel 持有（视图层经 model.layoutModel 观察同一实例）。
+    @ObservedObject private var layout: LayoutModel
+    init(model: AppModel = .shared) {
+        self.model = model
+        self.layout = model.layoutModel
+    }
     @ObservedObject private var theme = ThemeManager.shared
 
     var body: some View {
         GeometryReader { proxy in
-            let panelWidth = min(360, max(280, proxy.size.width - layout.sidebarWidth - 48 - 5 - 420))
+            let autoPanelWidth = min(360, max(280, proxy.size.width - layout.sidebarWidth - 48 - 5 - 420))
+            // 手动拖宽优先（拖柄写入 rightPanelManualWidth），对所有功能面板统一生效
+            let panelWidth = min(560, max(260, layout.rightPanelManualWidth ?? autoPanelWidth))
             VStack(spacing: 0) {
                 WorkbenchHeader(model: model, tabs: model.tabsModel, layout: layout)
                 Rectangle().fill(Pal.border).frame(height: 1)
