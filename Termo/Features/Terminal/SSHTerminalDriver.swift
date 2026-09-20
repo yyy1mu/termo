@@ -44,6 +44,9 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
             let box = Unmanaged.passRetained(self).toOpaque()         // pump 持一份强引用，on_closed 时释放
             var err = [CChar](repeating: 0, count: 256)
             let cmd = command.flatMap { $0.isEmpty ? nil : $0 } ?? nil
+            if command == nil, !initialLine.isEmpty {
+                self.armEchoSuppression(initialLine)   // 泵启动前武装回显抑制（与 onData 同线程，无竞态）
+            }
             guard let sh = termo_ssh_shell_open(raw, Int32(cols), Int32(rows), cmd,
                                                 Self.onData, Self.onClosed, box, &err, 256) else {
                 Unmanaged<SSHTerminalDriver>.fromOpaque(box).release()
@@ -99,6 +102,45 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
         onTerminated?(code)
     }
 
+    // MARK: 注入行回显抑制（仅泵线程访问：connect 后台块武装、onData 消费）
+    // 登录后注入的 initialLine 会被远端 TTY 回显；正常被随后的清屏抹掉，但 .bashrc 慢于
+    // 注入延迟/用户按键打断/非 bash·zsh shell 报语法错时，这行长文本会留在屏上很难看。
+    // 按字节精确匹配吞掉回显；不匹配立即放行（安全降级），超时 10s 自动解除。
+    private var echoExpected: [UInt8] = []
+    private var echoMatched = 0
+    private var echoArmedAt = Date.distantPast
+
+    private func armEchoSuppression(_ line: String) {
+        echoExpected = Array(line.dropLast().utf8)   // 去掉结尾 \n：回显按行内容匹配
+        echoMatched = 0
+        echoArmedAt = Date()
+    }
+
+    private func filterEcho(_ input: [UInt8]) -> [UInt8] {
+        guard !echoExpected.isEmpty else { return input }
+        guard echoMatched < echoExpected.count, Date().timeIntervalSince(echoArmedAt) < 10 else {
+            echoExpected = []
+            return input
+        }
+        var out: [UInt8] = []
+        for b in input {
+            if echoMatched < echoExpected.count {
+                if b == echoExpected[echoMatched] {
+                    echoMatched += 1
+                    continue                      // 吞回显字节
+                }
+                if echoMatched > 0 {
+                    // 误判（对端内容恰好前缀相同）：放行已吞字节，保持武装继续等真回显
+                    out.append(contentsOf: echoExpected[0..<echoMatched])
+                    echoMatched = 0
+                }
+            }
+            out.append(b)
+        }
+        if echoMatched >= echoExpected.count { echoExpected = [] }   // 完整匹配：抑制结束
+        return out
+    }
+
     // MARK: C 回调（pump 线程）
 
     private static let onData: TermoSSHDataCallback = { ud, bytes, len in
@@ -107,7 +149,10 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
         let slice = bytes.withMemoryRebound(to: UInt8.self, capacity: Int(len)) {
             Array(UnsafeBufferPointer(start: $0, count: Int(len)))
         }
-        DispatchQueue.main.async { driver.tv?.feed(byteArray: slice[...]) }
+        // 注入行回显抑制在泵线程做（顺序保证）；其余输出原样主线程喂终端
+        let clean = driver.filterEcho(slice)
+        guard !clean.isEmpty else { return }
+        DispatchQueue.main.async { driver.tv?.feed(byteArray: clean[...]) }
     }
 
     private static let onClosed: TermoSSHClosedCallback = { ud, code in
