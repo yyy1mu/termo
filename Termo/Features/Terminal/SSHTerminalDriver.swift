@@ -20,10 +20,15 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
     var onCwd: ((String) -> Void)?
     var onTerminated: ((Int32?) -> Void)?
 
-    init(tv: LocalProcessTerminalView, ssh: SSHConnection, hub: TerminalSessionHub) {
+    /// 该终端的命令/输出记录（见 TerminalTranscript）；nil=不记录。
+    var transcript: TerminalTranscript?
+
+    init(tv: LocalProcessTerminalView, ssh: SSHConnection, hub: TerminalSessionHub,
+         transcript: TerminalTranscript? = nil) {
         self.tv = tv
         self.ssh = ssh
         self.hub = hub
+        self.transcript = transcript
         super.init()
     }
 
@@ -152,6 +157,7 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
         // 注入行回显抑制在泵线程做（顺序保证）；其余输出原样主线程喂终端
         let clean = driver.filterEcho(slice)
         guard !clean.isEmpty else { return }
+        driver.transcript?.appendOutput(clean)   // 输出记录（含滚出屏幕的部分）
         DispatchQueue.main.async { driver.tv?.feed(byteArray: clean[...]) }
     }
 
@@ -165,6 +171,7 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
 
     func send(source: TerminalView, data: ArraySlice<UInt8>) {
         guard let shell, !data.isEmpty else { return }
+        transcript?.appendInput(Array(data))   // 用户键击 → 重建命令行记录
         data.withUnsafeBufferPointer { bp in
             guard let base = bp.baseAddress else { return }
             _ = base.withMemoryRebound(to: CChar.self, capacity: bp.count) {

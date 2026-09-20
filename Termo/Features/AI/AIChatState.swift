@@ -73,9 +73,10 @@ final class AIChatState: ObservableObject {
         var wire: [AIClient.ChatMessage] = [
             .init(role: "system", content: prompt),
         ]
-        // 终端上下文常开：附带当前终端最近输出（AI 能看到你刚执行的命令/报错）
-        if let tail = model.terminalTailText(lines: 30), !tail.isEmpty {
-            wire.append(.init(role: "user", content: "【当前终端最近输出】\n```\n\(tail)\n```"))
+        // 终端上下文常开：本会话绑定终端的命令/输出记录尾部（$ 标记命令行；
+        // 比屏幕抓取多得多——含滚出屏幕的输出，且不串其它终端）
+        if let tabId, let tail = model.transcriptTail(tabId: tabId, maxChars: 4000), !tail.isEmpty {
+            wire.append(.init(role: "user", content: "【当前终端最近的命令与输出】\n```\n\(tail)\n```"))
         }
         for m in messages.suffix(13) {
             guard m.role != .system else { continue }
@@ -164,7 +165,7 @@ final class AIChatState: ObservableObject {
         agentTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 3_000_000_000)   // 给命令一段执行时间
             guard !Task.isCancelled, let self else { return }
-            let tail = model.terminalTailText(lines: 40) ?? ""
+            let tail = tabId.flatMap { model.transcriptTail(tabId: $0, maxChars: 4000) } ?? ""
             input = "命令「\(cmd)」已在终端执行，输出如下：\n\(tail)\n请继续下一步；若问题已解决，只输出文字总结。"
             send(model: model)
         }

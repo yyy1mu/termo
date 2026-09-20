@@ -75,6 +75,7 @@
 		ABD40C5DF3AF425FC848A08B /* font-logos.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A67AE3D18D0C1243CFB8D557 /* font-logos.ttf */; };
 		AC3EAF33BE5B83E1F502054B /* Termo-Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AEF5C9FED582E0E87C101FE8 /* TermoSSHDispatch.c in Sources */ = {isa = PBXBuildFile; fileRef = A1239B55F5573C3CD7FCA137 /* TermoSSHDispatch.c */; };
+		AF3F3729D1DBE4099DB046C1 /* TerminalTranscript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B2B402776CAFFC53593578 /* TerminalTranscript.swift */; };
 		B01DA0D4E8AD4CB41D738701 /* OSLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09193A7184944CAF7E27F8D3 /* OSLogo.swift */; };
 		B239A88ECF733A6D9281BB9A /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022AEDEEEA2726ED9937BBC7 /* Components.swift */; };
 		B3ABCC2C2D678CE2E3B4F20D /* TabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75740BD11A4036590AF39490 /* TabBar.swift */; };
@@ -143,6 +144,7 @@
 		0972F9D146D84483F7A39E3D /* TermoCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TermoCore; path = TermoCore; sourceTree = SOURCE_ROOT; };
 		0A9624A842CEA091C1638BE8 /* SyncModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModel.swift; sourceTree = "<group>"; };
 		0BB120BE0A8466FDD6051FDD /* KeyTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyTools.swift; sourceTree = "<group>"; };
+		11B2B402776CAFFC53593578 /* TerminalTranscript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTranscript.swift; sourceTree = "<group>"; };
 		1626E272150021A09FC31784 /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
 		172B7815060BD98DE4B52BAD /* SSHSessionPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHSessionPool.swift; sourceTree = "<group>"; };
 		1983EEAC0FFD7F2C8003C88B /* KeysPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeysPanel.swift; sourceTree = "<group>"; };
@@ -636,6 +638,7 @@
 				B0FF5367FD75FA678A82796A /* SSHTerminalDriver.swift */,
 				A14FA718BDEFECD13079CC69 /* TerminalSessionHub.swift */,
 				507FF5447F03353EF481A8B0 /* TerminalSurface.swift */,
+				11B2B402776CAFFC53593578 /* TerminalTranscript.swift */,
 			);
 			path = Terminal;
 			sourceTree = "<group>";
@@ -989,6 +992,7 @@
 				12692E67AF93F18760DBDDE0 /* TabsModel.swift in Sources */,
 				E83A1A2C18F1BCADC317FD53 /* TerminalSessionHub.swift in Sources */,
 				82564CB03E98959D9890E2AF /* TerminalSurface.swift in Sources */,
+				AF3F3729D1DBE4099DB046C1 /* TerminalTranscript.swift in Sources */,
 				1FAFCA582661FF50BE800F7C /* TermoApp.swift in Sources */,
 				AEF5C9FED582E0E87C101FE8 /* TermoSSHDispatch.c in Sources */,
 				DD247A59BA9C0A9B8F8DECE0 /* TestConnectionView.swift in Sources */,

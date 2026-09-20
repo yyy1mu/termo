@@ -1152,7 +1152,8 @@ final class AppModel: ObservableObject {
         termDrivers[tabId]?.close()
         let term = tv.getTerminal()
         let hub = hostId.map { terminalHub(for: $0) } ?? TerminalSessionHub()
-        let driver = SSHTerminalDriver(tv: tv, ssh: ssh, hub: hub)
+        let driver = SSHTerminalDriver(tv: tv, ssh: ssh, hub: hub,
+                                       transcript: TerminalTranscriptStore.shared.transcript(for: tabId))
         driver.onCwd = { [weak self] path in
             Task { @MainActor in self?.handleTerminalCwd(tabId: tabId, path: path) }
         }
@@ -1318,6 +1319,11 @@ final class AppModel: ObservableObject {
         }
         let text = out.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         return text.isEmpty ? nil : text
+    }
+
+    /// 指定终端的命令/输出记录尾部（AI 上下文用）；无记录返回 nil。
+    func transcriptTail(tabId: Int, maxChars: Int = 4000) -> String? {
+        TerminalTranscriptStore.shared.existing(tabId)?.tail(maxChars: maxChars)
     }
 
     // ---------- 标签操作 ----------
@@ -2112,6 +2118,7 @@ final class AppModel: ObservableObject {
         terminalReconnectWork.removeValue(forKey: id)
         terminalCommands.removeValue(forKey: id)
         AIChatStore.shared.discard(tabId: id)   // 该终端的 AI 会话一并回收
+        TerminalTranscriptStore.shared.discard(tabId: id)   // 命令/输出记录一并回收
         tabCwd.removeValue(forKey: id)
         if activeTabId == id {
             activeTabId = tabs.isEmpty ? nil : tabs[min(idx, tabs.count - 1)].id
