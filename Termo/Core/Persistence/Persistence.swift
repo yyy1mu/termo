@@ -82,57 +82,10 @@ enum HostKeychain {
             var add = base
             add[kSecValueData as String] = data
             add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            KeychainAccess.attach(&add)   // 生物识别/设备密码提示（替代登录密码提示）
             let addStatus = SecItemAdd(add as CFDictionary, nil)
             if addStatus != errSecSuccess { NSLog("[Keychain] 密码保存失败（add=\(addStatus)）") }
         } else if updateStatus != errSecSuccess {
             NSLog("[Keychain] 密码保存失败（update=\(updateStatus)）——可能是钥匙串条目由其它签名的构建创建，需先删除旧条目")
-        }
-    }
-
-    /// 与用户偏好（KeychainAccess.enabled）同步访问控制：状态戳不一致才重写一次。
-    /// 重写后验证读回成功才记状态戳；失败（弹窗取消等）下次启动自动重试，避免静默丢数据。
-    static func syncAccessControl() {
-        let key = "keychain.acl.hosts"
-        let want = KeychainAccess.enabled ? "on" : "off"
-        guard UserDefaults.standard.string(forKey: key) != want else { return }
-        let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: combinedService,
-            kSecAttrAccount as String: combinedAccount,
-        ]
-        var q = base
-        q[kSecReturnData as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var out: AnyObject?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
-              let data = out as? Data else {
-            UserDefaults.standard.set(want, forKey: key)   // 无旧条目：直接记状态
-            return
-        }
-        SecItemDelete(base as CFDictionary)
-        var add = base
-        add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        KeychainAccess.attach(&add)
-        var st = SecItemAdd(add as CFDictionary, nil)
-        if st != errSecSuccess {
-            // 兜底：无 ACL 重写——任何情况下数据都不能丢（delete 与 add 之间强退由 add 兜底保证可恢复）
-            var plain = base
-            plain[kSecValueData as String] = data
-            plain[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            st = SecItemAdd(plain as CFDictionary, nil)
-            NSLog("[Keychain] ACL 写入失败已回退无 ACL 保存（\(st)）")
-        }
-        // 验证只查属性（不读数据 → 不触发认证弹窗、不阻塞主线程）
-        var attrQ = base
-        attrQ[kSecReturnAttributes as String] = true
-        attrQ[kSecMatchLimit as String] = kSecMatchLimitOne
-        var ao: AnyObject?
-        if st == errSecSuccess, SecItemCopyMatching(attrQ as CFDictionary, &ao) == errSecSuccess {
-            UserDefaults.standard.set(want, forKey: key)
-        } else {
-            NSLog("[Keychain] 主机密码访问控制同步未完成——下次启动重试")
         }
     }
 

@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 
 struct SettingsView: View {
-    @State private var biometricOn = KeychainAccess.enabled
+    @State private var appLockOn = false
+    @State private var showPinSetup = false
     @ObservedObject var model: AppModel
     @ObservedObject private var theme = ThemeManager.shared
     @ObservedObject private var settings = AppSettings.shared
@@ -256,16 +257,41 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 24) {
             sectionHeader(String(localized: "安全"))
 
-            settingRow(String(localized: "指纹验证（Touch ID）"), description: String(localized: "用 Touch ID 或设备密码保护钥匙串中存储的主机密码、SSH 私钥与 API Key；开启后读取这些数据时会弹出系统验证。关闭则恢复默认（签名构建通常免提示）")) {
-                ThemedToggle(isOn: $biometricOn)
-                    .onChange(of: biometricOn) { on in KeychainAccess.setEnabled(on) }
+            settingRow(String(localized: "启动时锁定 App"), description: String(localized: "启动 Termo 时先显示锁定屏，用 Touch ID 或锁定码解锁进入")) {
+                ThemedToggle(isOn: $appLockOn)
+                    .onChange(of: appLockOn) { on in
+                        if on {
+                            // 已有锁定码直接启用；没有则先弹设码（保存后自动启用）
+                            if AppLockManager.shared.hasPin {
+                                AppLockManager.shared.setEnabled(true)
+                            } else {
+                                appLockOn = false
+                                showPinSetup = true
+                            }
+                        } else {
+                            AppLockManager.shared.setEnabled(false)
+                        }
+                    }
             }
 
-            Text(String(localized: "切换开关会立即以新模式重写钥匙串条目（数据不丢失）。若系统弹出验证，完成 Touch ID 或输入密码即可。"))
+            settingRow(String(localized: "锁定码"), description: String(localized: "6 位数字，启动解锁用（与 Touch ID 二选一）；忘记无法找回")) {
+                Button { showPinSetup = true } label: {
+                    Text(AppLockManager.shared.hasPin ? String(localized: "修改") : String(localized: "设置"))
+                        .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
+                        .padding(.horizontal, 12).padding(.vertical, 5)
+                        .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Pal.border, lineWidth: 1))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).pointerCursor()
+            }
+
+            Text(String(localized: "Touch ID 在锁定屏自动弹出；失败或取消后可点「使用 Touch ID 解锁」重试。"))
                 .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .onAppear { biometricOn = KeychainAccess.enabled }
+        .sheet(isPresented: $showPinSetup) { AppLockSetupSheet() }
+        .onAppear { appLockOn = AppLockManager.shared.isEnabled }
     }
 
     private func chooseDownloadDir() {

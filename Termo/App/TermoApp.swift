@@ -15,6 +15,7 @@ enum AppBootstrap {
 
 struct TermoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @ObservedObject private var lock = AppLockManager.shared   // 启动锁状态
 
     var body: some Scene {
         // 单窗口场景（Window 而非 WindowGroup）：全进程只允许一个窗口实例，从根上杜绝
@@ -23,6 +24,13 @@ struct TermoApp: App {
             ContentView()
                 // 保证主机侧栏、工作区和右侧面板同时展开时仍有可用空间。
                 .frame(minWidth: 1000, minHeight: 620)
+                // 启动锁：盖住全部内容（Touch ID / 锁定码解锁），见 AppLockScreen。
+                .overlay {
+                    if lock.isLocked {
+                        AppLockScreen().transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.2), value: lock.isLocked)
         }
         .windowStyle(.hiddenTitleBar)
         // 首次打开的默认尺寸（仅初始值，最小限制不变；用户拖动后由系统记忆）：给三栏 + 工作区更宽裕的空间。

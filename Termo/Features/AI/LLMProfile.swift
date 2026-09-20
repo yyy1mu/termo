@@ -86,24 +86,7 @@ enum LLMSettingsStore {
             guard !v.isEmpty, let data = v.data(using: .utf8) else { return }
             var q = base
             q[kSecValueData as String] = data
-            KeychainAccess.attach(&q)
             SecItemAdd(q as CFDictionary, nil)
-        }
-    }
-
-    /// 与用户偏好同步访问控制（逻辑同 HostKeychain.syncAccessControl）。
-    static func syncAccessControl() {
-        let key = "keychain.acl.llm"
-        let want = KeychainAccess.enabled ? "on" : "off"
-        guard UserDefaults.standard.string(forKey: key) != want else { return }
-        let k = apiKey
-        if k.isEmpty { UserDefaults.standard.set(want, forKey: key); return }
-        apiKey = k
-        // 验证读回（apiKey getter 已去空白；失败仅不记状态，下次重试，数据已在条目里）
-        if apiKey == k {
-            UserDefaults.standard.set(want, forKey: key)
-        } else {
-            NSLog("[Keychain] LLM Key 访问控制同步未完成——下次启动重试")
         }
     }
 

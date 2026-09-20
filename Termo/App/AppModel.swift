@@ -875,8 +875,6 @@ final class AppModel: ObservableObject {
     static let shared = AppModel()
 
     private init() {
-        // Keychain 访问控制与用户偏好同步（指纹验证开关；见 KeychainAccess.swift）。
-        KeychainAccess.syncAllIfNeeded()
         // 从磁盘加载主机与会话历史
         hosts = HostStore.loadHosts()
         sessions = HostStore.loadSessions()

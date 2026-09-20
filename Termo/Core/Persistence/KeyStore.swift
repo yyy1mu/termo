@@ -56,42 +56,7 @@ enum KeyKeychain {
         guard !map.isEmpty, let data = try? JSONEncoder().encode(map) else { return }
         var q = base
         q[kSecValueData as String] = data
-        KeychainAccess.attach(&q)   // 生物识别/设备密码提示
         SecItemAdd(q as CFDictionary, nil)
-    }
-
-    /// 与用户偏好同步访问控制（逻辑同 HostKeychain.syncAccessControl）。
-    static func syncAccessControl() {
-        let key = "keychain.acl.keys"
-        let want = KeychainAccess.enabled ? "on" : "off"
-        guard UserDefaults.standard.string(forKey: key) != want else { return }
-        let map = loadAll()
-        if map.isEmpty { UserDefaults.standard.set(want, forKey: key); return }
-        guard let data = try? JSONEncoder().encode(map) else { return }
-        let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(base as CFDictionary)
-        var add = base
-        add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        KeychainAccess.attach(&add)
-        var st = SecItemAdd(add as CFDictionary, nil)
-        if st != errSecSuccess {
-            var plain = base
-            plain[kSecValueData as String] = data
-            plain[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            st = SecItemAdd(plain as CFDictionary, nil)
-            NSLog("[Keychain] ACL 写入失败已回退无 ACL 保存（\(st)）")
-        }
-        // 验证：读回比对数据（私钥条目通常无 ACL 弹窗风险极低；失败仅不记状态，下次重试）
-        if st == errSecSuccess, loadAll() == map {
-            UserDefaults.standard.set(want, forKey: key)
-        } else {
-            NSLog("[Keychain] SSH 私钥访问控制同步未完成——下次启动重试")
-        }
     }
 
     static func privateKey(_ id: String) -> String? { loadAll()[id] }
