@@ -6,18 +6,19 @@ struct HostOverview: View {
     @ObservedObject private var theme = ThemeManager.shared
 
     var body: some View {
-        // 与监控面板同一约定：一页展示不滚动——内容超出可用高度时整体等比缩小。
-        FitToHeight {
-            VStack(alignment: .leading, spacing: 24) {
+        // 紧凑重排：正常窗口一页放完；窗口过小时 ScrollView 兜底
+        // （整体缩放方案会让小字小到不可读——已废弃）。
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("主机工作台")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
                             .tracking(1.4)
                             .foregroundStyle(Pal.mauve)
                         HStack(spacing: 12) {
                             Text(liveHost.name)
-                                .font(.system(size: 27, weight: .semibold))
+                                .font(.system(size: 20, weight: .semibold))
                                 .foregroundStyle(Pal.textBright)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
@@ -103,7 +104,7 @@ struct HostOverview: View {
                     }
                 }
             }
-            .padding(.horizontal, 30).padding(.top, 32).padding(.bottom, 32)
+            .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         // 监控只在概览可见时跑：切到此 tab 开始采集，切走（视图移出）几秒后自动停流，保持轻量。
@@ -128,20 +129,20 @@ struct HostOverview: View {
             if let name = OSLogo.fontName, let logo = OSLogo.info(for: osStr) {
                 RoundedRectangle(cornerRadius: 11)
                     .fill(logo.color)
-                    .overlay(Text(logo.glyph).font(.custom(name, size: 26)).foregroundStyle(.white))
+                    .overlay(Text(logo.glyph).font(.custom(name, size: 20)).foregroundStyle(.white))
             } else {
                 RoundedRectangle(cornerRadius: 11)
                     .fill(Pal.mauve.opacity(0.14))
                     .overlay(Image(systemName: "server.rack")
-                        .font(.system(size: 22)).foregroundStyle(Pal.mauve))
+                        .font(.system(size: 17)).foregroundStyle(Pal.mauve))
             }
         }
-        .frame(width: 58, height: 58)
+        .frame(width: 44, height: 44)
     }
 
     private func sectionHeading(_ title: LocalizedStringKey, detail: LocalizedStringKey?) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Pal.textBright)
+            Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.textBright)
             if let detail {
                 Text(detail).font(.system(size: 11)).foregroundStyle(Pal.overlay)
             }
@@ -152,9 +153,9 @@ struct HostOverview: View {
     /// 信息卡片容器：统一卡片底/描边/圆角/内边距（设计系统基准件）。
     private func infoCard(@ViewBuilder _ content: () -> some View) -> some View {
         content()
-            .padding(18)
+            .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Pal.card, in: RoundedRectangle(cornerRadius: 12))
+            .background(Pal.card, in: RoundedRectangle(cornerRadius: 10))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Pal.border, lineWidth: 1))
     }
 
@@ -162,21 +163,21 @@ struct HostOverview: View {
     private func specCell(_ symbol: String, _ label: String, _ value: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: symbol)
-                .font(.system(size: 13)).foregroundStyle(Pal.mauve)
-                .frame(width: 32, height: 32)
-                .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(label).font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                Text(value).font(.system(size: 13, weight: .medium)).foregroundStyle(Pal.text)
+                .font(.system(size: 11)).foregroundStyle(Pal.mauve)
+                .frame(width: 26, height: 26)
+                .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).font(.system(size: 10)).foregroundStyle(Pal.overlay)
+                Text(value).font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
-        .padding(13)
+        .padding(9)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Pal.card, in: RoundedRectangle(cornerRadius: 11))
-        .overlay(RoundedRectangle(cornerRadius: 11).stroke(Pal.border, lineWidth: 1))
+        .background(Pal.card, in: RoundedRectangle(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.border, lineWidth: 1))
     }
 
     /// 实时主机：host 是 Workspace 传入的快照，输密码等变化要从 model 取最新值（HostOverview 已 @ObservedObject model）。
@@ -210,9 +211,9 @@ struct HostOverview: View {
                 }
                 .buttonStyle(.plain).pointerCursor()
             }
-            .padding(14)
+            .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 10))
+            .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 9))
         }
     }
 
@@ -235,13 +236,13 @@ struct HostOverview: View {
                             primary: Bool = false, loading: Bool = false, badge: Bool = false,
                             _ act: @escaping () -> Void) -> some View {
         Button(action: act) {
-            VStack(alignment: .leading, spacing: 13) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     if loading {
                         ProgressView().controlSize(.small)
                     } else {
                         Image(systemName: symbol)
-                            .font(.system(size: 17, weight: .medium))
+                            .font(.system(size: 14, weight: .medium))
                     }
                     Spacer()
                     if badge {
@@ -252,16 +253,16 @@ struct HostOverview: View {
                             .opacity(0.65)
                     }
                 }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(label).font(.system(size: 13, weight: .semibold))
-                    Text(detail).font(.system(size: 11)).opacity(0.78)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label).font(.system(size: 12, weight: .semibold))
+                    Text(detail).font(.system(size: 10)).opacity(0.78)
                         .lineLimit(1)
                 }
             }
             .foregroundStyle(primary ? Color.white : Pal.text)
-            .padding(16)
+            .padding(11)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 94)
+            .frame(height: 68)
             .background(
                 primary ? Pal.mauve : Pal.card,
                 in: RoundedRectangle(cornerRadius: 12)
