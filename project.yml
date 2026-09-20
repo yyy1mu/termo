@@ -154,13 +154,32 @@ targets:
         INFOPLIST_KEY_WKWatchKitApp: YES
         INFOPLIST_KEY_WKCompanionAppBundleIdentifier: com.cloudza.termo.ios
 
+  TermoTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [TermoTests]
+    dependencies:
+      - target: Termo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo.tests
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_IDENTITY: "-"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
 schemes:
   Termo:
     build:
       targets:
         Termo: all
+        TermoTests: [test]
     run:
       config: Debug
+    test:
+      config: Debug
+      targets: [TermoTests]
     archive:
       config: Release
   # MAS（沙盒）本地测试 / 上架归档专用 scheme：在 Xcode 顶部切到它即可 Run 沙盒版（Apple Development 签名即激活沙盒）。

@@ -29,11 +29,13 @@
 		43F72C5B5EC3CE9E54A7EF44 /* TermoIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B4828FC1706649FAFC70B99 /* TermoIOSApp.swift */; };
 		45E2AF15536559A48A74A94B /* TermoCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6B0B341D52D906722944780E /* TermoCore */; };
 		48714841F77D19C533548308 /* WatchHostsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B060C01F4425BA61135D9841 /* WatchHostsView.swift */; };
+		49A33E26E3FF3F8CBB6A84AA /* TranscriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB1FB6414E1093BEA614623 /* TranscriptTests.swift */; };
 		49ED9F3C1FB4A57E5C40A2D5 /* AppInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC2740433D28692622FE7281 /* AppInfo.swift */; };
 		4E8BB08836DC765A3793C7BB /* SFTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40368D0C3B6906325B722EE0 /* SFTPClient.swift */; };
 		5006CD805681677B0CF1953B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8153CA939F7EA1C538726203 /* SettingsView.swift */; };
 		50865DFECA356FB846CFE4C2 /* IOSHostsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C01B588AF3997065188F43 /* IOSHostsView.swift */; };
 		50A266AC1A12B573BBAA2DF1 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 9AFD70D7F0CA6271D43F4764 /* SwiftTerm */; };
+		50CEC40612673FB9C02A77EA /* CompletionMarkerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D509B7051A0ACB042B1C6D79 /* CompletionMarkerTests.swift */; };
 		523376E8B7B15E65028AD2B5 /* ExecPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA592A6DEDAE371DE78D8B2 /* ExecPanels.swift */; };
 		54ED47672872B75CE5DB286F /* KeysPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1983EEAC0FFD7F2C8003C88B /* KeysPanel.swift */; };
 		563B0D4BCEE69D24F6157952 /* PortForward.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FE548D65E22CCE9FF8E686 /* PortForward.swift */; };
@@ -89,6 +91,7 @@
 		CA9C859BF5D74AAAD27A97FE /* SnippetRunDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7FDEA83B50C900461CECE94 /* SnippetRunDialog.swift */; };
 		CC10B486D148FA2A022970A9 /* SyncStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28DE9A45962650A20806BF0 /* SyncStore.swift */; };
 		CCCE7023A8BF9DF0D12F5A1C /* RemoteFS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 248097FC2A8FBA83A9E42874 /* RemoteFS.swift */; };
+		CF81E4CBDAFF6D37B969B549 /* SyncEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7961675A73837DAD30EBA4FB /* SyncEngineTests.swift */; };
 		D1246FC441226EB86256B996 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862C497DDA041A73F78FEA04 /* Models.swift */; };
 		D4E1BB5C63DB0D8B5D3C4AA7 /* HostKeyDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38CB670FB02EF6AF5CEBDF9 /* HostKeyDialog.swift */; };
 		D64FA808A8F41212E30BD758 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCEFBDBEDCA1B9A7D7F8DF36 /* Theme.swift */; };
@@ -102,6 +105,7 @@
 		E82806E27A86F286792F164A /* KeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 650DB60AA2A221003E5EAA5A /* KeyStore.swift */; };
 		E83A1A2C18F1BCADC317FD53 /* TerminalSessionHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14FA718BDEFECD13079CC69 /* TerminalSessionHub.swift */; };
 		EB0212D223E2A86D4E68DE88 /* IOSHostRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F79339F958298791E09CDF21 /* IOSHostRepository.swift */; };
+		ECA5FA50D15C86DF5C049612 /* ForwardRuleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D5057DE74CEE679293AB65 /* ForwardRuleTests.swift */; };
 		F0095BB8757798C383587A85 /* LLMProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D9444E20EDFE05C79146B2C /* LLMProfile.swift */; };
 		F5B3AE3D0DA903464CC16F47 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7F11BB7AEF9BDB198C9803A9 /* CoreFoundation.framework */; };
 		F844C4A612E2E9DE88067549 /* AppLockScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80C35BD90C96C74DB6DACEE /* AppLockScreen.swift */; };
@@ -118,6 +122,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 3827CF9BD8686ACED0D922E6;
 			remoteInfo = "Termo-Watch";
+		};
+		9D878B3DB63342CEDFB7F5E5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C0DEF0E23DD91FD59440ED00 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C30F527531995F0E3B3DFE49;
+			remoteInfo = Termo;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -148,6 +159,7 @@
 		1626E272150021A09FC31784 /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
 		172B7815060BD98DE4B52BAD /* SSHSessionPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHSessionPool.swift; sourceTree = "<group>"; };
 		1983EEAC0FFD7F2C8003C88B /* KeysPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeysPanel.swift; sourceTree = "<group>"; };
+		1BB1FB6414E1093BEA614623 /* TranscriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptTests.swift; sourceTree = "<group>"; };
 		1C321CE8CC691865AB47896F /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		248097FC2A8FBA83A9E42874 /* RemoteFS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteFS.swift; sourceTree = "<group>"; };
 		2798F95864FCB05DB11B4925 /* AIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIClient.swift; sourceTree = "<group>"; };
@@ -167,6 +179,8 @@
 		48F9B7E11F560DF3BD30924B /* IOSWatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSWatchBridge.swift; sourceTree = "<group>"; };
 		501545F29B4E1519B62B1BC7 /* HostDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostDraft.swift; sourceTree = "<group>"; };
 		507FF5447F03353EF481A8B0 /* TerminalSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSurface.swift; sourceTree = "<group>"; };
+		5B1D8FC36733F5533D7DD346 /* TermoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TermoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		62D5057DE74CEE679293AB65 /* ForwardRuleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForwardRuleTests.swift; sourceTree = "<group>"; };
 		643CD14D9A1343A9CBEB6A5E /* HostMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostMonitor.swift; sourceTree = "<group>"; };
 		650DB60AA2A221003E5EAA5A /* KeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyStore.swift; sourceTree = "<group>"; };
 		65FFE766148F0AFA60554500 /* AppLockManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockManager.swift; sourceTree = "<group>"; };
@@ -177,6 +191,7 @@
 		708441330F807778E77B2B88 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		7197CFB2ABD4958688C7F12B /* WebDAVClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVClient.swift; sourceTree = "<group>"; };
 		75740BD11A4036590AF39490 /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
+		7961675A73837DAD30EBA4FB /* SyncEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngineTests.swift; sourceTree = "<group>"; };
 		7F11BB7AEF9BDB198C9803A9 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		7F35E5D3C97554962746E969 /* MonitorPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorPanel.swift; sourceTree = "<group>"; };
 		800B3BEE581D0FE8185ABEE1 /* FileTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTree.swift; sourceTree = "<group>"; };
@@ -220,6 +235,7 @@
 		D026950CEB9B2C8A1AE92AF6 /* BundleResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResources.swift; sourceTree = "<group>"; };
 		D0F4CFDE3083C63221444816 /* RightBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightBar.swift; sourceTree = "<group>"; };
 		D172F44C6B1D699CB9362786 /* SSHKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKey.swift; sourceTree = "<group>"; };
+		D509B7051A0ACB042B1C6D79 /* CompletionMarkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionMarkerTests.swift; sourceTree = "<group>"; };
 		D5336686AD7D595B6A0F188A /* KeySheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeySheets.swift; sourceTree = "<group>"; };
 		D705FE9FF8D6902D1EF35624 /* IOSHostEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSHostEditor.swift; sourceTree = "<group>"; };
 		DC28CA70D6C67E543CB61C94 /* Termo-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Termo-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -562,6 +578,7 @@
 				9C26B0F2AE3943DEC875BE48 /* Termo-iOS.app */,
 				CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */,
 				8B98C4B8B210F38C372B2955 /* Termo.app */,
+				5B1D8FC36733F5533D7DD346 /* TermoTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -626,6 +643,7 @@
 				C72CB9A3BA0750C8BDADEC89 /* iOS */,
 				E84A2EC1481BCF349828A73C /* Packages */,
 				CE438AB157F6FDDB37A841B9 /* Termo */,
+				D264D98E4157F33F1964D359 /* TermoTests */,
 				ECD883E36E6CCD7784992EB2 /* Watch */,
 				A9BD7F3AC3F534283F579FDC /* Frameworks */,
 				73A71940EFCC3B417839098F /* Products */,
@@ -674,6 +692,17 @@
 				8D459A9141AD020F9822273D /* Localizable.xcstrings */,
 			);
 			path = Termo;
+			sourceTree = "<group>";
+		};
+		D264D98E4157F33F1964D359 /* TermoTests */ = {
+			isa = PBXGroup;
+			children = (
+				D509B7051A0ACB042B1C6D79 /* CompletionMarkerTests.swift */,
+				62D5057DE74CEE679293AB65 /* ForwardRuleTests.swift */,
+				7961675A73837DAD30EBA4FB /* SyncEngineTests.swift */,
+				1BB1FB6414E1093BEA614623 /* TranscriptTests.swift */,
+			);
+			path = TermoTests;
 			sourceTree = "<group>";
 		};
 		D297B0349A5EF7321D3C130B /* Services */ = {
@@ -816,6 +845,24 @@
 			productReference = 8B98C4B8B210F38C372B2955 /* Termo.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D9AB9BEC8F9DDB0D35762C4B /* TermoTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F686C11E449533FCF2D532BD /* Build configuration list for PBXNativeTarget "TermoTests" */;
+			buildPhases = (
+				917C6430C53510099967321A /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				95FD7D0C1D983F66E75CD4A5 /* PBXTargetDependency */,
+			);
+			name = TermoTests;
+			packageProductDependencies = (
+			);
+			productName = TermoTests;
+			productReference = 5B1D8FC36733F5533D7DD346 /* TermoTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -835,6 +882,10 @@
 					};
 					C30F527531995F0E3B3DFE49 = {
 						DevelopmentTeam = 93D9T7Y56M;
+						ProvisioningStyle = Automatic;
+					};
+					D9AB9BEC8F9DDB0D35762C4B = {
+						DevelopmentTeam = KTP97H9YFF;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -861,6 +912,7 @@
 				C30F527531995F0E3B3DFE49 /* Termo */,
 				0A48118B32F1155789C7FB0A /* Termo-iOS */,
 				3827CF9BD8686ACED0D922E6 /* Termo-Watch */,
+				D9AB9BEC8F9DDB0D35762C4B /* TermoTests */,
 			);
 		};
 /* End PBXProject section */
@@ -1014,9 +1066,25 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		917C6430C53510099967321A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				50CEC40612673FB9C02A77EA /* CompletionMarkerTests.swift in Sources */,
+				ECA5FA50D15C86DF5C049612 /* ForwardRuleTests.swift in Sources */,
+				CF81E4CBDAFF6D37B969B549 /* SyncEngineTests.swift in Sources */,
+				49A33E26E3FF3F8CBB6A84AA /* TranscriptTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		95FD7D0C1D983F66E75CD4A5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C30F527531995F0E3B3DFE49 /* Termo */;
+			targetProxy = 9D878B3DB63342CEDFB7F5E5 /* PBXContainerItemProxy */;
+		};
 		CCE876B0C906D614DBF98200 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 3827CF9BD8686ACED0D922E6 /* Termo-Watch */;
@@ -1152,6 +1220,25 @@
 			};
 			name = DebugMAS;
 		};
+		1DA0D2992C5F4D8CFBBAADE4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo";
+			};
+			name = Debug;
+		};
 		4255831DB232907B9DA1C857 /* ReleaseMAS */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1207,6 +1294,25 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Osize";
 			};
 			name = ReleaseMAS;
+		};
+		4DBE7FAEBA26FADCA323366D /* DebugMAS */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo";
+			};
+			name = DebugMAS;
 		};
 		6600859A1430C7945B4635D8 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -1322,6 +1428,25 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
+		};
+		863FD30B8E6189D43E1D4C8E /* ReleaseMAS */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo";
+			};
+			name = ReleaseMAS;
 		};
 		92F7E487E56B677442FB84BE /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1581,6 +1706,25 @@
 			};
 			name = Debug;
 		};
+		F4329F10D8A1526482CDDEC1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1624,6 +1768,17 @@
 				DC14A95CFFD4C54132E33CE8 /* DebugMAS */,
 				E5E50511A6D48DA90CCD5C9C /* Release */,
 				6DF78356B434F050FC7EA7BA /* ReleaseMAS */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F686C11E449533FCF2D532BD /* Build configuration list for PBXNativeTarget "TermoTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1DA0D2992C5F4D8CFBBAADE4 /* Debug */,
+				4DBE7FAEBA26FADCA323366D /* DebugMAS */,
+				F4329F10D8A1526482CDDEC1 /* Release */,
+				863FD30B8E6189D43E1D4C8E /* ReleaseMAS */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -125,6 +125,32 @@ struct CommandResult {
     let exitCode: Int32
 }
 
+/// OSC 133;D 完成标记解析（纯函数，可单测）：输入累计文本与跨 chunk 缓存，
+/// 返回 (净化文本, 退出码?)；半截标记留在 carry 里待下个 chunk 再判。
+/// 钩子侧见 AppModel.osc7Hook；消费侧见 SSHTerminalDriver。
+enum CommandCompletionParser {
+    static func extract(text: inout String, carry: inout String) -> Int32? {
+        text = carry + text
+        carry = ""
+        var exit: Int32? = nil
+        let pattern = "\u{1B}\\]133;D;(\\d+)\u{1B}\\\\"
+        if let re = try? NSRegularExpression(pattern: pattern) {
+            let range = NSRange(text.startIndex..., in: text)
+            let matches = re.matches(in: text, range: range)
+            if let last = matches.last, let r = Range(last.range(at: 1), in: text) {
+                exit = Int32(text[r])
+            }
+            text = re.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+        }
+        // 尾部疑似半截标记：留到下 chunk 再判
+        if let idx = text.range(of: "\u{1B}]133;", options: .backwards)?.lowerBound {
+            carry = String(text[idx...])
+            text = String(text[..<idx])
+        }
+        return exit
+    }
+}
+
 /// Transcript 注册表（Multiton）：按终端标签持有，关标签回收（与 AIChatStore 同型）。
 @MainActor
 final class TerminalTranscriptStore {
