@@ -29,7 +29,7 @@ struct WorkbenchHeader: View {
             .frame(width: max(layout.sidebarWidth, 220))
 
             Rectangle().fill(Pal.border).frame(width: 1, height: 24)
-            Spacer(minLength: 0)
+            TabBar(model: model, tabs: tabs)
 
             HStack(spacing: 3) {
                 headerButton("plus", help: String(localized: "添加主机")) { model.showAddHost = true }
@@ -71,7 +71,8 @@ struct TabBar: View {
                 activeMaxX: active?.maxX ?? 0
             ) {
                 HStack(spacing: 4) {
-                    ForEach(tabs.tabs) { tab in
+                    // 只显示业务页签：概览/系统监控页不上标签条（会话导航走左栏「会话」列表）
+                    ForEach(tabs.tabs.filter { $0.kind != .overview }) { tab in
                         TabChip(tab: tab, model: model, tabs: tabs)
                             .background(GeometryReader { g in
                                 Color.clear.preference(key: TabFramesKey.self,
