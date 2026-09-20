@@ -29,11 +29,10 @@ struct WorkbenchHeader: View {
             .frame(width: max(layout.sidebarWidth, 220))
 
             Rectangle().fill(Pal.border).frame(width: 1, height: 24)
-            TabBar(model: model, tabs: tabs)
+            Spacer(minLength: 0)
 
             HStack(spacing: 3) {
                 headerButton("plus", help: String(localized: "添加主机")) { model.showAddHost = true }
-                headerButton("gearshape", help: String(localized: "设置")) { model.showSettings = true }
             }
             .padding(.horizontal, 10)
         }
