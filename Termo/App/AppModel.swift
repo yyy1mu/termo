@@ -256,6 +256,14 @@ final class AppModel: ObservableObject {
     }
 
     /// 复制公钥到剪贴板（贴到服务器 authorized_keys 用）。
+    /// 公钥部署成功后，把该密钥设为主机的登录密钥（写入 ssh.keyId 并持久化）。
+    /// 下次连接该主机即用此密钥认证（KeyMaterializer 落 0600 工作文件）。
+    func associateKey(_ keyId: String, hostId: String) {
+        guard let idx = hosts.firstIndex(where: { $0.id == hostId }) else { return }
+        hosts[idx].ssh?.keyId = keyId
+        HostStore.saveHosts(hosts)
+    }
+
     func copyPublicKey(_ key: SSHKey) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(key.publicKey, forType: .string)
