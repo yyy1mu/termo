@@ -15,6 +15,8 @@ struct AIMessage: Identifiable {
     var execHost = ""
     var stdout = ""
     var stderr = ""
+    /// 执行中（批准后立即占位，完成后原地更新，消除"点了没反应"的空窗）。
+    var running = false
 }
 
 /// AI 面板会话状态：消息列表 + 输入 + 发送/取消 + 命令卡片抽取 + 执行结果回显。
@@ -109,17 +111,22 @@ final class AIChatState: ObservableObject {
         return out
     }
 
-    /// 执行结果回显：结构化字段存命令/主机/输出，面板按字段渲染。
-    func appendExecResult(command: String, host: String, exitCode: Int32, stdout: String, stderr: String) {
-        messages.append(AIMessage(
-            role: .exec,
-            content: "",
-            exitCode: exitCode,
-            execCommand: command,
-            execHost: host,
-            stdout: String(stdout.prefix(4000)),
-            stderr: String(stderr.prefix(2000))
-        ))
+    /// 批准后立即插入"执行中"占位（用户马上能看到动作发生）。
+    @discardableResult
+    func beginExec(command: String, host: String) -> UUID {
+        let m = AIMessage(role: .exec, content: "", exitCode: nil,
+                          execCommand: command, execHost: host, running: true)
+        messages.append(m)
+        return m.id
+    }
+
+    /// 执行完成：按 id 原地更新占位消息为结果（输出超长截断）。
+    func finishExec(id: UUID, exitCode: Int32, stdout: String, stderr: String) {
+        guard let idx = messages.firstIndex(where: { $0.id == id }) else { return }
+        messages[idx].running = false
+        messages[idx].exitCode = exitCode
+        messages[idx].stdout = String(stdout.prefix(4000))
+        messages[idx].stderr = String(stderr.prefix(2000))
     }
 
     /// 把最近一条 exec 结果连同原命令回发给 AI（对话续写：让 AI 看执行输出再决策）。

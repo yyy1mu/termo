@@ -1329,13 +1329,13 @@ final class AppModel: ObservableObject {
         let cmd = req.command
         let ssh = req.host.ssh ?? SSHConnection()
         let hostName = req.host.name
+        // 批准即占位"执行中"——命令经会话池在后台跑，最长等 timeout；期间面板有明确反馈
+        let mid = AIChatState.shared.beginExec(command: cmd, host: hostName)
         Task {
             let r = await RemoteFS(ssh).run(cmd, timeout: 60)
             let out = String(decoding: r.data, as: UTF8.self)
             let err = String(decoding: r.stderr, as: UTF8.self)
-            await AIChatState.shared.appendExecResult(
-                command: cmd, host: hostName, exitCode: r.code, stdout: out, stderr: err
-            )
+            await AIChatState.shared.finishExec(id: mid, exitCode: r.code, stdout: out, stderr: err)
         }
     }
 

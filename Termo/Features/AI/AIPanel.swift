@@ -154,7 +154,10 @@ struct AIPanel: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: "terminal").font(.system(size: 10)).foregroundStyle(Pal.overlay)
-                if let code = msg.exitCode {
+                if msg.running {
+                    ProgressView().controlSize(.mini)
+                    PanelBadgeView(text: "执行中", color: Pal.mauve)
+                } else if let code = msg.exitCode {
                     PanelBadgeView(text: "退出码 \(code)", color: code == 0 ? Pal.green : Pal.red)
                 }
                 if !msg.execHost.isEmpty {
@@ -171,7 +174,10 @@ struct AIPanel: View {
             }
             let out = msg.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             let err = msg.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !out.isEmpty {
+            if msg.running {
+                Text("正在主机上执行，完成后自动显示结果…")
+                    .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+            } else if !out.isEmpty {
                 Text(out)
                     .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
                     .textSelection(.enabled)
