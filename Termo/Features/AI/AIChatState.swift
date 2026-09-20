@@ -155,18 +155,38 @@ final class AIChatState: ObservableObject {
         messages.append(AIMessage(role: .exec, content: "", execCommand: command))
     }
 
-    /// Agent：用户批准命令 → 输入当前终端并回车（可见执行）→ 3 秒后抓输出自动续写给 LLM。
-    /// 循环终止条件：LLM 回复里没有新命令（纯文字总结）。中途可由「停止」打断。
+    /// Agent：用户批准命令 → 输入当前终端并回车（可见执行）→ 按完成钩子就位分派：
+    /// 登录 shell 精确等待 OSC 133;D 完成标记（退出码+输出切片，30s 超时兜底）；
+    /// tmux/本地终端无钩子 → 短等后直接用记录尾部（不干等）。
+    /// 循环终止：LLM 不再给命令（纯文字总结）。「停止」可打断。
     func approveAgentRun(model: AppModel, command: String) {
         agentTask?.cancel()
-        model.deliverSnippetPublic(command, run: true)
         noteTerminalExec(command: command)
         let cmd = command
+        guard let tabId else {   // 通用会话（无绑定终端）：只输入，不进入自动循环
+            model.deliverSnippetPublic(command, run: true)
+            return
+        }
+        model.deliverSnippetPublic(command, run: true)
+        let hooked = model.completionReadyTabs.contains(tabId)
         agentTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 3_000_000_000)   // 给命令一段执行时间
-            guard !Task.isCancelled, let self else { return }
-            let tail = tabId.flatMap { model.transcriptTail(tabId: $0, maxChars: 4000) } ?? ""
-            input = "命令「\(cmd)」已在终端执行，输出如下：\n\(tail)\n请继续下一步；若问题已解决，只输出文字总结。"
+            guard let self else { return }
+            var exitCode: Int32
+            var output: String
+            if hooked {
+                let result = await model.awaitCommandCompletion(tabId: tabId, timeout: 30_000_000_000)
+                guard !Task.isCancelled else { return }
+                exitCode = result.exitCode
+                output = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                guard !Task.isCancelled else { return }
+                exitCode = -1
+                output = (model.transcriptTail(tabId: tabId, maxChars: 3000) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            let codeText = exitCode >= 0 ? "退出码 \(exitCode)" : "退出码未知"
+            input = "命令「\(cmd)」已执行（\(codeText)）。输出：\n\(output.isEmpty ? "（无输出）" : output)\n请继续下一步；若问题已解决，只输出文字总结。"
             send(model: model)
         }
     }
