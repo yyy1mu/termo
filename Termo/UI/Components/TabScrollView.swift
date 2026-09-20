@@ -21,17 +21,10 @@ final class ScrollMetrics: ObservableObject {
 final class HScroll: NSScrollView {
     var onScroll: (() -> Void)?
 
+    // 用户要求：顶栏不要滑动功能——滚轮/触控板滚动不再驱动标签条横移
+    // （此前把纵向滚动映射成横向，光标经过标签条滚轮时意外滑动）。
     override func scrollWheel(with e: NSEvent) {
-        guard let doc = documentView else { super.scrollWheel(with: e); return }
-        let maxX = max(0, doc.frame.width - contentView.bounds.width)
-        var d = e.scrollingDeltaX
-        if abs(e.scrollingDeltaY) > abs(d) { d = e.scrollingDeltaY }
-        if d == 0 { d = e.deltaX != 0 ? e.deltaX : e.deltaY }
-        let speed: CGFloat = e.hasPreciseScrollingDeltas ? 1 : 12
-        var x = contentView.bounds.origin.x - d * speed
-        x = min(max(0, x), maxX)
-        contentView.scroll(to: NSPoint(x: x, y: 0))
-        reflectScrolledClipView(contentView)
+        // 有意留空：不响应任何滚轮输入。
     }
 
     override func layout() {
