@@ -20,6 +20,13 @@ struct AIMessage: Identifiable {
 /// 每个终端标签一个实例（见 AIChatStore），随标签绑定；tabId=nil 为未绑定终端的通用会话。
 @MainActor
 final class AIChatState: ObservableObject {
+    /// 对话模式：命令只做「复制/输入终端」，由用户掌控；
+    /// Agent 模式：用户点「批准执行」命令即在当前终端运行，AI 自动读输出续写下一步直到解决。
+    enum ChatMode: String, CaseIterable {
+        case chat = "对话"
+        case agent = "Agent"
+    }
+
     /// 绑定的终端标签 id（nil=通用会话：未开终端时也能单独问 AI）。
     let tabId: Int?
 
@@ -30,11 +37,14 @@ final class AIChatState: ObservableObject {
     @Published var messages: [AIMessage] = []
     @Published var input = ""
     @Published var sending = false
+    @Published var mode: ChatMode = .chat
     @Published var errorText: String? = nil
     /// 附带当前终端最近输出作为上下文（可开关，默认开）。
     @Published var includeTerminalContext = true
 
     private var streamTask: Task<Void, Never>?
+    /// Agent 模式的延时回读任务（命令执行后自动抓终端输出发给 LLM）。
+    private var agentTask: Task<Void, Never>?
 
     var canSend: Bool { !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !sending }
 
@@ -54,8 +64,16 @@ final class AIChatState: ObservableObject {
         sending = true
 
         // 组装上下文：系统提示 + （可选）终端最近输出 + 最近会话（最多 12 条，压缩总量）
+        var prompt = profile.systemPrompt
+        if mode == .agent {
+            prompt += """
+            \n【Agent 模式规则】每次只给一条 ```bash 命令（不要一次给多条）；\
+            我会把命令在你终端里的执行输出发回给你，你再给下一条命令；\
+            问题解决后只输出中文文字总结，不要再给任何命令。
+            """
+        }
         var wire: [AIClient.ChatMessage] = [
-            .init(role: "system", content: profile.systemPrompt),
+            .init(role: "system", content: prompt),
         ]
         if includeTerminalContext, let tail = model.terminalTailText(lines: 30), !tail.isEmpty {
             wire.append(.init(role: "user", content: "【当前终端最近输出】\n```\n\(tail)\n```"))
@@ -88,7 +106,11 @@ final class AIChatState: ObservableObject {
         }
     }
 
-    func cancel() { streamTask?.cancel() }
+    func cancel() {
+        streamTask?.cancel()
+        agentTask?.cancel()
+        agentTask = nil
+    }
 
     private func finishAssistantMessage(cancelled: Bool = false) {
         guard var last = messages.last, last.role == .assistant else { return }
@@ -133,11 +155,20 @@ final class AIChatState: ObservableObject {
         messages.append(AIMessage(role: .exec, content: "", execCommand: command))
     }
 
-    /// 把当前终端最近输出连同已执行命令回发给 AI（对话续写）。
-    func forwardTerminalOutput(model: AppModel, command: String) {
-        let tail = model.terminalTailText(lines: 40) ?? ""
-        input = "命令「\(command)」已在当前终端执行。终端最近输出：\n\(tail)\n请基于以上输出继续。"
-        send(model: model)
+    /// Agent：用户批准命令 → 输入当前终端并回车（可见执行）→ 3 秒后抓输出自动续写给 LLM。
+    /// 循环终止条件：LLM 回复里没有新命令（纯文字总结）。中途可由「停止」打断。
+    func approveAgentRun(model: AppModel, command: String) {
+        agentTask?.cancel()
+        model.deliverSnippetPublic(command, run: true)
+        noteTerminalExec(command: command)
+        let cmd = command
+        agentTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)   // 给命令一段执行时间
+            guard !Task.isCancelled, let self else { return }
+            let tail = model.terminalTailText(lines: 40) ?? ""
+            input = "命令「\(cmd)」已在终端执行，输出如下：\n\(tail)\n请继续下一步；若问题已解决，只输出文字总结。"
+            send(model: model)
+        }
     }
 
     func clear() { messages.removeAll(); errorText = nil }

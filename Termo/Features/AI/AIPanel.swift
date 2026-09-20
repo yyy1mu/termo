@@ -7,6 +7,8 @@ struct AIPanel: View {
     /// 绑定当前终端标签的会话（由 RightBar 按 activeTabId 从 AIChatStore 取得）
     @ObservedObject var chat: AIChatState
     @ObservedObject private var theme = ThemeManager.shared
+    /// 输入框内容驱动高度（1~4 行），由 AIInputField 的 Coordinator 回写。
+    @State private var inputHeight: CGFloat = 34
 
     var body: some View {
         VStack(spacing: 0) {
@@ -51,7 +53,9 @@ struct AIPanel: View {
     private var emptyHint: some View {
         VStack(spacing: 10) {
             Image(systemName: "sparkles").font(.system(size: 26)).foregroundStyle(Pal.mauve.opacity(0.8))
-            Text("向 AI 描述你要做什么，它会给命令；命令卡片可「复制」或「输入终端」（命令放到当前终端，回车即执行）。")
+            Text(chat.mode == .chat
+                 ? "对话模式：描述你要做什么，AI 给出命令；命令卡片可「复制」或「输入终端」（放到当前终端，回车执行）。"
+                 : "Agent 模式：描述你要解决的问题；AI 给出命令，点「批准执行」后在当前终端运行，AI 自动读取输出继续下一步，直到解决。")
                 .font(.system(size: 12)).foregroundStyle(Pal.subtext)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -95,8 +99,7 @@ struct AIPanel: View {
     /// 标题，不再重复）；切终端即切会话。
     private var bindingHeader: some View {
         let boundTab = model.activeTabId.flatMap { id in model.tabs.first(where: { $0.id == id }) }
-        return HStack {
-            Spacer()
+        return HStack(spacing: 8) {
             HStack(spacing: 4) {
                 Image(systemName: boundTab == nil ? "circle.dashed" : "terminal")
                     .font(.system(size: 9)).foregroundStyle(boundTab == nil ? Pal.overlay : Pal.mauve)
@@ -106,8 +109,29 @@ struct AIPanel: View {
             }
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 6))
+            Spacer()
+            modeSwitch
         }
         .padding(.horizontal, 12).padding(.top, 8)
+    }
+
+    /// 对话 / Agent 模式切换（每会话独立状态）。
+    private var modeSwitch: some View {
+        HStack(spacing: 0) {
+            ForEach(AIChatState.ChatMode.allCases, id: \.self) { m in
+                Button { chat.mode = m } label: {
+                    Text(m.rawValue).font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(chat.mode == m ? .white : Pal.subtext)
+                        .padding(.horizontal, 10).padding(.vertical, 4)
+                        .background(chat.mode == m ? Pal.mauve : Color.clear,
+                                    in: RoundedRectangle(cornerRadius: 6))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).pointerCursor()
+            }
+        }
+        .padding(2)
+        .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func assistantBlock(_ msg: AIMessage) -> some View {
@@ -147,8 +171,14 @@ struct AIPanel: View {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(cmd, forType: .string)
                 }
-                miniAction("keyboard", String(localized: "输入终端"), accent: Pal.green) {
-                    requestExecute(cmd)
+                if chat.mode == .chat {
+                    miniAction("keyboard", String(localized: "输入终端"), accent: Pal.mauve) {
+                        insertIntoTerminal(cmd)
+                    }
+                } else {
+                    miniAction("play.circle", String(localized: "批准执行"), accent: Pal.green) {
+                        approveAgentRun(cmd)
+                    }
                 }
             }
         }
@@ -182,28 +212,8 @@ struct AIPanel: View {
                     .padding(8)
                     .background(Pal.crust, in: RoundedRectangle(cornerRadius: 6))
             }
-            Text("已放到当前终端提示符上——核对无误后按回车执行。")
+            Text("已在当前终端回车执行；AI 将自动读取输出并继续。")
                 .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-            let out = msg.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-            let err = msg.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !out.isEmpty {
-                Text(out)
-                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            if !err.isEmpty {
-                Text(err)
-                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.red.opacity(0.85))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            if out.isEmpty && err.isEmpty {
-                Text("（无输出）").font(.system(size: 11)).foregroundStyle(Pal.overlay)
-            }
-            miniAction("arrow.turn.up.right", String(localized: "执行后把终端输出发给 AI"), accent: Pal.mauve) {
-                chat.forwardTerminalOutput(model: model, command: msg.execCommand)
-            }
         }
         .padding(.horizontal, 11).padding(.vertical, 8)
         .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 9))
@@ -215,38 +225,34 @@ struct AIPanel: View {
         VStack(spacing: 0) {
             Rectangle().fill(Pal.border).frame(height: 1)
             HStack(alignment: .bottom, spacing: 8) {
-                Toggle(isOn: $chat.includeTerminalContext) {
-                    Image(systemName: "terminal").font(.system(size: 11))
-                        .foregroundStyle(chat.includeTerminalContext ? Pal.mauve : Pal.overlay)
-                }
-                .toggleStyle(.button)
-                .buttonStyle(.plain)
-                .help(String(localized: "附带终端上下文"))
-                .pointerCursor()
+                // 附带终端上下文开关：与发送按钮同规格（30x30 圆角图标）
+                iconBarButton(
+                    "terminal",
+                    active: chat.includeTerminalContext,
+                    help: String(localized: "附带终端上下文")
+                ) { chat.includeTerminalContext.toggle() }
 
                 ZStack(alignment: .topLeading) {
                     if chat.input.isEmpty {
-                        Text("描述任务或提问…")
+                        Text(chat.mode == .chat ? "描述任务或提问…" : "描述你要解决的问题…")
                             .font(.system(size: 12)).foregroundStyle(Pal.overlay)
-                            .padding(.horizontal, 12).padding(.vertical, 10)
+                            .padding(.horizontal, 12).padding(.vertical, 11)
                             .allowsHitTesting(false)
                     }
-                    AIInputField(text: $chat.input) { chat.send(model: model) }
-                        .padding(.horizontal, 6).padding(.vertical, 4)
+                    AIInputField(text: $chat.input, height: $inputHeight) { chat.send(model: model) }
+                        .frame(height: inputHeight)
+                        .padding(.horizontal, 6).padding(.vertical, 3)
                 }
+                .frame(minHeight: 34)
                 .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
 
                 if chat.sending {
-                    Button { chat.cancel() } label: {
-                        Image(systemName: "stop.circle.fill").font(.system(size: 18)).foregroundStyle(Pal.red)
-                    }
-                    .buttonStyle(.plain).pointerCursor().help(String(localized: "停止"))
+                    iconBarButton("stop.fill", active: true, tint: Pal.red,
+                                  help: String(localized: "停止")) { chat.cancel() }
                 } else {
-                    Button { chat.send(model: model) } label: {
-                        Image(systemName: "arrow.up.circle.fill").font(.system(size: 18))
-                            .foregroundStyle(chat.canSend ? Pal.mauve : Pal.overlay.opacity(0.4))
-                    }
-                    .buttonStyle(.plain).pointerCursor().disabled(!chat.canSend)
+                    iconBarButton("arrow.up", active: chat.canSend, tint: Pal.mauve,
+                                  help: String(localized: "发送")) { chat.send(model: model) }
+                    .disabled(!chat.canSend)
                 }
             }
             .padding(10)
@@ -254,17 +260,39 @@ struct AIPanel: View {
         }
     }
 
+    /// 输入区统一规格的图标按钮（30x30）：active 时高亮主色。
+    private func iconBarButton(_ symbol: String, active: Bool, tint: Color = Pal.mauve,
+                               help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(active ? tint : Pal.overlay)
+                .frame(width: 30, height: 30)
+                .background(active ? tint.opacity(0.14) : Pal.fill(0.05),
+                            in: RoundedRectangle(cornerRadius: 8))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).pointerCursor().help(help)
+    }
+
     // MARK: 动作
 
-    /// 输入终端：命令直接写到当前终端提示符上（**不带回车**）——
-    /// 用户核对后自己按回车，回车即批准+执行；无任何弹窗阻断。
-    private func requestExecute(_ cmd: String) {
+    /// 对话模式：命令写到当前终端提示符（**不带回车**）——用户核对后自己回车执行。
+    private func insertIntoTerminal(_ cmd: String) {
         guard model.snippetTargetTabIdPublic() != nil else {
             chat.errorText = String(localized: "请先打开并切到一个终端，命令将输入到当前终端，由你回车执行。")
             return
         }
         model.deliverSnippetPublic(cmd, run: false)
-        chat.noteTerminalExec(command: cmd)
+    }
+
+    /// Agent 模式：批准执行 → 命令在当前终端回车运行，AI 自动读输出续写（见 AIChatState.approveAgentRun）。
+    private func approveAgentRun(_ cmd: String) {
+        guard model.snippetTargetTabIdPublic() != nil else {
+            chat.errorText = String(localized: "请先打开并切到一个终端，Agent 命令将在其上执行。")
+            return
+        }
+        chat.approveAgentRun(model: model, command: cmd)
     }
 }
 
@@ -287,11 +315,12 @@ private struct PanelBadgeView: View {
 /// NSTextView 原生支持 ⌘V/⌘C/⌘A；回车发送、Shift+回车换行。
 struct AIInputField: NSViewRepresentable {
     @Binding var text: String
+    @Binding var height: CGFloat
     var onSubmit: () -> Void
     @ObservedObject var theme = ThemeManager.shared
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, onSubmit: onSubmit)
+        Coordinator(text: $text, height: $height, onSubmit: onSubmit)
     }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -324,22 +353,35 @@ struct AIInputField: NSViewRepresentable {
         if tv.string != text {
             tv.string = text
         }
+        context.coordinator.updateHeight()
     }
 
     @MainActor
     final class Coordinator: NSObject, NSTextViewDelegate {
         @Binding var text: String
+        @Binding var height: CGFloat
         var onSubmit: () -> Void
         weak var view: NSTextView?
 
-        init(text: Binding<String>, onSubmit: @escaping () -> Void) {
+        init(text: Binding<String>, height: Binding<CGFloat>, onSubmit: @escaping () -> Void) {
             _text = text
+            _height = height
             self.onSubmit = onSubmit
         }
 
         func textDidChange(_ notification: Notification) {
             guard let view else { return }
             text = view.string
+            updateHeight()
+        }
+
+        /// 内容驱动高度：约 1~4 行（34~88pt），超出滚动。
+        func updateHeight() {
+            guard let view, let tc = view.textContainer, let lm = view.layoutManager else { return }
+            lm.ensureLayout(for: tc)
+            let h = lm.usedRect(for: tc).height + 12   // textContainerInset 上下 6
+            let clamped = min(max(h, 34), 88)
+            if abs(clamped - height) > 1 { height = clamped }
         }
 
         /// 回车发送；Shift+回车换行。
