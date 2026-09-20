@@ -336,30 +336,30 @@ private struct ForwardRuleForm: View {
                         options: ForwardKind.allCases.map { (value: $0, verbatim: $0.title) },
                         selection: $kind
                     )
-                    .frame(width: 240)
+                    .frame(maxWidth: .infinity)
                 }
 
                 labeled(String(localized: "别名（可选）"), hint: String(localized: "便于识别，如「生产库」。留空则显示类型。")) {
-                    ThemedTextField(placeholder: "可选", text: $name).frame(maxWidth: 280)
+                    ThemedTextField(placeholder: "可选", text: $name).frame(maxWidth: .infinity)
                 }
 
-                HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 12) {
                     labeled(String(localized: "绑定地址"), hint: String(localized: "监听端绑定的网卡地址。仅本机访问填 127.0.0.1；开放给局域网填 0.0.0.0。")) {
-                        ThemedTextField(placeholder: "127.0.0.1", text: $bind).frame(width: 150)
+                        ThemedTextField(placeholder: "127.0.0.1", text: $bind).frame(maxWidth: .infinity)
                     }
                     labeled(kind == .dynamic ? String(localized: "代理端口") : String(localized: "监听端口"),
                             hint: String(localized: "在监听端开放的端口，连接它的流量进入隧道。")) {
-                        ThemedTextField(placeholder: "如 8080", text: $listen).frame(width: 110)
+                        ThemedTextField(placeholder: "如 8080", text: $listen).frame(maxWidth: .infinity)
                     }
                 }
 
                 if kind != .dynamic {
-                    HStack(alignment: .top, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 12) {
                         labeled(String(localized: "目标主机"), hint: destHostHint) {
-                            ThemedTextField(placeholder: "localhost", text: $destHost).frame(width: 220)
+                            ThemedTextField(placeholder: "localhost", text: $destHost).frame(maxWidth: .infinity)
                         }
                         labeled(String(localized: "目标端口"), hint: String(localized: "目标服务监听的端口。")) {
-                            ThemedTextField(placeholder: "如 3306", text: $destPort).frame(width: 110)
+                            ThemedTextField(placeholder: "如 3306", text: $destPort).frame(maxWidth: .infinity)
                         }
                     }
                 }
