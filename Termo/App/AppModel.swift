@@ -1320,22 +1320,6 @@ final class AppModel: ObservableObject {
         return text.isEmpty ? nil : text
     }
 
-    /// AI 命令执行请求（显示完整命令，经用户批准后才会执行；见 AIExecuteConfirmDialog）。
-    @Published var pendingAIExecution: AIExecutionRequest? = nil
-
-    /// 批准执行：经会话池 exec 并把结果回显到 AI 面板。
-    func approveAIExecution() {
-        guard let req = pendingAIExecution else { return }
-        pendingAIExecution = nil
-        // 批准后把完整命令输入到当前终端（末行自动回车）：执行过程对用户完全可见，
-        // 复用现有会话，不做任何隐性后台连接。输出由用户决定是否回发给 AI。
-        deliverSnippetPublic(req.command, run: true)
-        AIChatState.shared.noteTerminalExec(command: req.command, host: req.host?.name ?? String(localized: "本地终端"))
-    }
-
-    /// 拒绝执行：仅关闭弹窗，不动 AI 会话（命令卡片仍可复制/插入终端）。
-    func declineAIExecution() { pendingAIExecution = nil }
-
     // ---------- 标签操作 ----------
     func openLocalTerminal() {
         let title = uniqueTabTitle(String(localized: "终端")) { $0.kind == .terminal && $0.hostId == nil }

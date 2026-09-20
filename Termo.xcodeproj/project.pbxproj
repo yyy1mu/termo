@@ -42,7 +42,6 @@
 		60A0513DBD27B3CDD6F4553C /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2E35ACA0AA766379ACA18D9 /* SyncEngine.swift */; };
 		66D1D025912F7FCDB04ABC96 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5758B8305160B2F0356D7F6 /* PrivacyPolicyView.swift */; };
 		676AA5CF6C60708F710B1EA1 /* TabScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002943114034A286D5FDC8CF /* TabScrollView.swift */; };
-		6A7918B5FD8ADCB43BFD8EAC /* AIExecuteConfirmDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E667B24FC56772CDAA5D7A88 /* AIExecuteConfirmDialog.swift */; };
 		6AAC029451BD56E296343D6F /* FileUpload.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF8DC617FA5929DB9BC01D25 /* FileUpload.swift */; };
 		6B0558540093B6422EBFB23A /* KeySheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5336686AD7D595B6A0F188A /* KeySheets.swift */; };
 		6C6B11DD0113F6AB39E48742 /* Notifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45C201B4ACC5CB6B8514EAEC /* Notifier.swift */; };
@@ -230,7 +229,6 @@
 		E34CDDD5377B936A4BD7074F /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		E3B549B96E762A0F96435705 /* TestConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestConnectionView.swift; sourceTree = "<group>"; };
 		E5758B8305160B2F0356D7F6 /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
-		E667B24FC56772CDAA5D7A88 /* AIExecuteConfirmDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIExecuteConfirmDialog.swift; sourceTree = "<group>"; };
 		E7EC3A802375763DAFCB55EB /* AskPasswordDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskPasswordDialog.swift; sourceTree = "<group>"; };
 		EC2740433D28692622FE7281 /* AppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfo.swift; sourceTree = "<group>"; };
 		ECA592A6DEDAE371DE78D8B2 /* ExecPanels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecPanels.swift; sourceTree = "<group>"; };
@@ -321,7 +319,6 @@
 			children = (
 				091D285A0A88C19B2AB6402D /* AIChatState.swift */,
 				2798F95864FCB05DB11B4925 /* AIClient.swift */,
-				E667B24FC56772CDAA5D7A88 /* AIExecuteConfirmDialog.swift */,
 				CBDE9CCEA6CC6EF59526110D /* AIPanel.swift */,
 				8D9444E20EDFE05C79146B2C /* LLMProfile.swift */,
 			);
@@ -922,7 +919,6 @@
 			files = (
 				5E78F95D13AC75BCD818E5AF /* AIChatState.swift in Sources */,
 				C7E9B114913DDF17987C05D6 /* AIClient.swift in Sources */,
-				6A7918B5FD8ADCB43BFD8EAC /* AIExecuteConfirmDialog.swift in Sources */,
 				8464D0FD217B85C17A9013F3 /* AIPanel.swift in Sources */,
 				AA2EED058D7523510550E50C /* AISettingsView.swift in Sources */,
 				16D136F3D24B59CA45769116 /* AboutView.swift in Sources */,

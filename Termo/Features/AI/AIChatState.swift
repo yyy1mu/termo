@@ -12,11 +12,8 @@ struct AIMessage: Identifiable {
     var exitCode: Int32? = nil
     /// exec 消息结构化字段：面板按字段渲染（不再用 markdown 围栏裸文本）。
     var execCommand = ""
-    var execHost = ""
     var stdout = ""
     var stderr = ""
-    /// 执行中（批准后立即占位，完成后原地更新，消除"点了没反应"的空窗）。
-    var running = false
 }
 
 /// AI 面板会话状态：消息列表 + 输入 + 发送/取消 + 命令卡片抽取 + 执行结果回显。
@@ -111,32 +108,6 @@ final class AIChatState: ObservableObject {
         return out
     }
 
-    /// 命令已输入当前终端（回车执行）后的回显消息：exitCode 保持 nil（输出在终端里）。
-    func noteTerminalExec(command: String, host: String) {
-        messages.append(AIMessage(role: .exec, content: "",
-                                  execCommand: command, execHost: host))
-    }
-
-    /// 把当前终端最近输出连同已执行命令回发给 AI（对话续写）。
-    func forwardTerminalOutput(model: AppModel, command: String) {
-        let tail = model.terminalTailText(lines: 40) ?? ""
-        input = "命令「\(command)」已在当前终端执行。终端最近输出：\n\(tail)\n请基于以上输出继续。"
-        send(model: model)
-    }
-
-    /// 把最近一条 exec 结果连同原命令回发给 AI（对话续写：让 AI 看执行输出再决策）。
-    func forwardLastExecResult(model: AppModel) {
-        guard let last = messages.last, last.role == .exec else { return }
-        var text = "命令「\(last.execCommand)」在 \(last.execHost) 上执行，退出码 \(last.exitCode ?? -1)。执行输出：\n"
-        let out = last.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-        let err = last.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !out.isEmpty { text += out + "\n" }
-        if !err.isEmpty { text += "stderr: " + err }
-        if out.isEmpty && err.isEmpty { text += "（无输出）" }
-        input = text + "\n请基于以上结果继续。"
-        send(model: model)
-    }
-
     /// 剥掉 assistant 文本里的 ``` 围栏代码块（命令已由命令卡片单独渲染，正文只留说明）。
     /// 流式中的未闭合围栏（最后一个 ``` 到结尾）也一并裁掉，避免裸围栏符闪现。
     static func stripCodeBlocks(from text: String, streaming: Bool = false) -> String {
@@ -147,10 +118,22 @@ final class AIChatState: ObservableObject {
             out = re.stringByReplacingMatches(in: out, range: range, withTemplate: "")
         }
         if streaming, let r = out.range(of: "```", options: .backwards) {
-            out = String(out[..<r.lowerBound])   // 未闭合围栏：裁掉尾部，流结束后会有完整卡片
+            out = String(out[..<r.lowerBound])
         }
         while out.contains("\n\n\n") { out = out.replacingOccurrences(of: "\n\n\n", with: "\n\n") }
         return out.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 命令已写到当前终端（未回车）的回显消息：真正的批准与执行由用户按回车完成。
+    func noteTerminalExec(command: String) {
+        messages.append(AIMessage(role: .exec, content: "", execCommand: command))
+    }
+
+    /// 把当前终端最近输出连同已执行命令回发给 AI（对话续写）。
+    func forwardTerminalOutput(model: AppModel, command: String) {
+        let tail = model.terminalTailText(lines: 40) ?? ""
+        input = "命令「\(command)」已在当前终端执行。终端最近输出：\n\(tail)\n请基于以上输出继续。"
+        send(model: model)
     }
 
     func clear() { messages.removeAll(); errorText = nil }

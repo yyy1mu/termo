@@ -126,7 +126,7 @@ struct AIPanel: View {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(cmd, forType: .string)
                 }
-                miniAction("play.circle", String(localized: "在终端执行"), accent: Pal.green) {
+                miniAction("keyboard", String(localized: "输入终端"), accent: Pal.green) {
                     requestExecute(cmd)
                 }
             }
@@ -150,16 +150,8 @@ struct AIPanel: View {
     private func execBlock(_ msg: AIMessage) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: "terminal").font(.system(size: 10)).foregroundStyle(Pal.overlay)
-                if msg.running {
-                    ProgressView().controlSize(.mini)
-                    PanelBadgeView(text: "执行中", color: Pal.mauve)
-                } else if let code = msg.exitCode {
-                    PanelBadgeView(text: "退出码 \(code)", color: code == 0 ? Pal.green : Pal.red)
-                }
-                if !msg.execHost.isEmpty {
-                    PanelBadgeView(text: msg.execHost, color: Pal.mauve)
-                }
+                Image(systemName: "keyboard").font(.system(size: 10)).foregroundStyle(Pal.overlay)
+                PanelBadgeView(text: "已输入终端", color: Pal.mauve)
             }
             if !msg.execCommand.isEmpty {
                 Text(msg.execCommand)
@@ -169,15 +161,11 @@ struct AIPanel: View {
                     .padding(8)
                     .background(Pal.crust, in: RoundedRectangle(cornerRadius: 6))
             }
+            Text("已放到当前终端提示符上——核对无误后按回车执行。")
+                .font(.system(size: 11)).foregroundStyle(Pal.overlay)
             let out = msg.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             let err = msg.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            if msg.running {
-                Text("正在执行…")
-                    .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-            } else if out.isEmpty && err.isEmpty {
-                Text("已输入当前终端并回车执行，输出见终端。")
-                    .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-            } else if !out.isEmpty {
+            if !out.isEmpty {
                 Text(out)
                     .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
                     .textSelection(.enabled)
@@ -192,7 +180,7 @@ struct AIPanel: View {
             if out.isEmpty && err.isEmpty {
                 Text("（无输出）").font(.system(size: 11)).foregroundStyle(Pal.overlay)
             }
-            miniAction("arrow.turn.up.right", String(localized: "把终端输出发给 AI"), accent: Pal.mauve) {
+            miniAction("arrow.turn.up.right", String(localized: "执行后把终端输出发给 AI"), accent: Pal.mauve) {
                 chat.forwardTerminalOutput(model: model, command: msg.execCommand)
             }
         }
@@ -244,13 +232,15 @@ struct AIPanel: View {
 
     // MARK: 动作
 
-    /// 请求执行：命令将输入到**当前终端**（确认弹窗批准后，末行自动回车）。
+    /// 输入终端：命令直接写到当前终端提示符上（**不带回车**）——
+    /// 用户核对后自己按回车，回车即批准+执行；无任何弹窗阻断。
     private func requestExecute(_ cmd: String) {
         guard model.snippetTargetTabIdPublic() != nil else {
-            chat.errorText = String(localized: "请先打开并切到一个终端，命令将输入到当前终端执行。")
+            chat.errorText = String(localized: "请先打开并切到一个终端，命令将输入到当前终端，由你回车执行。")
             return
         }
-        model.pendingAIExecution = AIExecutionRequest(command: cmd, host: model.companionHost())
+        model.deliverSnippetPublic(cmd, run: false)
+        chat.noteTerminalExec(command: cmd)
     }
 }
 

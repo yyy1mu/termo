@@ -414,14 +414,6 @@ struct ContentView: View {
                     onCancel: { model.cancelFileDelete() }
                 ).transition(.opacity)
             }
-            if let req = model.pendingAIExecution {
-                AIExecuteConfirmDialog(
-                    command: req.command,
-                    host: req.host,
-                    onApprove: { model.approveAIExecution() },
-                    onDecline: { model.declineAIExecution() }
-                ).transition(.opacity)
-            }
             if let h = model.pendingHostDelete {
                 ConfirmDialog(
                     title: "删除主机「\(h.name)」？",

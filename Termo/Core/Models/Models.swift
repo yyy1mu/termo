@@ -324,11 +324,3 @@ struct Host: Identifiable, Codable {
     }
 }
 
-/// AI 命令执行请求：AI 面板命令卡片点「请求执行」时生成；
-/// 经用户批准才会真正执行（approveAIExecution），拒绝仅关闭弹窗。
-struct AIExecutionRequest: Identifiable {
-    let id = UUID()
-    let command: String
-    /// nil=本地终端
-    let host: Host?
-}
