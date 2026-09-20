@@ -36,7 +36,7 @@ struct PortForwardView: View {
                 listContent
             }
         }
-        .frame(width: 560, height: 520)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Pal.solidBase)
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .overlay {
@@ -101,7 +101,7 @@ struct PortForwardView: View {
                 }
             }
             .padding(20)
-            .frame(width: 360)
+            .frame(maxWidth: .infinity)
             .background(Pal.solidMantle, in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Pal.fill(0.08), lineWidth: 1))
             .shadow(color: .black.opacity(0.3), radius: 20, y: 8)
@@ -137,15 +137,6 @@ struct PortForwardView: View {
                 .buttonStyle(.plain)
                 .pointerCursor()
             }
-            Button { model.forwardPanelHost = nil } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.overlay)
-                    .frame(width: 26, height: 26)
-                    .background(Pal.fill(0.05), in: Circle())
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .pointerCursor()
         }
         .padding(.horizontal, 18).padding(.vertical, 14)
     }

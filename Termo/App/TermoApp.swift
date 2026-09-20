@@ -583,7 +583,6 @@ private struct AppSheets: ViewModifier {
             .sheet(isPresented: $model.showSettings) { SettingsView(model: model) }
             .sheet(isPresented: $model.showAddHost) { AddHostView(model: model) }
             .sheet(item: $model.editingHost) { host in AddHostView(model: model, editing: host) }
-            .sheet(item: $model.forwardPanelHost) { host in PortForwardView(model: model, host: host) }
             .sheet(isPresented: $model.showCreateSnippet) { SnippetEditView(model: model) }
             .sheet(item: $model.editingSnippet) { snip in SnippetEditView(model: model, editing: snip) }
             .alert("提示", isPresented: Binding(

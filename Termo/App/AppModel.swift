@@ -92,7 +92,6 @@ final class AppModel: ObservableObject {
     /// 全部端口转发规则（持久化）；运行态由 [[ForwardManager]] 单独维护。
     @Published var forwards: [ForwardRule] = []
     /// 非 nil 时展示该主机的端口转发管理面板。
-    @Published var forwardPanelHost: Host? = nil
     /// 为真时展示「仍有后台任务」的自定义退出确认弹窗。
     @Published var pendingQuitConfirm = false
     // 退出确认弹窗是否为「彻底退出」模式（托盘「退出 Termo」触发）：确认即停任务退出，不受「隐藏到菜单栏」影响。
@@ -591,14 +590,9 @@ final class AppModel: ObservableObject {
 
     /// 「每次询问」首次（未验证）先走连接验证弹窗后再开转发面板；已验证或密码/密钥直接开（你要求的：连过一次后转发进入不再弹窗）。
     private func proceedForward(_ hostId: String) {
-        guard let host = hosts.first(where: { $0.id == hostId }) else { return }
-        if host.ssh?.authMethod == .ask, !askVerifiedHosts.contains(hostId) {
-            connectThen(hostId, hint: String(localized: "正在打开端口转发…")) { [weak self] in
-                self?.forwardPanelHost = self?.hosts.first(where: { $0.id == hostId })
-            }
-        } else {
-            forwardPanelHost = host
-        }
+        guard hosts.first(where: { $0.id == hostId }) != nil else { return }
+        // 转发管理入驻右侧功能区：验证通过后展开 .forward 面板（主机上下文=活动标签）
+        layoutModel.rightPanel = .forward
     }
 
     /// 关闭所有打开的 sheet（设置/添加主机/端口转发等）。退出/隐藏前调用：
@@ -607,7 +601,6 @@ final class AppModel: ObservableObject {
         showSettings = false
         showAddHost = false
         editingHost = nil
-        forwardPanelHost = nil
     }
 
     /// 删除转发规则是否跳过确认：仅本次运行有效（内存态，不持久化）；勾选「不再询问」后本次运行内不再弹窗，

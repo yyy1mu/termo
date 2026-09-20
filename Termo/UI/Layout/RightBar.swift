@@ -183,7 +183,8 @@ struct CompanionPanel: View {
                 }
             case .forward:
                 if let host {
-                    ForwardCompanion(model: model, host: host)
+                    // 全功能转发管理（列表/新建/编辑/删除确认）直接入驻右侧面板
+                    PortForwardView(model: model, host: host)
                 }
             case .snippets:
                 SnippetsPanel(model: model, tabs: tabs)
@@ -210,110 +211,3 @@ private struct CompanionPlaceholder: View {
 }
 
 /// 窄栏只呈现隧道概况；需要编辑时打开完整管理窗口，避免 560pt 表单被挤进 280–360pt。
-private struct ForwardCompanion: View {
-    @ObservedObject var model: AppModel
-    let host: Host
-
-    private var rules: [ForwardRule] { model.forwardRules(for: host.id) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 7) {
-                Text("SSH 隧道")
-                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.textBright)
-                Text("查看这台主机的转发状态。新建、编辑和删除规则请在管理窗口中完成。")
-                    .font(.system(size: 11)).foregroundStyle(Pal.subtext)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Button { model.openForwardPanel(host) } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "slider.horizontal.3")
-                    Text("管理转发规则")
-                    Spacer()
-                    Image(systemName: "arrow.up.right").font(.system(size: 10))
-                }
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14).frame(height: 38)
-                .background(Pal.mauve, in: RoundedRectangle(cornerRadius: 9))
-            }
-            .buttonStyle(.plain).pointerCursor()
-
-            HStack {
-                Text("现有规则").font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.overlay)
-                Spacer()
-                Text("\(rules.count)").font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
-            }
-
-            if rules.isEmpty {
-                VStack(spacing: 9) {
-                    Image(systemName: "arrow.left.arrow.right")
-                        .font(.system(size: 23)).foregroundStyle(Pal.overlay)
-                    Text("还没有转发规则")
-                        .font(.system(size: 12)).foregroundStyle(Pal.subtext)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(rules) { rule in
-                            ForwardCompanionRow(rule: rule, manager: model.forwardManager(for: host))
-                        }
-                    }
-                }
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-}
-
-private struct ForwardCompanionRow: View {
-    let rule: ForwardRule
-    @ObservedObject var manager: ForwardManager
-
-    var body: some View {
-        let status = manager.status(rule.id)
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Circle().fill(statusColor(status)).frame(width: 7, height: 7)
-                Text(rule.name.isEmpty ? rule.kind.title : rule.name)
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Text(statusTitle(status))
-                    .font(.system(size: 10)).foregroundStyle(statusColor(status))
-            }
-            Text(rule.summary)
-                .font(.system(size: 10, design: .monospaced)).foregroundStyle(Pal.subtext)
-                .lineLimit(2).truncationMode(.middle)
-            if case .failed(let reason) = status {
-                Text(reason).font(.system(size: 10)).foregroundStyle(Pal.red)
-                    .lineLimit(2).truncationMode(.tail)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Pal.card, in: RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.border, lineWidth: 1))
-    }
-
-    private func statusTitle(_ status: ForwardManager.RuleStatus) -> LocalizedStringKey {
-        switch status {
-        case .stopped: return "未运行"
-        case .starting: return "连接中"
-        case .active: return "运行中"
-        case .failed: return "失败"
-        }
-    }
-
-    private func statusColor(_ status: ForwardManager.RuleStatus) -> Color {
-        switch status {
-        case .stopped: return Pal.overlay
-        case .starting: return Pal.yellow
-        case .active: return Pal.green
-        case .failed: return Pal.red
-        }
-    }
-}
