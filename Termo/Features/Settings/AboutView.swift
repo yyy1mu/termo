@@ -17,6 +17,8 @@ struct AboutContent: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Termo").font(.system(size: 18, weight: .semibold)).foregroundStyle(Pal.text)
                     Text(AppInfo.versionLine)
+                    Text(String(localized: "构建于 \(AppInfo.buildDate)"))
+                        .font(.system(size: 10)).foregroundStyle(Pal.overlay)
                         .font(.system(size: 12)).foregroundStyle(Pal.subtext)
                 }
                 Spacer()

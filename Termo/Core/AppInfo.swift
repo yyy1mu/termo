@@ -15,6 +15,17 @@ enum AppInfo {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
     }
 
+    /// 主二进制的文件修改时间（= 实际编译时刻）：用于核对正在运行的是不是最新构建
+    /// （多份 .app 副本并存时一眼分辨新旧）。
+    static var buildDate: String {
+        guard let url = Bundle.main.executableURL,
+              let t = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+        else { return "?" }
+        let f = DateFormatter()
+        f.dateFormat = "MM-dd HH:mm"
+        return f.string(from: t)
+    }
+
     /// 关于页展示用版本行：「版本 0.7.6.1 (build 18)」。
     /// 取不到时（非 .app 运行等极端情况）回退通用文案，不内嵌具体版本号以免与真实值不一致。
     static var versionLine: String {
