@@ -65,15 +65,19 @@ struct HostOverview: View {
                 }
 
                 if let s = liveHost.specs, !s.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 8) {
                         sectionHeading("设备信息", detail: "从远端主机读取")
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 8)], spacing: 8) {
-                            if !s.os.isEmpty { specCell("desktopcomputer", String(localized: "系统"), s.os) }
-                            if !s.cores.isEmpty { specCell("cpu", String(localized: "核心"), "\(s.cores) 核") }
-                            if !s.memory.isEmpty { specCell("memorychip", String(localized: "内存"), s.memory) }
-                            if !s.disk.isEmpty { specCell("internaldrive", String(localized: "磁盘"), s.disk) }
-                            if !s.vram.isEmpty { specCell("bolt", String(localized: "显存"), s.vram) }
-                            if !s.gpu.isEmpty { specCell("display", String(localized: "显卡"), s.gpu) }
+                        // 无磁贴：一张卡片内轻量键值对（灰标签+值），信息密度更高
+                        infoCard {
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 10)],
+                                      alignment: .leading, spacing: 7) {
+                                if !s.os.isEmpty { specPair(String(localized: "系统"), s.os) }
+                                if !s.cores.isEmpty { specPair(String(localized: "核心"), "\(s.cores) 核") }
+                                if !s.memory.isEmpty { specPair(String(localized: "内存"), s.memory) }
+                                if !s.disk.isEmpty { specPair(String(localized: "磁盘"), s.disk) }
+                                if !s.vram.isEmpty { specPair(String(localized: "显存"), s.vram) }
+                                if !s.gpu.isEmpty { specPair(String(localized: "显卡"), s.gpu) }
+                            }
                         }
                     }
                 } else if model.probingHosts.contains(liveHost.id) {
@@ -160,25 +164,16 @@ struct HostOverview: View {
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Pal.border, lineWidth: 1))
     }
 
-    /// 系统规格单元格：小图标 + 标签 + 值。
-    private func specCell(_ symbol: String, _ label: String, _ value: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: 11)).foregroundStyle(Pal.mauve)
-                .frame(width: 26, height: 26)
-                .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 10)).foregroundStyle(Pal.overlay)
-                Text(value).font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+    /// 设备信息键值对：灰标签 + 值，无盒无框。
+    private func specPair(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 7) {
+            Text(label).font(.system(size: 10)).foregroundStyle(Pal.overlay)
+                .frame(width: 34, alignment: .leading)
+            Text(value).font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(9)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Pal.card, in: RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.border, lineWidth: 1))
     }
 
     /// 实时主机：host 是 Workspace 传入的快照，输密码等变化要从 model 取最新值（HostOverview 已 @ObservedObject model）。
