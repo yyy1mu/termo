@@ -9,6 +9,26 @@ struct Sidebar: View {
     @FocusState private var searchFocused: Bool
     // 已折叠的分组名集合（仅本次运行有效，重启不保留）
     @State private var collapsedGroups: Set<String> = []
+    /// 侧栏内容分段：服务器（主机树）/ 会话（当前全部 SSH 终端）/ 同步。
+    @State private var segment: SidebarSegment = .servers
+
+    enum SidebarSegment: String, CaseIterable {
+        case servers, sessions, sync
+        var symbol: String {
+            switch self {
+            case .servers: return "server.rack"
+            case .sessions: return "terminal"
+            case .sync: return "arrow.triangle.2.circlepath"
+            }
+        }
+        var label: String {
+            switch self {
+            case .servers: return String(localized: "服务器")
+            case .sessions: return String(localized: "会话")
+            case .sync: return String(localized: "同步")
+            }
+        }
+    }
 
     private var filteredHosts: [Host] {
         let sshHosts = model.hosts
@@ -32,28 +52,37 @@ struct Sidebar: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("连接空间")
                         .font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.textBright)
-                    Text("\(model.hosts.count) 台主机")
+                    Text(segmentSubtitle)
                         .font(.system(size: 10)).foregroundStyle(Pal.overlay)
                 }
                 Spacer()
-                Button { model.showAddHost = true } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.mauve)
-                        .frame(width: 28, height: 28)
-                        .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+                segmentSwitcher
+                if segment == .servers {
+                    Button { model.showAddHost = true } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.mauve)
+                            .frame(width: 28, height: 28)
+                            .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+                    }
+                    .buttonStyle(.plain).pointerCursor().help(String(localized: "添加主机"))
                 }
-                .buttonStyle(.plain).pointerCursor().help(String(localized: "添加主机"))
             }
             .padding(.horizontal, 16)
             .padding(.top, 18)
             .padding(.bottom, 16)
 
-            searchBox()
-
-            if filteredHosts.isEmpty {
-                hostEmptyState
-            } else {
-                ScrollView { hostList }.padding(.top, 6)
+            switch segment {
+            case .servers:
+                searchBox()
+                if filteredHosts.isEmpty {
+                    hostEmptyState
+                } else {
+                    ScrollView { hostList }.padding(.top, 6)
+                }
+            case .sessions:
+                sessionsList
+            case .sync:
+                SyncPanel(model: model)
             }
 
             Rectangle().fill(Pal.border).frame(height: 1)
@@ -65,6 +94,103 @@ struct Sidebar: View {
         .background(Pal.mantle)
         .clipped()
         .onChange(of: tabs.activeTabId) { _ in searchFocused = false }
+    }
+
+    /// 头部右侧的三段切换（图标 + tooltip，宽度受限不摆文字标签）。
+    private var segmentSwitcher: some View {
+        HStack(spacing: 2) {
+            ForEach(SidebarSegment.allCases, id: \.self) { seg in
+                Button { segment = seg } label: {
+                    Image(systemName: seg.symbol)
+                        .font(.system(size: 11))
+                        .foregroundStyle(segment == seg ? Pal.mauve : Pal.overlay)
+                        .frame(width: 26, height: 24)
+                        .background(segment == seg ? Pal.mauve.opacity(0.14) : Color.clear,
+                                    in: RoundedRectangle(cornerRadius: 6))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).pointerCursor().help(seg.label)
+            }
+        }
+        .padding(2)
+        .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var segmentSubtitle: String {
+        switch segment {
+        case .servers: return String(localized: "\(model.hosts.count) 台主机")
+        case .sessions: return String(localized: "\(sshTabs.count) 个 SSH 会话")
+        case .sync: return String(localized: "跨设备同步")
+        }
+    }
+
+    /// 当前全部 SSH 会话 = 打开中的 SSH 终端标签（排除本地终端与概览/文件页）。
+    private var sshTabs: [TabItem] {
+        model.tabs.filter { $0.kind == .terminal && $0.hostId != nil }
+    }
+
+    private var sessionsList: some View {
+        Group {
+            if sshTabs.isEmpty {
+                VStack(spacing: 10) {
+                    Spacer().frame(height: 40)
+                    Image(systemName: "terminal").font(.system(size: 26)).foregroundStyle(Pal.overlay)
+                    Text("还没有 SSH 会话").font(.system(size: 13)).foregroundStyle(Pal.subtext)
+                    Text("打开一台主机的终端后会出现在这里")
+                        .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 12)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(sshTabs) { tab in
+                            sessionRow(tab)
+                        }
+                    }
+                    .padding(.horizontal, 8).padding(.top, 6)
+                }
+            }
+        }
+    }
+
+    /// 单个 SSH 会话行：终端图标 + 标签标题 + 主机名 + 连接状态点；点击切换到该标签。
+    private func sessionRow(_ tab: TabItem) -> some View {
+        let isActive = model.activeTabId == tab.id
+        let hostName = model.host(tab.hostId)?.name ?? ""
+        // 连接状态：live 绿 / dropped 黄 / 无记录灰
+        let phase = model.terminalConn(for: tab.id)?.phase
+        let statusColor: Color = phase == .live ? Pal.green : (phase == .dropped ? Pal.yellow : Pal.overlay)
+        return Button {
+            model.activeTabId = tab.id
+        } label: {
+            HStack(spacing: 9) {
+                Image(systemName: "terminal")
+                    .font(.system(size: 12)).foregroundStyle(Pal.mauve)
+                    .frame(width: 22, height: 22)
+                    .background(Pal.mauve.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(tab.title).font(.system(size: 13)).foregroundStyle(Pal.text)
+                        .lineLimit(1).truncationMode(.middle)
+                    if !hostName.isEmpty {
+                        Text(hostName).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                            .lineLimit(1).privacyBlur(model.privacyMode)
+                    }
+                }
+                Spacer()
+                Circle().fill(statusColor).frame(width: 7, height: 7)
+                    .help(phase == .live ? "已连接" : (phase == .dropped ? "断线" : "未连接"))
+            }
+            .padding(.horizontal, 8).padding(.vertical, 9)
+            .background(isActive ? Pal.mauve.opacity(0.12) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 9))
+            .overlay(
+                RoundedRectangle(cornerRadius: 9).stroke(isActive ? Pal.mauve.opacity(0.24) : Color.clear, lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).pointerCursor()
     }
 
     private var syncNavigation: some View {
