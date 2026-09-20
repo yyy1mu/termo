@@ -111,22 +111,17 @@ final class AIChatState: ObservableObject {
         return out
     }
 
-    /// 批准后立即插入"执行中"占位（用户马上能看到动作发生）。
-    @discardableResult
-    func beginExec(command: String, host: String) -> UUID {
-        let m = AIMessage(role: .exec, content: "", exitCode: nil,
-                          execCommand: command, execHost: host, running: true)
-        messages.append(m)
-        return m.id
+    /// 命令已输入当前终端（回车执行）后的回显消息：exitCode 保持 nil（输出在终端里）。
+    func noteTerminalExec(command: String, host: String) {
+        messages.append(AIMessage(role: .exec, content: "",
+                                  execCommand: command, execHost: host))
     }
 
-    /// 执行完成：按 id 原地更新占位消息为结果（输出超长截断）。
-    func finishExec(id: UUID, exitCode: Int32, stdout: String, stderr: String) {
-        guard let idx = messages.firstIndex(where: { $0.id == id }) else { return }
-        messages[idx].running = false
-        messages[idx].exitCode = exitCode
-        messages[idx].stdout = String(stdout.prefix(4000))
-        messages[idx].stderr = String(stderr.prefix(2000))
+    /// 把当前终端最近输出连同已执行命令回发给 AI（对话续写）。
+    func forwardTerminalOutput(model: AppModel, command: String) {
+        let tail = model.terminalTailText(lines: 40) ?? ""
+        input = "命令「\(command)」已在当前终端执行。终端最近输出：\n\(tail)\n请基于以上输出继续。"
+        send(model: model)
     }
 
     /// 把最近一条 exec 结果连同原命令回发给 AI（对话续写：让 AI 看执行输出再决策）。

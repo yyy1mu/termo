@@ -367,7 +367,8 @@ final class AppModel: ObservableObject {
             snippetNotice = String(localized: "请先打开并切到一个终端，再运行片段。")
             return
         }
-        let line = run ? text + "\n" : text
+        // run=末行自动回车；先归一化掉命令自带的尾部换行，保证恰好补一个 \n（防双回车空行）
+        let line = run ? text.trimmingCharacters(in: .newlines) + "\n" : text
         // SSH 终端经引擎驱动注入；本地终端走 LocalProcessTerminalView 自身。
         if let driver = termDrivers[id] { driver.sendText(line) } else { tv.send(txt: line) }
     }
@@ -1326,17 +1327,10 @@ final class AppModel: ObservableObject {
     func approveAIExecution() {
         guard let req = pendingAIExecution else { return }
         pendingAIExecution = nil
-        let cmd = req.command
-        let ssh = req.host.ssh ?? SSHConnection()
-        let hostName = req.host.name
-        // 批准即占位"执行中"——命令经会话池在后台跑，最长等 timeout；期间面板有明确反馈
-        let mid = AIChatState.shared.beginExec(command: cmd, host: hostName)
-        Task {
-            let r = await RemoteFS(ssh).run(cmd, timeout: 60)
-            let out = String(decoding: r.data, as: UTF8.self)
-            let err = String(decoding: r.stderr, as: UTF8.self)
-            await AIChatState.shared.finishExec(id: mid, exitCode: r.code, stdout: out, stderr: err)
-        }
+        // 批准后把完整命令输入到当前终端（末行自动回车）：执行过程对用户完全可见，
+        // 复用现有会话，不做任何隐性后台连接。输出由用户决定是否回发给 AI。
+        deliverSnippetPublic(req.command, run: true)
+        AIChatState.shared.noteTerminalExec(command: req.command, host: req.host?.name ?? String(localized: "本地终端"))
     }
 
     /// 拒绝执行：仅关闭弹窗，不动 AI 会话（命令卡片仍可复制/插入终端）。

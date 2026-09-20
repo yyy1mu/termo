@@ -126,10 +126,7 @@ struct AIPanel: View {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(cmd, forType: .string)
                 }
-                miniAction("arrow.right.to.line", String(localized: "插入终端")) {
-                    insertIntoTerminal(cmd)
-                }
-                miniAction("play.circle", String(localized: "请求执行"), accent: Pal.green) {
+                miniAction("play.circle", String(localized: "在终端执行"), accent: Pal.green) {
                     requestExecute(cmd)
                 }
             }
@@ -175,7 +172,10 @@ struct AIPanel: View {
             let out = msg.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             let err = msg.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             if msg.running {
-                Text("正在主机上执行，完成后自动显示结果…")
+                Text("正在执行…")
+                    .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+            } else if out.isEmpty && err.isEmpty {
+                Text("已输入当前终端并回车执行，输出见终端。")
                     .font(.system(size: 11)).foregroundStyle(Pal.overlay)
             } else if !out.isEmpty {
                 Text(out)
@@ -192,8 +192,8 @@ struct AIPanel: View {
             if out.isEmpty && err.isEmpty {
                 Text("（无输出）").font(.system(size: 11)).foregroundStyle(Pal.overlay)
             }
-            miniAction("arrow.turn.up.right", String(localized: "把结果回发给 AI"), accent: Pal.mauve) {
-                chat.forwardLastExecResult(model: model)
+            miniAction("arrow.turn.up.right", String(localized: "把终端输出发给 AI"), accent: Pal.mauve) {
+                chat.forwardTerminalOutput(model: model, command: msg.execCommand)
             }
         }
         .padding(.horizontal, 11).padding(.vertical, 8)
@@ -244,21 +244,13 @@ struct AIPanel: View {
 
     // MARK: 动作
 
-    private func insertIntoTerminal(_ cmd: String) {
-        // 走既有片段注入（不加回车——与「插入」语义一致：用户确认后自己回车）。
-        guard model.snippetTargetTabIdPublic() != nil else {
-            chat.errorText = String(localized: "请先打开并切到一个终端，再插入命令。")
-            return
-        }
-        model.deliverSnippetPublic(cmd, run: false)
-    }
-
+    /// 请求执行：命令将输入到**当前终端**（确认弹窗批准后，末行自动回车）。
     private func requestExecute(_ cmd: String) {
-        guard let host = model.companionHost() else {
-            chat.errorText = String(localized: "请先选中一台 SSH 主机（终端/概览页），AI 命令将在其上执行。")
+        guard model.snippetTargetTabIdPublic() != nil else {
+            chat.errorText = String(localized: "请先打开并切到一个终端，命令将输入到当前终端执行。")
             return
         }
-        model.pendingAIExecution = AIExecutionRequest(command: cmd, host: host)
+        model.pendingAIExecution = AIExecutionRequest(command: cmd, host: model.companionHost())
     }
 }
 

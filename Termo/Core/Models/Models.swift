@@ -329,5 +329,6 @@ struct Host: Identifiable, Codable {
 struct AIExecutionRequest: Identifiable {
     let id = UUID()
     let command: String
-    let host: Host
+    /// nil=本地终端
+    let host: Host?
 }

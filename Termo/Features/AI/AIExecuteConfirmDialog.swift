@@ -4,7 +4,8 @@ import SwiftUI
 /// 对齐 [[ConfirmDialog]] 的卡片风格；命令以等宽字体完整展示（可复制核对）。
 struct AIExecuteConfirmDialog: View {
     let command: String
-    let host: Host
+    /// nil=本地终端
+    let host: Host?
     let onApprove: () -> Void
     let onDecline: () -> Void
     @ObservedObject private var theme = ThemeManager.shared
@@ -18,15 +19,17 @@ struct AIExecuteConfirmDialog: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles").font(.system(size: 13)).foregroundStyle(Pal.mauve)
-                    Text("AI 请求执行命令").font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.text)
+                    Text("AI 请求在当前终端执行").font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.text)
                     Spacer()
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("将在主机上执行").font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                    Text("批准后把完整命令输入当前终端并回车（多行命令逐行执行，末行自动回车）")
+                        .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                     HStack(spacing: 6) {
-                        Image(systemName: "server.rack").font(.system(size: 10)).foregroundStyle(Pal.mauve)
-                        Text("\(host.name) · \(host.ipOrHost)")
+                        Image(systemName: host == nil ? "macbook" : "server.rack")
+                            .font(.system(size: 10)).foregroundStyle(Pal.mauve)
+                        Text(host.map { "\($0.name) · \($0.ipOrHost)" } ?? String(localized: "本地终端"))
                             .font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.text)
                     }
                     Text(command)
@@ -39,7 +42,7 @@ struct AIExecuteConfirmDialog: View {
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Pal.border, lineWidth: 1))
                 }
 
-                Text("AI 生成命令可能有误，请核对后再批准。执行输出会回显到 AI 面板。")
+                Text("AI 生成命令可能有误，请核对后再批准。命令在当前终端可见执行，输出可一键回发给 AI。")
                     .font(.system(size: 10)).foregroundStyle(Pal.overlay)
                     .fixedSize(horizontal: false, vertical: true)
 
