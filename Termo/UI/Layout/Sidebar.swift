@@ -47,6 +47,14 @@ struct Sidebar: View {
         VStack(alignment: .leading, spacing: 0) {
             // 主区域负责主机导航；跨设备同步入口固定在底部全局区。
             HStack(spacing: 8) {
+                // 添加主机按钮放最前（用户习惯从左起操作）
+                Button { model.showAddHost = true } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.mauve)
+                        .frame(width: 28, height: 28)
+                        .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+                }
+                .buttonStyle(.plain).pointerCursor().help(String(localized: "添加主机"))
                 VStack(alignment: .leading, spacing: 3) {
                     Text("连接空间")
                         .font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.textBright)
@@ -55,15 +63,6 @@ struct Sidebar: View {
                 }
                 Spacer()
                 segmentSwitcher
-                if segment == .servers {
-                    Button { model.showAddHost = true } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.mauve)
-                            .frame(width: 28, height: 28)
-                            .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
-                    }
-                    .buttonStyle(.plain).pointerCursor().help(String(localized: "添加主机"))
-                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 18)
