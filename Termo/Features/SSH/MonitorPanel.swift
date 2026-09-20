@@ -25,12 +25,7 @@ struct MonitorPanel: View {
     @ViewBuilder
     private var content: some View {
         if let m = monitor.metrics {
-            // 自适应并排：面板够宽（≥~430pt）CPU/内存同一行两列，窄面板自动上下堆叠
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 10)],
-                      alignment: .leading, spacing: 10) {
-                cpuSection(m)
-                memorySection(m)
-            }
+            computeSection(m)
             if !m.gpus.isEmpty { gpuSection(m.gpus) }
             if !m.disks.isEmpty { diskSection(m.disks) }
             networkSection(m)
@@ -49,18 +44,28 @@ struct MonitorPanel: View {
 
     // MARK: 各区
 
-    private func cpuSection(_ m: HostMetrics) -> some View {
-        section("cpu", String(localized: "处理器核心负载")) {
+    /// 处理器与内存合并单卡：CPU/内存/交换同规格圆环并排（消除两卡高矮不一与空白），
+    /// 每核热力图横贯卡内全宽，负载值右对齐。
+    private func computeSection(_ m: HostMetrics) -> some View {
+        section("cpu", String(localized: "处理器与内存")) {
             card {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        num(m.cpuPercent.map { String(format: "%.1f%%", $0) } ?? "—",
-                            size: 17, weight: .bold, color: Pal.textBright)
-                        if !m.perCore.isEmpty {
-                            Text("\(m.perCore.count) 核").font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                    HStack(spacing: 20) {
+                        ringCell(name: "CPU", percent: m.cpuPercent ?? 0,
+                                 detail: m.perCore.isEmpty ? "—" : "\(m.perCore.count) 核",
+                                 color: Self.green)
+                        ringCell(name: String(localized: "内存"),
+                                 percent: m.memTotalKB > 0 ? m.memPercent : 0,
+                                 detail: "\(human(m.memUsedKB))/\(human(m.memTotalKB))",
+                                 color: Self.blue)
+                        if m.hasSwap {
+                            ringCell(name: String(localized: "交换"), percent: m.swapPercent,
+                                     detail: "\(human(m.swapUsedKB))/\(human(m.swapTotalKB))",
+                                     color: Self.purple)
                         }
-                        Spacer()
-                        plainNum(String(format: String(localized: "负载 %.2f / %.2f / %.2f"), m.load1, m.load5, m.load15),
+                        Spacer(minLength: 0)
+                        plainNum(String(format: String(localized: "负载 %.2f / %.2f / %.2f"),
+                                        m.load1, m.load5, m.load15),
                                  size: 10, design: .monospaced, color: Pal.overlay)
                             .lineLimit(1)
                     }
@@ -99,22 +104,6 @@ struct MonitorPanel: View {
         return theme.isDark
             ? Color(hue: hue, saturation: 0.58, brightness: 0.76)
             : Color(hue: hue, saturation: 0.78, brightness: 0.66)
-    }
-
-    private func memorySection(_ m: HostMetrics) -> some View {
-        section("memorychip", String(localized: "内存")) {
-            card {
-                HStack(spacing: 20) {
-                    ringCell(name: String(localized: "内存"), percent: m.memTotalKB > 0 ? m.memPercent : 0,
-                             detail: "\(human(m.memUsedKB))/\(human(m.memTotalKB))", color: Self.blue)
-                    if m.hasSwap {
-                        ringCell(name: String(localized: "交换"), percent: m.swapPercent,
-                                 detail: "\(human(m.swapUsedKB))/\(human(m.swapTotalKB))", color: Self.purple)
-                    }
-                    Spacer(minLength: 0)
-                }
-            }
-        }
     }
 
     private func diskSection(_ disks: [DiskUsage]) -> some View {
