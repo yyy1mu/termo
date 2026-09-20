@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupMainMenu()
         _ = OSLogo.fontName   // 预注册随包发行版 Logo 字体(Font Logos)
         _ = AppModel.shared   // 提前建好单例，使托盘/退出流程在窗口之外也能访问后台任务
+        AppLockManager.shared.startIdleWatching()   // 空闲自动锁监听（⌘L 与超时锁定共用状态）
         Notifier.requestAuthIfNeeded()   // 申请系统通知权限（上传/下载完成提醒）
         tray = TrayController(onShow: { [weak self] in self?.showMainWindow() },
                               onQuit: { [weak self] in self?.forceQuit() })
@@ -191,6 +192,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         about.target = self
         appMenu.addItem(about)
         appMenu.addItem(.separator())
+        // 锁定 Termo（⌘L）：立即进入锁定屏（需已在设置 → 安全 启用启动锁）
+        let lockItem = NSMenuItem(title: String(localized: "锁定 Termo"), action: #selector(lockApp), keyEquivalent: "l")
+        lockItem.target = self
+        lockItem.keyEquivalentModifierMask = .command
+        appMenu.addItem(lockItem)
+        appMenu.addItem(.separator())
         let quit = NSMenuItem(title: String(localized: "退出 Termo"), action: #selector(requestQuit), keyEquivalent: "q")
         quit.target = self   // 经退出流程检查后台任务，而非直接 terminate
         appMenu.addItem(quit)
@@ -220,6 +227,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.mainMenu = main
     }
 
+
+    /// ⌘L 菜单动作：立即锁定（未启用启动锁时为无操作）。
+    @objc private func lockApp() {
+        AppLockManager.shared.lock()
+    }
 
     @objc private func showAbout() {
         if aboutWindow == nil {

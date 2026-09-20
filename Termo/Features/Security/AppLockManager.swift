@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import LocalAuthentication
 import CryptoKit
@@ -59,7 +60,52 @@ final class AppLockManager: ObservableObject {
     }
 
     /// 解锁（锁定屏/触摸成功后调用）。
-    func unlock() { isLocked = false }
+    func unlock() {
+        isLocked = false
+        lastActivity = Date()   // 解锁后重新计空闲
+    }
+
+    // MARK: - 立即锁定 / 空闲自动锁
+
+    /// 空闲自动锁定时长（分钟），默认 5。设置 → 安全 可调。
+    var idleMinutes: Int {
+        get { d.object(forKey: "applock.idleMinutes") as? Int ?? 5 }
+        set { d.set(newValue, forKey: "applock.idleMinutes") }
+    }
+
+    private var activityMonitor: Any?
+    private var idleTimer: Timer?
+    /// 最近一次本 App 内的键鼠活动时间（本地事件监听，只算用户真正在用 Termo）。
+    private var lastActivity = Date()
+
+    /// 启动活动监听（AppDelegate 启动时调一次）：键鼠活动刷新时间戳 + 周期检查空闲超时。
+    func startIdleWatching() {
+        guard activityMonitor == nil else { return }
+        activityMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.keyDown, .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel, .mouseMoved]
+        ) { [weak self] ev in
+            self?.lastActivity = Date()
+            return ev
+        }
+        idleTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            self?.checkIdleLock()
+        }
+    }
+
+    private func checkIdleLock() {
+        guard isEnabled, hasPin, !isLocked else { return }
+        if Date().timeIntervalSince(lastActivity) >= TimeInterval(idleMinutes * 60) {
+            lock()
+        }
+    }
+
+    /// 立即锁定（⌘L 菜单与空闲超时共用）。
+    /// 未启用启动锁/未设锁定码时无操作——避免把没设码的用户锁死在锁定屏。
+    func lock() {
+        guard isEnabled, hasPin, !isLocked else { return }
+        lastActivity = Date()
+        isLocked = true
+    }
 
     /// Touch ID 解锁：仅生物识别策略——系统密码策略会绕过我们的锁定码，故不用 .deviceOwnerAuthentication。
     @MainActor

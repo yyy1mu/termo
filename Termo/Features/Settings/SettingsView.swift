@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @State private var appLockOn = false
     @State private var showPinSetup = false
+    @State private var idleMinutes = 5
     @ObservedObject var model: AppModel
     @ObservedObject private var theme = ThemeManager.shared
     @ObservedObject private var settings = AppSettings.shared
@@ -286,12 +287,26 @@ struct SettingsView: View {
                 .buttonStyle(.plain).pointerCursor()
             }
 
-            Text(String(localized: "Touch ID 在锁定屏自动弹出；失败或取消后可点「使用 Touch ID 解锁」重试。"))
+            settingRow(String(localized: "自动锁定"), description: String(localized: "无操作达到该时长后自动锁定，需 Touch ID 或锁定码解锁")) {
+                Picker("", selection: $idleMinutes) {
+                    ForEach([1, 5, 15, 30], id: \.self) { m in
+                        Text("\(m) 分钟").tag(m).font(.system(size: 12))
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 110)
+                .onChange(of: idleMinutes) { AppLockManager.shared.idleMinutes = $0 }
+            }
+
+            Text(String(localized: "快捷键 ⌘L 可随时手动锁定；Touch ID 在锁定屏自动弹出，失败或取消后可点「使用 Touch ID 解锁」重试。"))
                 .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .sheet(isPresented: $showPinSetup) { AppLockSetupSheet() }
-        .onAppear { appLockOn = AppLockManager.shared.isEnabled }
+        .onAppear {
+            appLockOn = AppLockManager.shared.isEnabled
+            idleMinutes = AppLockManager.shared.idleMinutes
+        }
     }
 
     private func chooseDownloadDir() {
