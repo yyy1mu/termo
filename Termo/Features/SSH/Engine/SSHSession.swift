@@ -30,13 +30,15 @@ final class SSHSession: @unchecked Sendable {
 
     /// 连接 + 握手 + 认证（同步，务必后台调用）。keyPath 非空走公钥认证。
     /// 握手后认证前对照 known_hosts 校验主机密钥：仅明确不匹配（疑似 MITM）才抛错拒绝；未知主机放行。
+    /// known_hosts 路径显式传参（默认值即 HostKeyVerifier 的全局两份文件），消除对全局单例的隐式依赖——
+    /// russh FFI 侧本就按参数传递，此处对齐后引擎层不再需要任何 Swift 全局状态。
     static func connect(host: String, port: Int, user: String,
-                        password: String?, keyPath: String?, keyPassphrase: String?) throws -> SSHSession {
+                        password: String?, keyPath: String?, keyPassphrase: String?,
+                        realKnownHosts: String = HostKeyVerifier.realKnownHosts,
+                        sessionKnownHosts: String = HostKeyVerifier.sessionKnownHosts) throws -> SSHSession {
         var err = [CChar](repeating: 0, count: 256)
-        let real = HostKeyVerifier.realKnownHosts
-        let session = HostKeyVerifier.sessionKnownHosts
         guard let h = termo_ssh_open(host, Int32(port), user, password, keyPath, keyPassphrase,
-                                     real, session, &err, 256) else {
+                                     realKnownHosts, sessionKnownHosts, &err, 256) else {
             throw SSHError(message: String(cString: err))
         }
         return SSHSession(handle: h, queue: DispatchQueue(label: "termo.ssh.\(host):\(port)"))
