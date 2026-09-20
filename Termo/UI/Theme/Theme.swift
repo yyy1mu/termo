@@ -44,35 +44,37 @@ struct ThemeColors {
 extension ThemeColors {
     // 深色工作台：石墨蓝底、柔和薄荷强调色，压低大面积背景亮度。
     static let dark = ThemeColors(
-        crust: Color(hex: 0x111820),
-        mantle: Color(hex: 0x17212A),
-        base: Color(hex: 0x101920),
-        surface0: Color(hex: 0x27343E),
-        card: Color(hex: 0x1C2932),
+        // 层级微调：crust 最暗、逐档提亮；base 与 mantle 拉开半档，层级更清晰
+        crust: Color(hex: 0x0F161D),
+        mantle: Color(hex: 0x1A2530),
+        base: Color(hex: 0x141D24),
+        surface0: Color(hex: 0x2E3E4A),
+        card: Color(hex: 0x22323C),
         text: Color(hex: 0xD5E0E3),
         textBright: Color(hex: 0xF4F8F7),
-        subtext: Color(hex: 0x9AAEB2),
-        overlay: Color(hex: 0x72868D),
-        mauve: Color(hex: 0x168F80),
+        subtext: Color(hex: 0xA2B6BA),
+        overlay: Color(hex: 0x7E949B),   // 提亮：原 0x72868D 过暗难读
+        mauve: Color(hex: 0x1BA894),     // 提亮强调色：深色底上原色偏沉
         green: Color(hex: 0x68D3A1),
         yellow: Color(hex: 0xE7BD77),
         red: Color(hex: 0xF08080),
-        termBg: 0x101920, termFg: 0xD5E0E3,
+        termBg: 0x141D24, termFg: 0xD5E0E3,
         termCaret: 0x79D6C2, termSelection: 0x28584F,
-        baseHex: 0x101920
+        baseHex: 0x141D24
     )
 
     // 浅色工作台：暖白工作面、灰绿导航与深青色强调。
     static let light = ThemeColors(
-        crust: Color(hex: 0xE8F0EE),
-        mantle: Color(hex: 0xF0F5F3),
+        // 层级微调：crust/mantle 再沉半档，与近白 base 拉开；次级文字加深提高可读性
+        crust: Color(hex: 0xE3ECE9),
+        mantle: Color(hex: 0xECF2EF),
         base: Color(hex: 0xFAFCFA),
-        surface0: Color(hex: 0xDCE8E4),
+        surface0: Color(hex: 0xD5E2DD),
         card: Color(hex: 0xFFFFFF),
         text: Color(hex: 0x2D4242),
         textBright: Color(hex: 0x162C2C),
-        subtext: Color(hex: 0x607877),
-        overlay: Color(hex: 0x809693),
+        subtext: Color(hex: 0x55706F),
+        overlay: Color(hex: 0x6E8884),   // 加深：原 0x809693 在白底上发灰看不清
         mauve: Color(hex: 0x087E72),
         green: Color(hex: 0x168B62),
         yellow: Color(hex: 0xAB741D),
