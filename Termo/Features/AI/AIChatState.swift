@@ -39,8 +39,6 @@ final class AIChatState: ObservableObject {
     @Published var sending = false
     @Published var mode: ChatMode = .chat
     @Published var errorText: String? = nil
-    /// 附带当前终端最近输出作为上下文（可开关，默认开）。
-    @Published var includeTerminalContext = true
 
     private var streamTask: Task<Void, Never>?
     /// Agent 模式的延时回读任务（命令执行后自动抓终端输出发给 LLM）。
@@ -75,7 +73,8 @@ final class AIChatState: ObservableObject {
         var wire: [AIClient.ChatMessage] = [
             .init(role: "system", content: prompt),
         ]
-        if includeTerminalContext, let tail = model.terminalTailText(lines: 30), !tail.isEmpty {
+        // 终端上下文常开：附带当前终端最近输出（AI 能看到你刚执行的命令/报错）
+        if let tail = model.terminalTailText(lines: 30), !tail.isEmpty {
             wire.append(.init(role: "user", content: "【当前终端最近输出】\n```\n\(tail)\n```"))
         }
         for m in messages.suffix(13) {

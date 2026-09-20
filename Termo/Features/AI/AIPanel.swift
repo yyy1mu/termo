@@ -225,13 +225,6 @@ struct AIPanel: View {
         VStack(spacing: 0) {
             Rectangle().fill(Pal.border).frame(height: 1)
             HStack(alignment: .bottom, spacing: 8) {
-                // 附带终端上下文开关：与发送按钮同规格（30x30 圆角图标）
-                iconBarButton(
-                    "terminal",
-                    active: chat.includeTerminalContext,
-                    help: String(localized: "附带终端上下文")
-                ) { chat.includeTerminalContext.toggle() }
-
                 ZStack(alignment: .topLeading) {
                     if chat.input.isEmpty {
                         Text(chat.mode == .chat ? "描述任务或提问…" : "描述你要解决的问题…")
