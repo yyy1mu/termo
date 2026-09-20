@@ -9,34 +9,35 @@ struct HostOverview: View {
         // 紧凑重排：正常窗口一页放完；窗口过小时 ScrollView 兜底
         // （整体缩放方案会让小字小到不可读——已废弃）。
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text("主机工作台")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .tracking(1.4)
                             .foregroundStyle(Pal.mauve)
-                        HStack(spacing: 12) {
+                        // 名称/状态/地址/延迟并一行：省一整行高度
+                        HStack(spacing: 10) {
                             Text(liveHost.name)
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(.system(size: 18, weight: .semibold))
                                 .foregroundStyle(Pal.textBright)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
                             statusBadge
-                        }
-                        HStack(spacing: 10) {
-                            Image(systemName: "network")
-                            Text("\(liveHost.ipOrHost):\(liveHost.ssh?.port ?? 22)")
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .privacyBlur(model.privacyMode)
-                            if liveHost.status == .online, let ms = liveHost.latencyMs {
-                                Text("·")
-                                Text("\(ms) ms").foregroundStyle(LatencyLevel(ms: ms).color)
+                            HStack(spacing: 5) {
+                                Image(systemName: "network")
+                                Text("\(liveHost.ipOrHost):\(liveHost.ssh?.port ?? 22)")
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .privacyBlur(model.privacyMode)
+                                if liveHost.status == .online, let ms = liveHost.latencyMs {
+                                    Text("·")
+                                    Text("\(ms) ms").foregroundStyle(LatencyLevel(ms: ms).color)
+                                }
                             }
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(Pal.subtext)
                         }
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(Pal.subtext)
                     }
                     Spacer(minLength: 0)
                     overviewLogo
@@ -45,7 +46,7 @@ struct HostOverview: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     sectionHeading("快速操作", detail: "连接、传输与维护")
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 10)], spacing: 10) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 8)], spacing: 8) {
                         actionTile("terminal", "终端", detail: "打开交互会话", primary: true) {
                             model.openHostTerminal(liveHost)
                         }
@@ -66,7 +67,7 @@ struct HostOverview: View {
                 if let s = liveHost.specs, !s.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         sectionHeading("设备信息", detail: "从远端主机读取")
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 10)], spacing: 10) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 8)], spacing: 8) {
                             if !s.os.isEmpty { specCell("desktopcomputer", String(localized: "系统"), s.os) }
                             if !s.cores.isEmpty { specCell("cpu", String(localized: "核心"), "\(s.cores) 核") }
                             if !s.memory.isEmpty { specCell("memorychip", String(localized: "内存"), s.memory) }
@@ -89,7 +90,7 @@ struct HostOverview: View {
                         sectionHeading("主机备注", detail: nil)
                         infoCard {
                             Text(liveHost.notes)
-                                .font(.system(size: 12)).foregroundStyle(Pal.subtext)
+                                .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                                 .textSelection(.enabled)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -104,7 +105,7 @@ struct HostOverview: View {
                     }
                 }
             }
-            .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 20)
+            .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 18)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         // 监控只在概览可见时跑：切到此 tab 开始采集，切走（视图移出）几秒后自动停流，保持轻量。
@@ -137,7 +138,7 @@ struct HostOverview: View {
                         .font(.system(size: 17)).foregroundStyle(Pal.mauve))
             }
         }
-        .frame(width: 44, height: 44)
+        .frame(width: 40, height: 40)
     }
 
     private func sectionHeading(_ title: LocalizedStringKey, detail: LocalizedStringKey?) -> some View {
@@ -260,9 +261,9 @@ struct HostOverview: View {
                 }
             }
             .foregroundStyle(primary ? Color.white : Pal.text)
-            .padding(11)
+            .padding(.horizontal, 10).padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 68)
+            .frame(height: 56)
             .background(
                 primary ? Pal.mauve : Pal.card,
                 in: RoundedRectangle(cornerRadius: 12)
