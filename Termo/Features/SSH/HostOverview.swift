@@ -6,7 +6,8 @@ struct HostOverview: View {
     @ObservedObject private var theme = ThemeManager.shared
 
     var body: some View {
-        ScrollView {
+        // 与监控面板同一约定：一页展示不滚动——内容超出可用高度时整体等比缩小。
+        FitToHeight {
             VStack(alignment: .leading, spacing: 24) {
                 HStack(alignment: .top, spacing: 18) {
                     VStack(alignment: .leading, spacing: 12) {
