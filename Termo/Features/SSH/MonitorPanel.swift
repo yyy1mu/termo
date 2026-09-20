@@ -17,19 +17,6 @@ struct MonitorPanel: View {
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Text("监控").font(.system(size: 12)).foregroundStyle(Pal.overlay)
                 Circle().fill(monitor.phase == .live ? Self.green : Pal.overlay).frame(width: 6, height: 6)
-                if !settings.monitorNoticeHidden && !settings.monitorNoticeAckedThisSession {
-                    Text("提示：本监控仅进行数据采集与状态读取，不会在目标机器内执行或部署任何 shell 脚本。")
-                        .font(.system(size: 10)).foregroundStyle(Pal.overlay).lineLimit(2)
-                    // 窄面板（右侧栏）下提示文本折成两行；按钮放 Spacer 之后钉在右缘，
-                    // 避免跟在文本尾部、折行后悬空压在第二行文字上。
-                    Spacer(minLength: 4)
-                    Button { settings.monitorNoticeAckedThisSession = true } label: {
-                        Text("我已知晓").font(.system(size: 10, weight: .medium)).foregroundStyle(Pal.mauve)
-                    }
-                    .buttonStyle(.plain)
-                    .pointerCursor()
-                    .tooltip(String(localized: "本次启动内不再显示；如需永久关闭，请在「设置 - 通用」开启「隐藏监控提示」。"))
-                }
             }
             content
         }

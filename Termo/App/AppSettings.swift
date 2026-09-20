@@ -117,11 +117,7 @@ final class AppSettings: ObservableObject {
     }
 
     /// 永久隐藏监控面板的采集说明（在「设置 - 通用」中开启，持久化）。
-    @Published var monitorNoticeHidden: Bool {
-        didSet { d.set(monitorNoticeHidden, forKey: "monitorNoticeHidden") }
-    }
     /// 本次启动已点「我已知晓」临时收起采集说明（不持久化，重启后恢复显示）。
-    @Published var monitorNoticeAckedThisSession = false
 
     // 代码片段点击运行的行为；默认「每次询问」：首次点击弹「插入/运行」选择，可勾选记住后不再询问。
     @Published var snippetAction: SnippetAction {
@@ -146,7 +142,6 @@ final class AppSettings: ObservableObject {
         resourceAlerts = d.object(forKey: "resourceAlerts") as? Bool ?? true
         closeToTray = d.object(forKey: "closeToTray") as? Bool ?? false
         confirmHostDelete = d.object(forKey: "confirmHostDelete") as? Bool ?? true
-        monitorNoticeHidden = d.object(forKey: "monitorNoticeHidden") as? Bool ?? false
         snippetAction = SnippetAction(rawValue: d.string(forKey: "snippetAction") ?? "") ?? .ask
         appLanguage = AppLanguage(rawValue: d.string(forKey: "appLanguage") ?? "") ?? .zh
         Self.applyLanguageOverride(appLanguage)
