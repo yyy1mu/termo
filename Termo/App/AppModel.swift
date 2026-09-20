@@ -358,7 +358,7 @@ final class AppModel: ObservableObject {
             return
         }
         let line = run ? text + "\n" : text
-        // SSH 终端经 libssh2 驱动注入；本地终端走 LocalProcessTerminalView 自身。
+        // SSH 终端经引擎驱动注入；本地终端走 LocalProcessTerminalView 自身。
         if let driver = termDrivers[id] { driver.sendText(line) } else { tv.send(txt: line) }
     }
 
@@ -681,7 +681,7 @@ final class AppModel: ObservableObject {
         probingHosts.insert(host.id)
         let id = host.id
 
-        // [SSH 迁移] 进程内 libssh2（替换原来的 spawn /usr/bin/ssh）：经会话池借暖连接→exec 探测脚本→解析。
+        // [SSH 引擎] 进程内会话（替换旧 spawn /usr/bin/ssh）：经会话池借暖连接→exec 探测脚本→解析。
         // probeScript / applyProbe 完全不变，只换传输层。会话池保活连接，下次探测复用、不重复认证（替代 ControlMaster）。
         let conn = ssh
         let script = Self.probeScript
@@ -862,7 +862,7 @@ final class AppModel: ObservableObject {
     }
 
     private var terminals: [Int: LocalProcessTerminalView] = [:]
-    private var termDrivers: [Int: SSHTerminalDriver] = [:]   // SSH 终端的 libssh2 驱动（按标签）
+    private var termDrivers: [Int: SSHTerminalDriver] = [:]   // SSH 终端的引擎驱动（按标签）
     private var nextTabId = 1
     private var themeCancellable: AnyCancellable?
 
@@ -1104,7 +1104,7 @@ final class AppModel: ObservableObject {
         applyTerminalConfig(to: tv)
 
         if let ssh {
-            // SSH 终端：libssh2 驱动接管输入/输出/cwd/退出（见 startTerminalProcess），不起本地子进程。
+            // SSH 终端：引擎驱动接管输入/输出/cwd/退出（见 startTerminalProcess），不起本地子进程。
             startTerminalProcess(tv: tv, ssh: ssh, tabId: tabId, hostId: hostId)
             terminalConns[tabId] = TerminalConn()   // 仅 SSH 终端支持断线重连
         } else {
@@ -1446,7 +1446,7 @@ final class AppModel: ObservableObject {
     }
 
     /// 侧栏文件树状态（按主机缓存，活动栏「文件」用）。
-    // 文件树状态按「标签」分离（同主机的多个会话各自独立）；底层 SSH 连接仍由 ControlMaster 按主机复用。
+    // 文件树状态按「标签」分离（同主机的多个会话各自独立）；底层 SSH 连接由会话池按主机复用。
     private var fileTreeStates: [Int: FileTreeState] = [:]
     func fileTreeState(forTab tabId: Int, host: Host) -> FileTreeState {
         if let s = fileTreeStates[tabId] { return s }

@@ -1,9 +1,11 @@
 import Foundation
 
-// MARK: - 从连接配置派生 libssh2 认证参数
+// MARK: - 从连接配置派生引擎认证参数
 
 extension SSHConnection {
-    /// 把连接配置映射成 libssh2 认证三元组（与 `sshArguments` 的密钥解析口径一致）：
+    /// 把连接配置映射成引擎认证三元组（与 `sshArguments` 的密钥解析口径一致）。
+    /// 属性名 `libssh2Auth` 为历史遗留（引擎已换 russh），语义 = 「引擎认证参数」；改名波及
+    /// 多个调用点，随下次代码重构一并处理。
     /// - 密钥登录：落地库密钥(keyId)或手填路径(keyPath)，passphrase 取 password 字段；
     /// - 密码 / 每次询问：用已保存/本会话输入的 password 走密码认证。
     var libssh2Auth: (password: String?, keyPath: String?, keyPassphrase: String?) {
@@ -17,7 +19,7 @@ extension SSHConnection {
 
 // MARK: - 进程级每主机会话池
 
-/// 进程级 **每主机 libssh2 会话池**，替代旧的 OpenSSH ControlMaster。
+/// 进程级 **每主机引擎会话池**，替代旧的 OpenSSH ControlMaster。
 ///
 /// 设计要点：
 /// - **短操作**走 `withSession`：从该主机的暖连接里借一条、跑完归还。认证只在首次建连时摊销，
@@ -60,8 +62,10 @@ final class SSHSessionPool {
         }
     }
 
-    /// 手动借/还（供需要按结果决定“归还复用 vs 弃用”的调用方，如 RemoteFS.run：取消/超时过的连接须 discard，
-    /// 因其 cancel 标志已置位且通道状态可能不洁）。借 → 跑 → 正常则 `recycle`、异常/取消则 `discard`。
+    /// 手动借/还（供需要按结果决定“归还复用 vs 弃用”的调用方，如 RemoteFS.run）。
+    /// **硬约束**：exec 超时/取消/通道级错误后，russh 后端会话已粘住失效（poisoned）——
+    /// 必须 `discard` 并重建，**绝不可** `recycle`（否则下次借出必失败）。
+    /// `recycle` 内部已防御：poisoned 会话一律弃用。
     func take(_ c: SSHConnection) throws -> SSHSession { try borrow(c) }
     func recycle(_ c: SSHConnection, _ s: SSHSession) { giveBack(c, s) }
     func discard(_ s: SSHSession) { s.close() }
@@ -100,6 +104,8 @@ final class SSHSessionPool {
     }
 
     private func giveBack(_ c: SSHConnection, _ s: SSHSession) {
+        // 防御：失效会话（russh 超时/取消 poison）不可入池复用，就地关闭。
+        if s.isPoisoned { s.close(); return }
         let k = key(c)
         lock.lock()
         var list = idle[k] ?? []

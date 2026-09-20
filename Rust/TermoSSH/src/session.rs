@@ -180,6 +180,11 @@ impl RusshSession {
         })
     }
 
+    /// 会话是否已失效（超时/取消后粘住）。失效会话不可复用，应丢弃重建。
+    pub fn is_poisoned(&self) -> bool {
+        self.poisoned.load(Ordering::SeqCst) || self.cancelled.load(Ordering::SeqCst)
+    }
+
     /// 请求中止在飞 exec（可从任意线程调用；粘住：之后所有 exec 直接返回取消）。
     pub fn cancel(&self) {
         self.cancelled.store(true, Ordering::SeqCst);

@@ -1,7 +1,7 @@
 import Foundation
 
 /// 运行渠道判定（Developer ID 直发 vs Mac App Store 沙盒）。
-/// 用于按渠道隐藏本地终端、调整私钥导入方式等。详见 [[ssh-libssh2-migration]] 的两构建一套代码方案。
+/// 用于按渠道隐藏本地终端、调整私钥导入方式等。详见 [[ssh-engine-migration]] 的渠道差异化方案。
 enum AppEnv {
     /// 编译期：MAS（App Sandbox）构建。由 ReleaseMAS 配置的 `SWIFT_ACTIVE_COMPILATION_CONDITIONS=TERMO_MAS` 决定。
     static var isMAS: Bool {

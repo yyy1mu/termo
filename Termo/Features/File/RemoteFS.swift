@@ -22,7 +22,7 @@ final class UploadControl: @unchecked Sendable {
     var sent: Int64 { lock.lock(); defer { lock.unlock() }; return _sent }
 }
 
-/// 命令取消句柄：持有运行中的 libssh2 会话，cancel() 置其取消标志——exec 循环检测后中断、通道关闭。
+/// 命令取消句柄：持有运行中的引擎会话，cancel() 置其取消标志——exec 循环检测后中断、通道关闭。
 /// 用于让「正在删除」等可能较慢的命令支持用户中途取消。线程安全。
 final class CommandHandle: @unchecked Sendable {
     private let lock = NSLock()
@@ -372,7 +372,7 @@ final class RemoteFS {
     private func uploadViaShell(localURL: URL, toRemote remotePath: String,
                 startOffset: Int64,
                 control: UploadControl) async -> UploadOutcome {
-        // [SSH 迁移] 进程内 libssh2 流式上传（替代 spawn ssh + cat）：独占连接，pull 回调把本地文件分片喂入
+        // [SSH 引擎] 进程内流式上传（替代 spawn ssh + cat）：独占连接，pull 回调把本地文件分片喂入
         // 远端 `cat >`，支持暂停/取消（保留 .part 续传）。
         let b64 = Data(remotePath.utf8).base64EncodedString()
         let redir = startOffset > 0 ? ">>" : ">"
@@ -718,7 +718,7 @@ final class RemoteFS {
     }
 
     /// 断开该主机的 ControlMaster 复用主连接（文件浏览的底层连接）。
-    /// 关闭该主机在 libssh2 会话池中的空闲暖连接（替代旧 ControlMaster 的 `ssh -O exit`）：
+    /// 关闭该主机在会话池中的空闲暖连接（替代旧 ControlMaster 的 `ssh -O exit`）：
     /// 主机已无任何标签 / 网络切换时调用，及时释放复用连接、回收 socket 与远端进程。
     /// 只关池内空闲连接；借出中（run 进行中）的不受影响。SFTP 用各实例自己的 dedicated 连接，另由 shutdown 回收。
     func closeMaster() {

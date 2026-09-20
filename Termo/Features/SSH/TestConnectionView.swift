@@ -343,7 +343,7 @@ final class ConnectionTester: ObservableObject {
         markSuccess(0)
         markRunning(1)
 
-        // [SSH 迁移] 进程内 libssh2 分阶段测试（替代 spawn ssh -v）：连接由 App 进程发起，
+        // [SSH 引擎] 进程内分阶段测试（替代 spawn ssh -v）：连接由 App 进程发起，
         // 触发 macOS 本地网络权限弹窗，且内网主机不再因子进程发起连接而被静默拦截。
         let isKey = conn.authMethod == .key
         let keyPath: String? = isKey
@@ -367,11 +367,11 @@ final class ConnectionTester: ObservableObject {
     }
 
     func cancel() {
-        cancelled = true   // 后台 libssh2 测试会在超时后自行结束；这里停止后续 UI 更新
+        cancelled = true   // 后台引擎测试会在超时后自行结束；这里停止后续 UI 更新
         isRunning = false
     }
 
-    /// libssh2 分阶段回调（C stage 1..5 ↔ UI 步骤 1..5）。
+    /// 引擎分阶段回调（C stage 1..5 ↔ UI 步骤 1..5）。
     private func onStage(stage: Int, ok: Bool, message: String?) {
         guard isRunning, !cancelled, stage >= 1, stage < steps.count else { return }
         if let message, !message.isEmpty { log(message, color: ok ? Pal.subtext : Pal.red) }

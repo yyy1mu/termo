@@ -49,7 +49,7 @@ final class HostMonitor: ObservableObject {
     var onSample: ((HostMetrics) -> Void)?
 
     private var ssh: SSHConnection
-    private var session: SSHSession?     // [SSH 迁移] libssh2 进程内会话（替代 spawn /usr/bin/ssh）
+    private var session: SSHSession?     // [SSH 引擎] 进程内独占会话（替代旧 spawn /usr/bin/ssh）
     private var launchGen = 0            // 每次 launch 自增；旧连接的回调据此失效（替代 Process 的 terminationHandler=nil）
     private var buffer = Data()
     private var running = false            // 期望运行中；意外退出时据此决定是否重连

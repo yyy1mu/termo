@@ -229,6 +229,16 @@ pub unsafe extern "C" fn termo_russh_session_cancel(s: *mut RusshSession) {
     }
 }
 
+/// 会话是否已失效（超时/取消后粘住）。失效会话不可归还会话池复用，
+/// 调用方（Swift 侧 RemoteFS/会话池）应 close 并重建。
+///
+/// # Safety
+/// s 可为 NULL（返回 false）。
+#[no_mangle]
+pub unsafe extern "C" fn termo_russh_session_is_poisoned(s: *mut RusshSession) -> bool {
+    !s.is_null() && (*s).is_poisoned()
+}
+
 /// 主机指纹（"SHA256:…"）。指向会话内部缓冲，close 后失效；无则返回空串。
 ///
 /// # Safety

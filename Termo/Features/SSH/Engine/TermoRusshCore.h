@@ -9,6 +9,8 @@
 #ifndef TERMO_RUSSH_CORE_H
 #define TERMO_RUSSH_CORE_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -38,6 +40,8 @@ TermoRusshSession *termo_russh_session_open(const char *host, int port,
                                             char *fingerprint_out, int fingerprint_cap,
                                             int timeout_ms, char *err, int errlen);
 void termo_russh_session_cancel(TermoRusshSession *s);
+/// 会话是否已失效（超时/取消后粘住）。失效会话不可归还复用，应 close 重建。
+bool termo_russh_session_is_poisoned(TermoRusshSession *s);
 void termo_russh_session_close(TermoRusshSession *s);
 const char *termo_russh_session_sha256(TermoRusshSession *s);
 const char *termo_russh_session_md5(TermoRusshSession *s);

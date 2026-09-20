@@ -1,7 +1,9 @@
 import Foundation
 
-/// 一条已认证的进程内 SSH 连接（libssh2）。其上可反复 exec（后续扩展 SFTP/PTY/转发）。
-/// libssh2 单会话非线程安全：本类用一个**串行队列**序列化对底层句柄的所有调用。
+/// 一条已认证的进程内 SSH 连接（russh 引擎）。其上可反复 exec（SFTP/PTY/转发）。
+/// 线程安全语义：russh 的 Handle 本身支持并发开通道/写入，但取消标志与部分 FFI 状态
+/// 按「单写者」设计——本类仍用**串行队列**序列化所有调用，作为对两种后端语义都成立
+/// 的防御性保证（libssh2 时代的历史约束，保留使后端可回退）。
 /// 阻塞式：connect/exec 都同步、会阻塞调用线程，务必在后台队列使用。
 final class SSHSession: @unchecked Sendable {
     struct SSHError: LocalizedError {
@@ -127,6 +129,13 @@ final class SSHSession: @unchecked Sendable {
     /// 打断正在跑的流（仅置 C 层 volatile 标志，可从任意线程调用，不走串行队列以免与阻塞中的流死锁）。
     func cancel() {
         if let h = handle { termo_ssh_cancel(h) }
+    }
+
+    /// 会话是否已失效（russh 后端：超时/取消即粘住 poison）。
+    /// 失效会话**不可归还会话池**——下次借出必失败；调用方（如 RemoteFS.run）应 `pool.discard` 并重建。
+    var isPoisoned: Bool {
+        guard let h = handle else { return true }   // 已关闭视为失效
+        return termo_russh_session_is_poisoned(h)
     }
 
     /// 底层 TermoSSHSession* 句柄，供 SFTP C 调用使用。仅在持有方自己的串行队列上读用（SFTP 用独占会话）。

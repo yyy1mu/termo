@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - SFTP 类型（公开给 RemoteFS）
 
-/// open pflags（与 libssh2 LIBSSH2_FXF_* 同值，直接透传）。
+/// open pflags（SFTP 协议 SSH_FXF_* 线上值，直接透传给引擎）。
 enum SFTPFlag {
     static let READ: UInt32 = 0x1, WRITE: UInt32 = 0x2, APPEND: UInt32 = 0x4
     static let CREAT: UInt32 = 0x8, TRUNC: UInt32 = 0x10
@@ -40,11 +40,11 @@ struct SFTPAttrs {
     }
 }
 
-// MARK: - SFTP 会话（一个 host 一条 dedicated libssh2 连接 + SFTP 子系统，串行请求）
+// MARK: - SFTP 会话（一个 host 一条 dedicated 引擎连接 + SFTP 子系统，串行请求）
 
-/// 基于 libssh2 的 SFTP 会话：懒建一条**独占** SSHSession（不入池——长驻、与短 exec 操作并发互不阻塞），
-/// 在其上初始化 SFTP 子系统。libssh2 单会话非线程安全 → 所有调用经一条串行队列序列化；公开方法 async，
-/// 内部把阻塞的 libssh2 调用派到串行队列、用 continuation 桥接，不阻塞调用方执行器。
+/// 基于 russh 引擎的 SFTP 会话：懒建一条**独占** SSHSession（不入池——长驻、与短 exec 操作并发互不阻塞），
+/// 在其上初始化 SFTP 子系统。调用统一经一条串行队列序列化（防御性设计：对池/独占两种后端语义都安全）；
+/// 公开方法 async，内部把阻塞调用派到串行队列、用 continuation 桥接，不阻塞调用方执行器。
 /// 句柄对外是不透明 8 字节 `Data`（内部 id → 指针映射，避免上层持野指针）。
 final class SFTPSession: @unchecked Sendable {
     private let ssh: SSHConnection
@@ -55,14 +55,14 @@ final class SFTPSession: @unchecked Sendable {
     private var handles: [UInt64: UnsafeMutableRawPointer] = [:]
     private var nextId: UInt64 = 1
 
-    /// libssh2 经 rename_ex(NATIVE) 支持 posix-rename 原子覆盖；不支持的服务器在 posixRename 内回退。
+    /// 引擎适配层经 posix-rename@openssh.com 扩展支持原子覆盖；不支持的服务器在 posixRename 内回退。
     let supportsPosixRename = true
 
     init(_ ssh: SSHConnection) { self.ssh = ssh }
 
     // MARK: 串行执行
 
-    /// 在串行队列上同步跑 block（保证 libssh2 单会话串行），async 包装不阻塞调用方。
+    /// 在串行队列上同步跑 block（保证会话内调用串行），async 包装不阻塞调用方。
     private func perform<T>(_ block: @escaping () -> T) async -> T {
         await withCheckedContinuation { (c: CheckedContinuation<T, Never>) in
             queue.async { c.resume(returning: block()) }

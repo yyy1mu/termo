@@ -12,7 +12,7 @@ struct HostKeyInfo {
 
 enum HostKeyDecision { case cancel, once, save }
 
-/// 基于 libssh2 的主机密钥验证（替代旧的 ssh-keyscan / ssh-keygen 子进程）。
+/// 基于 SSH 引擎的主机密钥验证（替代旧的 ssh-keyscan / ssh-keygen 子进程）。
 /// known_hosts 用「真实文件 + 本次会话临时文件」两份：信任并保存写真实文件，仅本次写临时文件（重启即失效）。
 /// 实际连接的 MITM 强制由 `SSHSession.connect`（termo_ssh_open 认证前查 known_hosts、不匹配即拒）保证；
 /// 本类负责连接前的「首次未知/已变更」交互式确认。

@@ -80,9 +80,9 @@ struct ForwardRule: Identifiable, Codable, Hashable {
     }
 }
 
-/// 进程级登记表：记录所有存活的 libssh2 转发隧道的关闭动作，供 App 退出时统一清理（释放 -R 的服务器端监听）。
+/// 进程级登记表：记录所有存活的转发隧道关闭动作，供 App 退出时统一清理（释放 -R 的服务器端监听）。
 /// 用锁保护，可在任意线程（含退出通知的同步回调）安全调用，规避 MainActor 隔离与 macOS 14 才有的 assumeIsolated。
-/// 注：libssh2 转发是进程内线程+socket，随进程死亡自动回收；本表主要做优雅收尾。
+/// 注：转发隧道是进程内任务+socket，随进程死亡自动回收；本表主要做优雅收尾。
 final class ForwardProcessRegistry: @unchecked Sendable {
     static let shared = ForwardProcessRegistry()
     private let lock = NSLock()
@@ -115,7 +115,7 @@ final class ForwardManager: ObservableObject {
 
     private let ssh: SSHConnection
     @Published private(set) var statuses: [UUID: RuleStatus] = [:]
-    // [SSH 迁移] 每条隧道 = 一条 dedicated libssh2 会话 + 一个 C 层 pump（TermoSSHForward*）。
+    // [SSH 引擎] 每条隧道 = 一条 dedicated 引擎会话 + 一个 C 层 pump（TermoSSHForward*）。
     private var sessions: [UUID: SSHSession] = [:]
     private var forwards: [UUID: OpaquePointer] = [:]        // TermoSSHForward*
     private var boxes: [UUID: UnsafeMutableRawPointer] = [:] // on_state 回调载体（StateBox 经 Unmanaged）
