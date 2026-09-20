@@ -113,13 +113,14 @@ struct MonitorPanel: View {
     private func memorySection(_ m: HostMetrics) -> some View {
         section("memorychip", String(localized: "内存")) {
             card {
-                VStack(spacing: 8) {
-                    usageRow(name: String(localized: "内存"), percent: m.memTotalKB > 0 ? m.memPercent : 0,
-                             left: "\(human(m.memUsedKB)) / \(human(m.memTotalKB))", right: "RAM", color: Self.blue)
+                HStack(spacing: 20) {
+                    ringCell(name: String(localized: "内存"), percent: m.memTotalKB > 0 ? m.memPercent : 0,
+                             detail: "\(human(m.memUsedKB))/\(human(m.memTotalKB))", color: Self.blue)
                     if m.hasSwap {
-                        usageRow(name: String(localized: "交换"), percent: m.swapPercent,
-                                 left: "\(human(m.swapUsedKB)) / \(human(m.swapTotalKB))", right: "SWAP", color: Self.purple)
+                        ringCell(name: String(localized: "交换"), percent: m.swapPercent,
+                                 detail: "\(human(m.swapUsedKB))/\(human(m.swapTotalKB))", color: Self.purple)
                     }
+                    Spacer(minLength: 0)
                 }
             }
         }
@@ -128,23 +129,15 @@ struct MonitorPanel: View {
     private func diskSection(_ disks: [DiskUsage]) -> some View {
         section("internaldrive", String(localized: "存储卷")) {
             card {
-                // 单盘整行（多数服务器只有根分区，半宽会显得空），多盘才用两列紧凑网格。
-                if disks.count == 1, let d = disks.first {
-                    diskRow(d)
-                } else {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)],
-                              alignment: .leading, spacing: 8) {
-                        ForEach(disks) { diskRow($0) }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 68), spacing: 8)],
+                          alignment: .leading, spacing: 8) {
+                    ForEach(disks) { d in
+                        ringCell(name: d.mount, percent: d.percent,
+                                 detail: "\(human(d.usedKB))/\(human(d.totalKB))", color: Self.blue)
                     }
                 }
             }
         }
-    }
-
-    private func diskRow(_ d: DiskUsage) -> some View {
-        usageRow(name: d.mount, percent: d.percent,
-                 left: "\(human(d.usedKB)) / \(human(d.totalKB))",
-                 right: d.percent >= 90 ? "CRITICAL" : "DISK", color: Self.blue)
     }
 
     private func gpuSection(_ gpus: [GPUInfo]) -> some View {
@@ -277,40 +270,31 @@ struct MonitorPanel: View {
             .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.fill(0.09), lineWidth: 0.5))
     }
 
-    /// 名称 + 百分比 + 细条 + 用量明细的一行（内存、磁盘共用）。≥90% 转红并显示告警标签。
-    private func usageRow(name: String, percent: Double, left: String, right: String, color: Color) -> some View {
+    /// 圆环占用格：环形进度（% 居中）+ 名称 + 用量明细；≥90% 转红。内存/交换/磁盘共用。
+    private func ringCell(name: String, percent: Double, detail: String, color: Color) -> some View {
         let critical = percent >= 90
+        let pct = min(100, max(0, percent))
         return VStack(spacing: 3) {
-            HStack {
-                Text(name).font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.text)
-                    .lineLimit(1).truncationMode(.middle)
-                Spacer()
-                num("\(Int(percent))%", size: 11, design: .default, color: Pal.subtext)
-                    .frame(width: 34, alignment: .trailing)
+            ZStack {
+                Circle().stroke(Pal.fill(0.10), lineWidth: 4.5)
+                Circle()
+                    .trim(from: 0, to: CGFloat(pct) / 100)
+                    .stroke(critical ? Pal.red : color,
+                            style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.45), value: pct)
+                Text("\(Int(pct))")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(critical ? Pal.red : Pal.text)
             }
-            bar(percent, color: critical ? Pal.red : color)
-            HStack {
-                plainNum(left, size: 10, design: .monospaced, color: Pal.overlay)
-                    .lineLimit(1)
-                Spacer()
-                Text(critical ? "CRITICAL" : right)
-                    .font(.system(size: 9, weight: critical ? .bold : .regular))
-                    .foregroundStyle(critical ? Pal.red : Pal.overlay)
-            }
+            .frame(width: 40, height: 40)
+            Text(name).font(.system(size: 9, weight: .medium)).foregroundStyle(Pal.text)
+                .lineLimit(1).truncationMode(.middle)
+            Text(detail).font(.system(size: 8, design: .monospaced)).foregroundStyle(Pal.overlay)
+                .lineLimit(1)
         }
-    }
-
-    /// 4px 细进度条。
-    private func bar(_ percent: Double, color: Color) -> some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Pal.fill(0.10))
-                Capsule().fill(color)
-                    .frame(width: max(0, min(1, percent / 100)) * geo.size.width)
-            }
-        }
-        .frame(height: 3)
-        .animation(.easeOut(duration: 0.45), value: percent)
+        .frame(width: 72)
     }
 
     /// 跳动数字：数值变化时数字像里程表般上滚顶替（contentTransition.numericText），等宽防宽度抖动。
