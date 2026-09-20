@@ -13,7 +13,7 @@ struct MonitorPanel: View {
     private static let purple = Color(hex: 0xAF52DE)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Text("监控").font(.system(size: 12)).foregroundStyle(Pal.overlay)
                 Circle().fill(monitor.phase == .live ? Self.green : Pal.overlay).frame(width: 6, height: 6)
@@ -61,10 +61,10 @@ struct MonitorPanel: View {
     private func cpuSection(_ m: HostMetrics) -> some View {
         section("cpu", String(localized: "处理器核心负载")) {
             card {
-                VStack(alignment: .leading, spacing: 11) {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         num(m.cpuPercent.map { String(format: "%.1f%%", $0) } ?? "—",
-                            size: 22, weight: .bold, color: Pal.textBright)
+                            size: 17, weight: .bold, color: Pal.textBright)
                         if !m.perCore.isEmpty {
                             Text("\(m.perCore.count) 核").font(.system(size: 11)).foregroundStyle(Pal.overlay)
                         }
@@ -86,7 +86,7 @@ struct MonitorPanel: View {
     /// 每核占用热力方块：原生方块视图网格，按可用宽度自动换行（每格 10pt、间距 3pt）、自动定高。
     /// 矢量图层、无位图绘制层开销；热力图随采样帧更新颜色，无持续动画。
     private func heatmap(_ cores: [Double]) -> some View {
-        let cell: CGFloat = 10, gap: CGFloat = 3
+        let cell: CGFloat = 8, gap: CGFloat = 2
         return LazyVGrid(columns: [GridItem(.adaptive(minimum: cell, maximum: cell), spacing: gap)],
                          alignment: .leading, spacing: gap) {
             ForEach(Array(cores.enumerated()), id: \.offset) { _, load in
@@ -113,7 +113,7 @@ struct MonitorPanel: View {
     private func memorySection(_ m: HostMetrics) -> some View {
         section("memorychip", String(localized: "内存")) {
             card {
-                VStack(spacing: 12) {
+                VStack(spacing: 8) {
                     usageRow(name: String(localized: "内存"), percent: m.memTotalKB > 0 ? m.memPercent : 0,
                              left: "\(human(m.memUsedKB)) / \(human(m.memTotalKB))", right: "RAM", color: Self.blue)
                     if m.hasSwap {
@@ -132,8 +132,8 @@ struct MonitorPanel: View {
                 if disks.count == 1, let d = disks.first {
                     diskRow(d)
                 } else {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 28), GridItem(.flexible(), spacing: 28)],
-                              alignment: .leading, spacing: 14) {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)],
+                              alignment: .leading, spacing: 8) {
                         ForEach(disks) { diskRow($0) }
                     }
                 }
@@ -157,7 +157,7 @@ struct MonitorPanel: View {
 
     private func gpuCard(_ g: GPUInfo) -> some View {
         card {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 5) {
                 HStack {
                     Text(g.name).font(.system(size: 9, weight: .medium)).foregroundStyle(Pal.subtext)
                         .lineLimit(1).truncationMode(.tail)
@@ -169,14 +169,14 @@ struct MonitorPanel: View {
                 // 利用率不可用（[N/A]，如 vGPU/MIG/WSL）时显示「—」并跳过点阵与进度条，不用 0% 冒充。
                 if let util = g.utilPercent {
                     HStack(alignment: .bottom) {
-                        num("\(Int(util))%", size: 17, weight: .bold, color: Pal.textBright)
+                        num("\(Int(util))%", size: 14, weight: .bold, color: Pal.textBright)
                         Spacer(minLength: 6)
                         gpuDots(util)
                     }
                     bar(util, color: Self.purple)
                 } else {
                     HStack(alignment: .bottom) {
-                        num("—", size: 17, weight: .bold, color: Pal.textBright)
+                        num("—", size: 14, weight: .bold, color: Pal.textBright)
                         Spacer(minLength: 6)
                     }
                 }
@@ -199,20 +199,20 @@ struct MonitorPanel: View {
     /// GPU 迷你点阵：5×2 共 10 颗点，按利用率点亮前 N 颗（紫），其余灰。
     private func gpuDots(_ util: Double) -> some View {
         let lit = Int((min(100, max(0, util)) / 10).rounded())
-        return LazyVGrid(columns: Array(repeating: GridItem(.fixed(4), spacing: 3), count: 5), spacing: 3) {
+        return LazyVGrid(columns: Array(repeating: GridItem(.fixed(3), spacing: 2), count: 5), spacing: 2) {
             ForEach(0..<10, id: \.self) { i in
                 RoundedRectangle(cornerRadius: 1)
                     .fill(i < lit ? Self.purple : Pal.fill(0.16))
-                    .frame(width: 4, height: 4)
+                    .frame(width: 3, height: 3)
             }
         }
-        .frame(width: 32)
+        .frame(width: 24)
         .animation(.easeOut(duration: 0.3), value: lit)
     }
 
     private func networkSection(_ m: HostMetrics) -> some View {
         section("network", String(localized: "网络")) {
-            VStack(spacing: 10) {
+            VStack(spacing: 6) {
                 card {
                     GeometryReader { geo in
                         // 上下行整体定宽（数字定宽防抖），图表占其余弹性宽度——故图表宽度不随速率文字变化而抖动，
@@ -227,7 +227,7 @@ struct MonitorPanel: View {
                         }
                         .clipped()
                     }
-                    .frame(height: 36)
+                    .frame(height: 28)
                 }
                 // 运行时长脱离卡片，居中置于网络卡片下方。
                 Text(uptimeText(m.uptimeSecs))
@@ -253,8 +253,8 @@ struct MonitorPanel: View {
         HStack(spacing: 6) {
             Image(systemName: icon).font(.system(size: 11, weight: .bold)).foregroundStyle(color)
             // 定宽防止速率位数变化时整体宽度跳动（进而带动弹性图表抖动）。
-            num(value, size: 12, weight: .semibold, color: Pal.text)
-                .frame(width: 76, alignment: .leading)
+            num(value, size: 11, weight: .semibold, color: Pal.text)
+                .frame(width: 66, alignment: .leading)
         }
     }
 
@@ -262,10 +262,10 @@ struct MonitorPanel: View {
 
     /// 带小节标题（SF 图标 + 静音文字）的区块。
     private func section<C: View>(_ icon: String, _ title: String, @ViewBuilder _ content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 6) {
-                Image(systemName: icon).font(.system(size: 10, weight: .semibold))
-                Text(title).font(.system(size: 11, weight: .semibold))
+                Image(systemName: icon).font(.system(size: 9, weight: .semibold))
+                Text(title).font(.system(size: 10, weight: .semibold))
             }
             .foregroundStyle(Pal.overlay)
             content()
@@ -275,16 +275,16 @@ struct MonitorPanel: View {
     /// macOS 材质卡片。
     private func card<C: View>(@ViewBuilder _ content: () -> C) -> some View {
         content()
-            .padding(13)
+            .padding(9)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Pal.fill(0.045), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Pal.fill(0.09), lineWidth: 0.5))
+            .background(Pal.fill(0.045), in: RoundedRectangle(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.fill(0.09), lineWidth: 0.5))
     }
 
     /// 名称 + 百分比 + 细条 + 用量明细的一行（内存、磁盘共用）。≥90% 转红并显示告警标签。
     private func usageRow(name: String, percent: Double, left: String, right: String, color: Color) -> some View {
         let critical = percent >= 90
-        return VStack(spacing: 5) {
+        return VStack(spacing: 3) {
             HStack {
                 Text(name).font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.text)
                     .lineLimit(1).truncationMode(.middle)
@@ -313,7 +313,7 @@ struct MonitorPanel: View {
                     .frame(width: max(0, min(1, percent / 100)) * geo.size.width)
             }
         }
-        .frame(height: 4)
+        .frame(height: 3)
         .animation(.easeOut(duration: 0.45), value: percent)
     }
 

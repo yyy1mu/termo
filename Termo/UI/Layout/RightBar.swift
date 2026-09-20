@@ -175,9 +175,9 @@ struct CompanionPanel: View {
                     // 且要顶对齐——裸放会在剩余高度里垂直居中，顶部留出大片死白。
                     ScrollView(.vertical) {
                         MonitorPanel(monitor: model.hostMonitor(for: host))
-                            .padding(.horizontal, 16)
-                            .padding(.top, 14)
-                            .padding(.bottom, 16)
+                            .padding(.horizontal, 12)
+                            .padding(.top, 8)
+                            .padding(.bottom, 12)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
