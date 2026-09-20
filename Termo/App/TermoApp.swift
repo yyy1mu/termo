@@ -583,18 +583,8 @@ private struct AppSheets: ViewModifier {
             .sheet(isPresented: $model.showAddHost) { AddHostView(model: model) }
             .sheet(item: $model.editingHost) { host in AddHostView(model: model, editing: host) }
             .sheet(item: $model.forwardPanelHost) { host in PortForwardView(model: model, host: host) }
-            .sheet(isPresented: $model.showGenerateKey) { GenerateKeyView(model: model) }
-            .sheet(item: $model.detailKey) { key in KeyDetailView(model: model, key: key) }
             .sheet(isPresented: $model.showCreateSnippet) { SnippetEditView(model: model) }
             .sheet(item: $model.editingSnippet) { snip in SnippetEditView(model: model, editing: snip) }
-            .alert("操作失败", isPresented: Binding(
-                get: { model.keyOpError != nil },
-                set: { if !$0 { model.keyOpError = nil } }
-            )) {
-                Button("好", role: .cancel) { model.keyOpError = nil }
-            } message: {
-                Text(model.keyOpError ?? "")
-            }
             .alert("提示", isPresented: Binding(
                 get: { model.snippetNotice != nil },
                 set: { if !$0 { model.snippetNotice = nil } }

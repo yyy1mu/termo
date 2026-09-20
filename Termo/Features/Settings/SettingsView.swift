@@ -20,6 +20,19 @@ struct SettingsView: View {
         .background(Pal.solidBase)
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .modifier(SyncDialogs(model: model))
+        // 密钥面板的弹层必须挂在这里（设置弹窗内部）：挂在根视图 AppSheets 上时
+        // 会被已展示的设置 sheet 挡住——点「生成」永远弹不出来（sheet-over-sheet
+        // 只允许挂在已展示 sheet 的内容层级里）。
+        .sheet(isPresented: $model.showGenerateKey) { GenerateKeyView(model: model) }
+        .sheet(item: $model.detailKey) { key in KeyDetailView(model: model, key: key) }
+        .alert("操作失败", isPresented: Binding(
+            get: { model.keyOpError != nil },
+            set: { if !$0 { model.keyOpError = nil } }
+        )) {
+            Button("好", role: .cancel) { model.keyOpError = nil }
+        } message: {
+            Text(model.keyOpError ?? "")
+        }
         .onChange(of: settings.appLanguage) { showLanguageRestart = true }
         .overlay {
             if showLanguageRestart {
