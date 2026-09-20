@@ -13,19 +13,17 @@ struct Sidebar: View {
     @State private var segment: SidebarSegment = .servers
 
     enum SidebarSegment: String, CaseIterable {
-        case servers, sessions, sync
+        case servers, sessions
         var symbol: String {
             switch self {
             case .servers: return "server.rack"
             case .sessions: return "terminal"
-            case .sync: return "arrow.triangle.2.circlepath"
             }
         }
         var label: String {
             switch self {
             case .servers: return String(localized: "服务器")
             case .sessions: return String(localized: "会话")
-            case .sync: return String(localized: "同步")
             }
         }
     }
@@ -81,12 +79,9 @@ struct Sidebar: View {
                 }
             case .sessions:
                 sessionsList
-            case .sync:
-                SyncPanel(model: model)
             }
 
             Rectangle().fill(Pal.border).frame(height: 1)
-            syncNavigation
             hostsBottomBar
         }
         .frame(maxHeight: .infinity, alignment: .top)
@@ -120,7 +115,6 @@ struct Sidebar: View {
         switch segment {
         case .servers: return String(localized: "\(model.hosts.count) 台主机")
         case .sessions: return String(localized: "\(sshTabs.count) 个 SSH 会话")
-        case .sync: return String(localized: "跨设备同步")
         }
     }
 
@@ -191,32 +185,6 @@ struct Sidebar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain).pointerCursor()
-    }
-
-    private var syncNavigation: some View {
-        Button {
-            model.settingsTab = .sync
-            model.showSettings = true
-        } label: {
-            HStack(spacing: 9) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 12)).foregroundStyle(Pal.mauve)
-                    .frame(width: 19)
-                Text("同步与备份")
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.subtext)
-                Spacer()
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 10)).foregroundStyle(Pal.overlay)
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 36)
-            .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .pointerCursor()
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
     }
 
 
