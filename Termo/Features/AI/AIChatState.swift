@@ -10,6 +10,11 @@ struct AIMessage: Identifiable {
     var commands: [String] = []
     /// exec 消息的退出码（nil=仅命令卡片未执行）。
     var exitCode: Int32? = nil
+    /// exec 消息结构化字段：面板按字段渲染（不再用 markdown 围栏裸文本）。
+    var execCommand = ""
+    var execHost = ""
+    var stdout = ""
+    var stderr = ""
 }
 
 /// AI 面板会话状态：消息列表 + 输入 + 发送/取消 + 命令卡片抽取 + 执行结果回显。
@@ -104,22 +109,46 @@ final class AIChatState: ObservableObject {
         return out
     }
 
-    /// 执行结果回显：追加 exec 消息（含命令与输出摘要），用户可一键把结果回发给 AI。
-    func appendExecResult(command: String, exitCode: Int32, stdout: String, stderr: String) {
-        var body = "执行结果（退出码 \(exitCode)）\n"
-        let out = stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-        let err = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !out.isEmpty { body += "```\n\(out.prefix(4000))\n```\n" }
-        if !err.isEmpty { body += "stderr:\n```\n\(err.prefix(2000))\n```" }
-        if out.isEmpty && err.isEmpty { body += "（无输出）" }
-        messages.append(AIMessage(role: .exec, content: body, exitCode: exitCode))
+    /// 执行结果回显：结构化字段存命令/主机/输出，面板按字段渲染。
+    func appendExecResult(command: String, host: String, exitCode: Int32, stdout: String, stderr: String) {
+        messages.append(AIMessage(
+            role: .exec,
+            content: "",
+            exitCode: exitCode,
+            execCommand: command,
+            execHost: host,
+            stdout: String(stdout.prefix(4000)),
+            stderr: String(stderr.prefix(2000))
+        ))
     }
 
-    /// 把最近一条 exec 结果连同原请求回发给 AI（对话续写：让 AI 看执行输出再决策）。
+    /// 把最近一条 exec 结果连同原命令回发给 AI（对话续写：让 AI 看执行输出再决策）。
     func forwardLastExecResult(model: AppModel) {
         guard let last = messages.last, last.role == .exec else { return }
-        input = "上一步命令执行结果如下，请基于它继续：\n" + last.content
+        var text = "命令「\(last.execCommand)」在 \(last.execHost) 上执行，退出码 \(last.exitCode ?? -1)。执行输出：\n"
+        let out = last.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let err = last.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !out.isEmpty { text += out + "\n" }
+        if !err.isEmpty { text += "stderr: " + err }
+        if out.isEmpty && err.isEmpty { text += "（无输出）" }
+        input = text + "\n请基于以上结果继续。"
         send(model: model)
+    }
+
+    /// 剥掉 assistant 文本里的 ``` 围栏代码块（命令已由命令卡片单独渲染，正文只留说明）。
+    /// 流式中的未闭合围栏（最后一个 ``` 到结尾）也一并裁掉，避免裸围栏符闪现。
+    static func stripCodeBlocks(from text: String, streaming: Bool = false) -> String {
+        var out = text
+        let pattern = #"```(?:bash|sh|shell|zsh)?[^`\n]*\n[\s\S]*?```"#
+        if let re = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+            let range = NSRange(out.startIndex..., in: out)
+            out = re.stringByReplacingMatches(in: out, range: range, withTemplate: "")
+        }
+        if streaming, let r = out.range(of: "```", options: .backwards) {
+            out = String(out[..<r.lowerBound])   // 未闭合围栏：裁掉尾部，流结束后会有完整卡片
+        }
+        while out.contains("\n\n\n") { out = out.replacingOccurrences(of: "\n\n\n", with: "\n\n") }
+        return out.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func clear() { messages.removeAll(); errorText = nil }

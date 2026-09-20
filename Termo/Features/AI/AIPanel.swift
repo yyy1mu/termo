@@ -97,8 +97,10 @@ struct AIPanel: View {
                     ProgressView().controlSize(.mini)
                 }
             }
-            if !msg.content.isEmpty {
-                Text(msg.content)
+            // 正文剥掉 ``` 围栏代码块（命令统一由下方命令卡片渲染，避免同一条命令出现两遍）
+            let prose = AIChatState.stripCodeBlocks(from: msg.content, streaming: msg.streaming)
+            if !prose.isEmpty {
+                Text(prose)
                     .font(.system(size: 12)).foregroundStyle(Pal.text)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -155,11 +157,35 @@ struct AIPanel: View {
                 if let code = msg.exitCode {
                     PanelBadgeView(text: "退出码 \(code)", color: code == 0 ? Pal.green : Pal.red)
                 }
+                if !msg.execHost.isEmpty {
+                    PanelBadgeView(text: msg.execHost, color: Pal.mauve)
+                }
             }
-            Text(msg.content)
-                .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if !msg.execCommand.isEmpty {
+                Text(msg.execCommand)
+                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.text)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(Pal.crust, in: RoundedRectangle(cornerRadius: 6))
+            }
+            let out = msg.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            let err = msg.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !out.isEmpty {
+                Text(out)
+                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if !err.isEmpty {
+                Text(err)
+                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.red.opacity(0.85))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if out.isEmpty && err.isEmpty {
+                Text("（无输出）").font(.system(size: 11)).foregroundStyle(Pal.overlay)
+            }
             miniAction("arrow.turn.up.right", String(localized: "把结果回发给 AI"), accent: Pal.mauve) {
                 chat.forwardLastExecResult(model: model)
             }
@@ -214,7 +240,7 @@ struct AIPanel: View {
 
     private func insertIntoTerminal(_ cmd: String) {
         // 走既有片段注入（不加回车——与「插入」语义一致：用户确认后自己回车）。
-        guard let id = model.snippetTargetTabIdPublic() else {
+        guard model.snippetTargetTabIdPublic() != nil else {
             chat.errorText = String(localized: "请先打开并切到一个终端，再插入命令。")
             return
         }
