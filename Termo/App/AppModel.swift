@@ -1024,8 +1024,11 @@ final class AppModel: ObservableObject {
     /// SSH 登录后注入的 OSC 7 钩子：bash/zsh 在每次提示符上报当前目录。
     private static let osc7Hook =
         "__t7(){ printf '\\033]7;file://%s%s\\033\\\\' \"${HOSTNAME:-h}\" \"$PWD\"; }; " +
-        "if [ -n \"$ZSH_VERSION\" ]; then precmd_functions+=(__t7); " +
-        "else PROMPT_COMMAND=\"__t7;${PROMPT_COMMAND}\"; fi; __t7"
+        // OSC 133;D：命令完成标记（携带退出码）——Agent 精确等结果而非盲等快照。
+        // __td 必须先于 __t7 执行，否则 $? 被 __t7 自己的 printf 覆盖成 0。
+        "__td(){ printf '\\033]133;D;%s\\033\\\\' \"$?\"; }; " +
+        "if [ -n \"$ZSH_VERSION\" ]; then precmd_functions+=(__td __t7); " +
+        "else PROMPT_COMMAND=\"__td;__t7;${PROMPT_COMMAND}\"; fi; __t7"
 
     /// 当前终端字体（按设置；空名或找不到则回退到预置等宽字体）。
     private func currentTerminalFont() -> NSFont {
@@ -1154,6 +1157,9 @@ final class AppModel: ObservableObject {
         let hub = hostId.map { terminalHub(for: $0) } ?? TerminalSessionHub()
         let driver = SSHTerminalDriver(tv: tv, ssh: ssh, hub: hub,
                                        transcript: TerminalTranscriptStore.shared.transcript(for: tabId))
+        driver.onCommandCompleted = { [weak self] result in
+            Task { @MainActor in self?.handleCommandCompleted(tabId: tabId, result: result) }
+        }
         driver.onCwd = { [weak self] path in
             Task { @MainActor in self?.handleTerminalCwd(tabId: tabId, path: path) }
         }
@@ -1324,6 +1330,31 @@ final class AppModel: ObservableObject {
     /// 指定终端的命令/输出记录尾部（AI 上下文用）；无记录返回 nil。
     func transcriptTail(tabId: Int, maxChars: Int = 4000) -> String? {
         TerminalTranscriptStore.shared.existing(tabId)?.tail(maxChars: maxChars)
+    }
+
+    // ---------- 命令完成等待（Agent 精确等结果，见 SSHTerminalDriver 的 OSC 133;D 解析）----------
+    private var commandWaiters: [Int: CheckedContinuation<CommandResult, Never>] = [:]
+
+    /// 等待指定终端下一条命令完成（退出码+输出切片）。超时兜底给当前记录尾部，不让 Agent 卡死
+    /// （钩子未装上/命令超长时降级为近似行为）。
+    func awaitCommandCompletion(tabId: Int, timeout: UInt64 = 60_000_000_000) async -> CommandResult {
+        await withCheckedContinuation { cont in
+            commandWaiters[tabId] = cont
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: timeout)
+                guard let self, let w = commandWaiters.removeValue(forKey: tabId) else { return }
+                let tail = transcriptTail(tabId: tabId, maxChars: 2000) ?? ""
+                w.resume(returning: CommandResult(
+                    output: tail + "\n（等待完成超时：命令可能仍在运行）",
+                    exitCode: -1))
+            }
+        }
+    }
+
+    /// 驱动的命令完成事件：唤醒等待者（无等待者则丢弃——用户手动跑的命令不打扰 Agent）。
+    func handleCommandCompleted(tabId: Int, result: CommandResult) {
+        guard let w = commandWaiters.removeValue(forKey: tabId) else { return }
+        w.resume(returning: result)
     }
 
     // ---------- 标签操作 ----------

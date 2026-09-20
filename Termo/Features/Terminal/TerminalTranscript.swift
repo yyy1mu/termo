@@ -87,6 +87,21 @@ final class TerminalTranscript {
         return lines.isEmpty
     }
 
+    /// 当前行数（命令开始时记偏移用）。
+    var lineCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return lines.count
+    }
+
+    /// 从偏移起到当前的行（切取某条命令的输出区间）。
+    func lines(from offset: Int) -> [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        guard offset < lines.count else { return [] }
+        return Array(lines[offset...])
+    }
+
     // MARK: 私有
 
     private func trimLocked() {
@@ -102,6 +117,12 @@ final class TerminalTranscript {
         guard let re = ansiRE else { return s }
         return re.stringByReplacingMatches(in: s, range: NSRange(s.startIndex..., in: s), withTemplate: "")
     }
+}
+
+/// 一条命令的完成结果：退出码 + 输出切片（由 OSC 133;D 标记驱动，见 SSHTerminalDriver）。
+struct CommandResult {
+    let output: String
+    let exitCode: Int32
 }
 
 /// Transcript 注册表（Multiton）：按终端标签持有，关标签回收（与 AIChatStore 同型）。

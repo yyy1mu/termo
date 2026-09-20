@@ -22,6 +22,10 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
 
     /// 该终端的命令/输出记录（见 TerminalTranscript）；nil=不记录。
     var transcript: TerminalTranscript?
+    /// 命令完成事件（OSC 133;D 驱动）：携带退出码与输出切片，主线程回调。
+    var onCommandCompleted: ((CommandResult) -> Void)?
+    /// 命令开始时记录的 transcript 行偏移（输出切片起点）。
+    private var pendingCmdStart: Int? = nil
 
     init(tv: LocalProcessTerminalView, ssh: SSHConnection, hub: TerminalSessionHub,
          transcript: TerminalTranscript? = nil) {
@@ -92,6 +96,7 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
     func sendText(_ text: String) {
         let bytes = Array(text.utf8)
         guard let shell, !bytes.isEmpty else { return }
+        if text.hasSuffix("\n") { markCommandStarted() }   // 注入并回车 = 命令开始
         bytes.withUnsafeBufferPointer { bp in
             bp.baseAddress!.withMemoryRebound(to: CChar.self, capacity: bp.count) {
                 _ = termo_ssh_shell_write(shell, $0, Int32(bp.count))
@@ -146,6 +151,48 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
         return out
     }
 
+    // MARK: OSC 133;D 完成标记（仅泵线程访问）
+    // shell 在每次提示符前发出 \e]133;D;<exit>\e\（钩子见 AppModel.osc7Hook）。
+    // 命令「开始」不需 shell 钩子：客户端键击/注入时刻已知（markCommandStarted）。
+    private var markerCarry = ""
+
+    /// 从 chunk 中剥出完成标记：返回 (净化字节, 退出码?)。半截标记留给下个 chunk。
+    private func extractCompletion(_ bytes: [UInt8]) -> ([UInt8], Int32?) {
+        var text = markerCarry + String(decoding: bytes, as: UTF8.self)
+        markerCarry = ""
+        var exit: Int32? = nil
+        let pattern = "\u{1B}\\]133;D;(\\d+)\u{1B}\\\\"
+        if let re = try? NSRegularExpression(pattern: pattern) {
+            let range = NSRange(text.startIndex..., in: text)
+            let matches = re.matches(in: text, range: range)
+            if let last = matches.last, let r = Range(last.range(at: 1), in: text) {
+                exit = Int32(text[r])
+            }
+            text = re.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+        }
+        // 尾部疑似半截标记：留到下 chunk 再判
+        if let idx = text.range(of: "\u{1B}]133;", options: .backwards)?.lowerBound {
+            markerCarry = String(text[idx...])
+            text = String(text[..<idx])
+        }
+        return (Array(text.utf8), exit)
+    }
+
+    private func markCommandStarted() {
+        pendingCmdStart = transcript?.lineCount
+    }
+
+    /// 完成标记到达：从 [命令开始, 完成) 切出输出，去命令行自身，主线程上报。
+    private func finishPendingCommand(exitCode: Int32) {
+        let start = pendingCmdStart ?? 0
+        pendingCmdStart = nil
+        var outLines = transcript?.lines(from: start) ?? []
+        while let first = outLines.first, first.hasPrefix("$ ") { outLines.removeFirst() }
+        let output = outLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        let result = CommandResult(output: String(output.prefix(4000)), exitCode: exitCode)
+        DispatchQueue.main.async { [weak self] in self?.onCommandCompleted?(result) }
+    }
+
     // MARK: C 回调（pump 线程）
 
     private static let onData: TermoSSHDataCallback = { ud, bytes, len in
@@ -154,11 +201,16 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
         let slice = bytes.withMemoryRebound(to: UInt8.self, capacity: Int(len)) {
             Array(UnsafeBufferPointer(start: $0, count: Int(len)))
         }
-        // 注入行回显抑制在泵线程做（顺序保证）；其余输出原样主线程喂终端
-        let clean = driver.filterEcho(slice)
-        guard !clean.isEmpty else { return }
-        driver.transcript?.appendOutput(clean)   // 输出记录（含滚出屏幕的部分）
-        DispatchQueue.main.async { driver.tv?.feed(byteArray: clean[...]) }
+        // 1) 先剥 OSC 133;D 完成标记（不进显示/记录）：取出退出码
+        let (noMarker, exit) = driver.extractCompletion(slice)
+        // 2) 注入行回显抑制（泵线程顺序保证）
+        let clean = driver.filterEcho(noMarker)
+        if !clean.isEmpty {
+            driver.transcript?.appendOutput(clean)   // 输出记录（含滚出屏幕的部分）
+            DispatchQueue.main.async { driver.tv?.feed(byteArray: clean[...]) }
+        }
+        // 3) 完成标记到达 → 切片输出并上报（即使本 chunk 无可见输出也要上报）
+        if let exit { driver.finishPendingCommand(exitCode: exit) }
     }
 
     private static let onClosed: TermoSSHClosedCallback = { ud, code in
@@ -172,6 +224,7 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
     func send(source: TerminalView, data: ArraySlice<UInt8>) {
         guard let shell, !data.isEmpty else { return }
         transcript?.appendInput(Array(data))   // 用户键击 → 重建命令行记录
+        if data.contains(0x0D) { markCommandStarted() }   // 回车 = 命令开始
         data.withUnsafeBufferPointer { bp in
             guard let base = bp.baseAddress else { return }
             _ = base.withMemoryRebound(to: CChar.self, capacity: bp.count) {
