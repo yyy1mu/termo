@@ -81,7 +81,10 @@ int termo_russh_scan_hostkey(const char *host, int port,
 // ── 交互式 shell（PTY）──────────────────────────────────────────────────────
 typedef void (*TermoRusshClosedCallback)(void *userdata, int exit_code);
 
+/// command 非空 → PTY+exec 该命令（如 tmux attach，不经登录 shell、无 history 污染）；
+/// NULL/空串 → 交互 shell。
 TermoRusshShell *termo_russh_shell_open(TermoRusshSession *s, int cols, int rows,
+                                        const char *command,
                                         TermoRusshDataCallback on_data,
                                         TermoRusshClosedCallback on_closed, void *userdata,
                                         char *err, int errlen);

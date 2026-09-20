@@ -268,17 +268,18 @@ impl RusshSession {
         .unwrap_or_else(|_| Err("内部 panic（已被 FFI 边界拦截）".into()))
     }
 
-    /// 阻塞开 PTY shell（供 C ABI / CLI；panic 隔离）。
+    /// 阻塞开 PTY shell（供 C ABI / CLI；panic 隔离）。command 非空则 PTY+exec 该命令。
     pub fn shell_open_blocking(
         &self,
         cols: i32,
         rows: i32,
+        command: Option<String>,
         on_data: crate::shell::ShellDataCallback,
         on_closed: crate::shell::ShellClosedCallback,
         userdata: *mut std::ffi::c_void,
     ) -> Result<crate::shell::RusshShell, String> {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            runtime().block_on(self.shell_open(cols, rows, on_data, on_closed, userdata))
+            runtime().block_on(self.shell_open(cols, rows, command, on_data, on_closed, userdata))
         }))
         .unwrap_or_else(|_| Err("内部 panic（已被 FFI 边界拦截）".into()))
     }

@@ -158,10 +158,11 @@ int termo_ssh_exec_stream(TermoSSHSession *s, const char *command,
 // ── 交互式 shell ────────────────────────────────────────────────────────────
 
 TermoSSHShell *termo_ssh_shell_open(TermoSSHSession *s, int cols, int rows,
+                                    const char *command,
                                     TermoSSHDataCallback on_data,
                                     TermoSSHClosedCallback on_closed, void *userdata,
                                     char *err, int errlen) {
-    return (TermoSSHShell *)termo_russh_shell_open((TermoRusshSession *)s, cols, rows,
+    return (TermoSSHShell *)termo_russh_shell_open((TermoRusshSession *)s, cols, rows, command,
                                                    (TermoRusshDataCallback)on_data,
                                                    (TermoRusshClosedCallback)on_closed,
                                                    userdata, err, errlen);

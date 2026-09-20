@@ -248,11 +248,8 @@ struct TmuxPanel: View {
                         }
                     }
                     Spacer()
-                    PanelActionButton(symbol: "terminal", accent: Pal.mauve, help: String(localized: "接入会话")) {
-                        model.openHostTerminal(host)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                            model.sendTextToTerminal("tmux attach -t \(Self.shellQuote("=" + s.name))", run: true)
-                        }
+                    PanelActionButton(symbol: "terminal", accent: Pal.mauve, help: String(localized: "在新标签接入会话")) {
+                        model.openTmuxSessionTab(host: host, sessionName: s.name)
                     }
                     PanelActionButton(symbol: "trash", accent: Pal.red, help: String(localized: "删除会话")) {
                         pendingKill = s

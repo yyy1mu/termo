@@ -50,6 +50,7 @@ impl RusshSession {
         &self,
         cols: i32,
         rows: i32,
+        command: Option<String>,
         on_data: ShellDataCallback,
         on_closed: ShellClosedCallback,
         userdata: *mut std::ffi::c_void,
@@ -63,10 +64,18 @@ impl RusshSession {
                 .request_pty(true, "xterm-256color", cols, rows, 0, 0, &[])
                 .await
                 .map_err(|e| format!("PTY 请求失败: {e}"))?;
-            channel
-                .request_shell(true)
-                .await
-                .map_err(|e| format!("shell 请求失败: {e}"))?;
+            // command 为空 → 交互 shell；非空 → PTY + exec（如 tmux attach，
+            // 不经登录 shell：无 history 污染、不触碰已有标签的会话）。
+            match command {
+                Some(cmd) => channel
+                    .exec(true, cmd.into_bytes())
+                    .await
+                    .map_err(|e| format!("exec 请求失败: {e}"))?,
+                None => channel
+                    .request_shell(true)
+                    .await
+                    .map_err(|e| format!("shell 请求失败: {e}"))?,
+            }
             Ok::<(), String>(())
         };
         match tokio::time::timeout(OPEN_TIMEOUT, setup).await {

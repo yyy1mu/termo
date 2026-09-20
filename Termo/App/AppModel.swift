@@ -349,9 +349,6 @@ final class AppModel: ObservableObject {
         return termTabs.count == 1 ? termTabs[0].id : nil
     }
 
-    /// 向目标终端注入一行命令（伴随面板动作复用，如 tmux 接入）。run=true 时追加回车执行。
-    func sendTextToTerminal(_ text: String, run: Bool) { deliverSnippet(text, run: run) }
-
     private func deliverSnippet(_ text: String, run: Bool) {
         guard let id = snippetTargetTabId(), let tv = terminals[id] else {
             snippetNotice = String(localized: "请先打开并切到一个终端，再运行片段。")
@@ -1105,7 +1102,8 @@ final class AppModel: ObservableObject {
 
         if let ssh {
             // SSH 终端：引擎驱动接管输入/输出/cwd/退出（见 startTerminalProcess），不起本地子进程。
-            startTerminalProcess(tv: tv, ssh: ssh, tabId: tabId, hostId: hostId)
+            startTerminalProcess(tv: tv, ssh: ssh, tabId: tabId, hostId: hostId,
+                                 command: terminalCommands[tabId])
             terminalConns[tabId] = TerminalConn()   // 仅 SSH 终端支持断线重连
         } else {
             // 本地终端：仍走 LocalProcessTerminalView 的本地 shell 子进程（仅 Dev ID 构建启用）。
@@ -1130,6 +1128,12 @@ final class AppModel: ObservableObject {
     /// （已有存活连接则只开新 shell 通道，不再登录），注入 OSC 7 钩子与初始命令。
     /// 重连复用同一终端视图，滚动历史得以保留——先关旧驱动（停 pump + 释放通道）再建新驱动。
     private func startTerminalProcess(tv: LocalProcessTerminalView, ssh: SSHConnection, tabId: Int, hostId: String?) {
+        startTerminalProcess(tv: tv, ssh: ssh, tabId: tabId, hostId: hostId, command: nil)
+    }
+
+    /// command 非空 → 该标签的通道走 PTY+exec（tmux 接入），不经登录 shell（无 history 污染、
+    /// 不影响同主机其它标签里的 tmux 客户端）；重连时沿用同一命令（掉线重进同一 tmux 会话）。
+    private func startTerminalProcess(tv: LocalProcessTerminalView, ssh: SSHConnection, tabId: Int, hostId: String?, command: String?) {
         termDrivers[tabId]?.onTerminated = nil      // 旧驱动退出回调失效，避免拆除时误触重连
         termDrivers[tabId]?.close()
         let term = tv.getTerminal()
@@ -1143,7 +1147,7 @@ final class AppModel: ObservableObject {
         }
         tv.terminalDelegate = driver                // 接管输入/resize/cwd（替代 LocalProcessTerminalView 自身）
         termDrivers[tabId] = driver
-        driver.connect(cols: term.cols, rows: term.rows, initialLine: initialCommandLine(ssh))
+        driver.connect(cols: term.cols, rows: term.rows, initialLine: initialCommandLine(ssh), command: command)
     }
 
     // ---------- 终端断线重连 ----------
@@ -1200,7 +1204,8 @@ final class AppModel: ObservableObject {
               NetworkMonitor.shared.isOnline else { return }
         conn.attempt += 1
         let gen = conn.dropGen
-        startTerminalProcess(tv: tv, ssh: ssh, tabId: tabId, hostId: hostId)   // .ask 本会话密码已在 host.ssh 内，重连复用
+        startTerminalProcess(tv: tv, ssh: ssh, tabId: tabId, hostId: hostId,
+                             command: terminalCommands[tabId])   // 重连沿用同一命令（tmux 接入掉线重进同一会话）
         DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
             guard let self, let c = self.terminalConns[tabId],
                   c.phase == .dropped, c.dropGen == gen else { return }
@@ -1254,6 +1259,34 @@ final class AppModel: ObservableObject {
         if !tail.isEmpty { line += "; " + tail }
         line += "\n"
         return line
+    }
+
+    /// 每终端标签的 exec 命令（tmux 接入等）；nil=常规登录 shell。掉线重连时沿用。
+    private var terminalCommands: [Int: String] = [:]
+
+    /// 打开一个绑定 tmux 会话的终端标签：通道 PTY+exec `tmux attach -t =name`。
+    /// 不注入文本到任何既有标签——不影响其它 tmux 会话的客户端、不经登录 shell（零 history 污染）。
+    /// 掉线重连自动重进同一 tmux 会话；用户在 tmux 里 exit/detach → 通道结束 → 标签关闭（同 ssh 行为）。
+    func openTmuxSessionTab(host: Host, sessionName: String) {
+        requireAuth(host) { [weak self] in
+            self?.addTmuxSessionTab(host: host, sessionName: sessionName)
+        }
+    }
+
+    private func addTmuxSessionTab(host: Host, sessionName: String) {
+        let title = "tmux: \(sessionName)"
+        addTab(.terminal, title: title, hostId: host.id)
+        guard let id = tabs.last?.id else { return }
+        // 注册 per-tab 命令：Workspace 懒创建终端视图（terminalView(for:)）时经
+        // makeTerminal → startTerminalProcess 自动以 PTY+exec 启动；
+        // 「=name」为 tmux 精确匹配（防前缀撞名）；掉线重连沿用同一命令（重进同一会话）。
+        terminalCommands[id] = "tmux attach -t '=\(Self.shellEscape(sessionName))'"
+        recordSession(hostId: host.id, kind: .terminal, detail: "tmux: \(sessionName)")
+    }
+
+    /// 单引号 shell 转义（' → '\''）：会话名可含空格/$/反引号等，拼进命令前必须转义。
+    static func shellEscape(_ name: String) -> String {
+        "'" + name.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     // ---------- 标签操作 ----------
@@ -2046,6 +2079,7 @@ final class AppModel: ObservableObject {
         terminalConns.removeValue(forKey: id)   // 关标签即弃用其连接态
         terminalReconnectWork[id]?.cancel()      // 撤销该标签挂起的重连，避免关闭后仍唤醒
         terminalReconnectWork.removeValue(forKey: id)
+        terminalCommands.removeValue(forKey: id)
         tabCwd.removeValue(forKey: id)
         if activeTabId == id {
             activeTabId = tabs.isEmpty ? nil : tabs[min(idx, tabs.count - 1)].id

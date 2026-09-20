@@ -29,9 +29,10 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
 
     // MARK: 连接 / 关闭
 
-    /// 后台取共享会话（无则新建登录）+ 开 shell 通道 + 启泵；失败按掉线(255)上报以触发重连。
-    /// `initialLine` 在登录后注入（OSC7 钩子 + 可选 cd/初始命令）。
-    func connect(cols: Int, rows: Int, initialLine: String) {
+    /// 后台取共享会话（无则新建登录）+ 开通道 + 启泵；失败按掉线(255)上报以触发重连。
+    /// `initialLine` 在登录后注入（OSC7 钩子 + 可选 cd/初始命令）——仅交互 shell 有效。
+    /// `command` 非空 → PTY+exec 该命令（tmux 接入等），不经登录 shell、无 history 污染，initialLine 被忽略。
+    func connect(cols: Int, rows: Int, initialLine: String, command: String? = nil) {
         let conn = ssh
         let hub = self.hub
         DispatchQueue.global().async { [weak self] in
@@ -42,7 +43,8 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
             }
             let box = Unmanaged.passRetained(self).toOpaque()         // pump 持一份强引用，on_closed 时释放
             var err = [CChar](repeating: 0, count: 256)
-            guard let sh = termo_ssh_shell_open(raw, Int32(cols), Int32(rows),
+            let cmd = command.flatMap { $0.isEmpty ? nil : $0 } ?? nil
+            guard let sh = termo_ssh_shell_open(raw, Int32(cols), Int32(rows), cmd,
                                                 Self.onData, Self.onClosed, box, &err, 256) else {
                 Unmanaged<SSHTerminalDriver>.fromOpaque(box).release()
                 hub.invalidate(session)     // 开通道失败：连接多半已死（或不可再用），作废让下次重新登录
@@ -58,7 +60,7 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
                 }
                 self.session = session
                 self.shell = sh
-                if !initialLine.isEmpty {
+                if command == nil, !initialLine.isEmpty {
                     // 等远端 shell 的 rc 文件加载完，再注入 OSC7 钩子（否则可能被 .bashrc 覆盖）。
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                         self?.sendText(initialLine)

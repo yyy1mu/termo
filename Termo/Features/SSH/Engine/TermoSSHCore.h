@@ -95,7 +95,10 @@ typedef struct TermoSSHShell TermoSSHShell;
 typedef void (*TermoSSHClosedCallback)(void *userdata, int exit_code);
 
 /// 开 PTY(xterm-256color, cols×rows) + shell 并启动 pump 线程。成功返回句柄，失败 NULL 并写 err。
+/// command 非空 → PTY+exec 该命令（不经登录 shell：无 history 污染、不影响其它标签的 tmux 客户端）；
+/// NULL/空串 → 交互登录 shell。
 TermoSSHShell *termo_ssh_shell_open(TermoSSHSession *s, int cols, int rows,
+                                    const char *command,
                                     TermoSSHDataCallback on_data,
                                     TermoSSHClosedCallback on_closed, void *userdata,
                                     char *err, int errlen);

@@ -280,6 +280,7 @@ pub unsafe extern "C" fn termo_russh_shell_open(
     s: *mut RusshSession,
     cols: i32,
     rows: i32,
+    command: *const c_char,          // 可选：非空则 PTY+exec 该命令（如 tmux attach）
     on_data: Option<ShellDataCallback>,
     on_closed: Option<ShellClosedCallback>,
     userdata: *mut std::ffi::c_void,
@@ -295,8 +296,10 @@ pub unsafe extern "C" fn termo_russh_shell_open(
         return std::ptr::null_mut();
     };
     let session = &*s;
+    let command = if command.is_null() { None } else { Some(crate::read_str(command)) };
+    let command = command.filter(|c| !c.is_empty());
     let opened = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        runtime().block_on(session.shell_open(cols, rows, on_data, on_closed, userdata))
+        runtime().block_on(session.shell_open(cols, rows, command, on_data, on_closed, userdata))
     }));
     match opened {
         Ok(Ok(shell)) => Box::into_raw(Box::new(shell)),

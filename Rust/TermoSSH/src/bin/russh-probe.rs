@@ -97,6 +97,7 @@ fn run_shell(session: &RusshSession) -> i32 {
     let shell = session.shell_open_blocking(
         80,
         24,
+        None,
         bridge_on_data,
         bridge_on_closed,
         bridge_ptr as *mut std::ffi::c_void,
