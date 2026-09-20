@@ -225,14 +225,17 @@ struct AIPanel: View {
                 .help(String(localized: "附带终端上下文"))
                 .pointerCursor()
 
-                TextField(String(localized: "描述任务或提问…"), text: $chat.input, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Pal.text)
-                    .lineLimit(1...4)
-                    .padding(.horizontal, 10).padding(.vertical, 8)
-                    .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
-                    .onSubmit { chat.send(model: model) }
+                ZStack(alignment: .topLeading) {
+                    if chat.input.isEmpty {
+                        Text("描述任务或提问…")
+                            .font(.system(size: 12)).foregroundStyle(Pal.overlay)
+                            .padding(.horizontal, 12).padding(.vertical, 10)
+                            .allowsHitTesting(false)
+                    }
+                    AIInputField(text: $chat.input) { chat.send(model: model) }
+                        .padding(.horizontal, 6).padding(.vertical, 4)
+                }
+                .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
 
                 if chat.sending {
                     Button { chat.cancel() } label: {
@@ -275,5 +278,78 @@ private struct PanelBadgeView: View {
             .font(.system(size: 9, weight: .medium)).foregroundStyle(color)
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+    }
+}
+
+
+/// AI 聊天输入框：封装 NSTextView。
+/// 为什么不用 SwiftUI TextField(axis:.vertical)：它在 macOS 不走窗口 field editor，
+/// 响应链的 paste: 够不着 → 菜单 ⌘V 对它失效（项目自定义主菜单依赖响应链分发）。
+/// NSTextView 原生支持 ⌘V/⌘C/⌘A；回车发送、Shift+回车换行。
+struct AIInputField: NSViewRepresentable {
+    @Binding var text: String
+    var onSubmit: () -> Void
+    @ObservedObject var theme = ThemeManager.shared
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text, onSubmit: onSubmit)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let tv = NSTextView()
+        tv.delegate = context.coordinator
+        tv.isRichText = false
+        tv.font = NSFont.systemFont(ofSize: 12)
+        tv.textColor = NSColor.labelColor
+        tv.drawsBackground = false
+        tv.isVerticallyResizable = true
+        tv.isHorizontallyResizable = false
+        tv.autoresizingMask = [NSView.AutoresizingMask.width]
+        tv.textContainerInset = NSSize(width: 4, height: 6)
+        tv.allowsUndo = true
+        tv.minSize = NSSize(width: 0, height: 44)
+        tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        tv.textContainer?.widthTracksTextView = true
+        context.coordinator.view = tv
+        let scroll = NSScrollView()
+        scroll.documentView = tv
+        scroll.hasVerticalScroller = true
+        scroll.drawsBackground = false
+        return scroll
+    }
+
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        guard let tv = nsView.documentView as? NSTextView else { return }
+        context.coordinator.onSubmit = onSubmit
+        // 外部改写文本（发送后清空/回发命令）时同步进来；避免光标处回显递归
+        if tv.string != text {
+            tv.string = text
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        @Binding var text: String
+        var onSubmit: () -> Void
+        weak var view: NSTextView?
+
+        init(text: Binding<String>, onSubmit: @escaping () -> Void) {
+            _text = text
+            self.onSubmit = onSubmit
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let view else { return }
+            text = view.string
+        }
+
+        /// 回车发送；Shift+回车换行。
+        func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            guard commandSelector == #selector(NSStandardKeyBindingResponding.insertNewline(_:)) else { return false }
+            let shift = NSEvent.modifierFlags.contains(.shift)
+            guard !shift else { return false }   // 交给系统插入换行
+            onSubmit()
+            return true
+        }
     }
 }
