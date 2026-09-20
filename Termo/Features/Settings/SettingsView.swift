@@ -129,6 +129,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         switch model.settingsTab {
                         case .general: generalSettings
+                        case .ai: AISettingsContent()
                         case .terminal: terminalSettings
                         case .transfer: transferSettings
                         case .sync: EmptyView()

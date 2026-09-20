@@ -349,6 +349,11 @@ final class AppModel: ObservableObject {
         return termTabs.count == 1 ? termTabs[0].id : nil
     }
 
+    /// AI 面板用公开包装：目标终端标签 id（优先当前活动的终端）。
+    func snippetTargetTabIdPublic() -> Int? { snippetTargetTabId() }
+    /// AI 面板用公开包装：向目标终端注入文本（run=false 仅插入不回车）。
+    func deliverSnippetPublic(_ text: String, run: Bool) { deliverSnippet(text, run: run) }
+
     private func deliverSnippet(_ text: String, run: Bool) {
         guard let id = snippetTargetTabId(), let tv = terminals[id] else {
             snippetNotice = String(localized: "请先打开并切到一个终端，再运行片段。")
@@ -1288,6 +1293,43 @@ final class AppModel: ObservableObject {
     static func shellEscape(_ name: String) -> String {
         "'" + name.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
+
+    /// 活动终端最近 N 行文本（AI 上下文注入用；含 scrollback，trimRight 去行尾空白）。
+    /// 活动标签不是终端或读不到时返回 nil。逐行 getLine 访问（SwiftTerm 公共 API），N 受限小读。
+    func terminalTailText(lines: Int = 30) -> String? {
+        guard let id = activeTabId,
+              tabs.first(where: { $0.id == id })?.kind == .terminal,
+              let tv = terminals[id] else { return nil }
+        let term = tv.getTerminal()
+        let start = max(0, term.rows - lines)
+        var out: [String] = []
+        for row in start..<term.rows {
+            guard let line = term.getLine(row: row)?.translateToString(trimRight: true) else { continue }
+            out.append(line)
+        }
+        let text = out.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
+    }
+
+    /// AI 命令执行请求（显示完整命令，经用户批准后才会执行；见 AIExecuteConfirmDialog）。
+    @Published var pendingAIExecution: AIExecutionRequest? = nil
+
+    /// 批准执行：经会话池 exec 并把结果回显到 AI 面板。
+    func approveAIExecution() {
+        guard let req = pendingAIExecution else { return }
+        pendingAIExecution = nil
+        let cmd = req.command
+        let ssh = req.host.ssh ?? SSHConnection()
+        Task {
+            let r = await RemoteFS(ssh).run(cmd, timeout: 60)
+            let out = String(decoding: r.data, as: UTF8.self)
+            let err = String(decoding: r.stderr, as: UTF8.self)
+            await AIChatState.shared.appendExecResult(command: cmd, exitCode: r.code, stdout: out, stderr: err)
+        }
+    }
+
+    /// 拒绝执行：仅关闭弹窗，不动 AI 会话（命令卡片仍可复制/插入终端）。
+    func declineAIExecution() { pendingAIExecution = nil }
 
     // ---------- 标签操作 ----------
     func openLocalTerminal() {

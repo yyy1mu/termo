@@ -6,6 +6,7 @@ enum Section: Hashable {
 
 enum SettingsTab: String, CaseIterable, Hashable {
     case general = "通用"
+    case ai = "AI 助手"
     case sshKeys = "密钥"
     case terminal = "终端"
     case transfer = "传输"
@@ -18,6 +19,7 @@ enum SettingsTab: String, CaseIterable, Hashable {
     var label: String {
         switch self {
         case .general: return String(localized: "通用")
+        case .ai: return String(localized: "AI 助手")
         case .terminal: return String(localized: "终端")
         case .transfer: return String(localized: "传输")
         case .sync: return String(localized: "同步与备份")
@@ -32,6 +34,7 @@ enum SettingsTab: String, CaseIterable, Hashable {
     var icon: String {
         switch self {
         case .general: return "gearshape"
+        case .ai: return "sparkles"
         case .terminal: return "terminal"
         case .transfer: return "arrow.up.arrow.down"
         case .sync: return "arrow.triangle.2.circlepath"
@@ -319,4 +322,12 @@ struct Host: Identifiable, Codable {
         if let h = ssh?.host, !h.isEmpty { return h }
         return addr.contains("@") ? String(addr.split(separator: "@").last ?? "") : addr
     }
+}
+
+/// AI 命令执行请求：AI 面板命令卡片点「请求执行」时生成；
+/// 经用户批准才会真正执行（approveAIExecution），拒绝仅关闭弹窗。
+struct AIExecutionRequest: Identifiable {
+    let id = UUID()
+    let command: String
+    let host: Host
 }

@@ -22,11 +22,12 @@ final class LayoutModel: ObservableObject {
 /// 右侧功能栏条目：以当前主机与终端上下文为中心；全局同步位于设置。
 enum RightPanel: String, CaseIterable, Hashable {
     // 声明顺序即右侧栏按钮顺序：高频核心功能（监控/文件/tmux/转发/片段）在前，主机巡检工具在后。
-    case monitor, sftp, tmux, forward, snippets, services, processes, network, docker
+    case monitor, ai, sftp, tmux, forward, snippets, services, processes, network, docker
 
     var symbol: String {
         switch self {
         case .sftp: return "folder"
+        case .ai: return "sparkles"
         case .tmux: return "rectangle.split.2x2"
         case .services: return "gearshape.2"
         case .processes: return "chart.bar"
@@ -41,6 +42,7 @@ enum RightPanel: String, CaseIterable, Hashable {
     var title: String {
         switch self {
         case .sftp: return String(localized: "文件 (SFTP)")
+        case .ai: return String(localized: "AI 助手")
         case .tmux: return "tmux"
         case .services: return String(localized: "系统服务")
         case .processes: return String(localized: "进程管理")
@@ -55,7 +57,7 @@ enum RightPanel: String, CaseIterable, Hashable {
     /// 是否需要一台已选中的 SSH 主机（否则显示占位提示）。
     var needsHost: Bool {
         switch self {
-        case .snippets: return false
+        case .ai, .snippets: return false
         default: return true
         }
     }

@@ -124,6 +124,8 @@ struct CompanionPanel: View {
             )
         } else {
             switch panel {
+            case .ai:
+                AIPanel(model: model)
             case .sftp:
                 if let host {
                     FileBrowser(
