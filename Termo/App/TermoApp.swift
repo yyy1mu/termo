@@ -35,6 +35,23 @@ struct TermoApp: App {
         .windowStyle(.hiddenTitleBar)
         // 首次打开的默认尺寸（仅初始值，最小限制不变；用户拖动后由系统记忆）：给三栏 + 工作区更宽裕的空间。
         .defaultSize(width: 1200, height: 800)
+        // 菜单经 SwiftUI Commands 构建：默认菜单栏自带完整「编辑」（撤销/剪切/复制/
+        // 粘贴/全选，响应链分发到任何文本框）。此前手工替换 NSApp.mainMenu 会被
+        // SwiftUI 重建冲掉——菜单栏没有「编辑」、⌘V 全面失效的根因。
+        .commands {
+            // 应用菜单：关于（自定义窗口）
+            CommandGroup(replacing: .appInfo) {
+                Button("关于 Termo") { appDelegate.showAbout() }
+            }
+            // 应用菜单：锁定（⌘L）+ 退出（走后台任务检查流程）
+            CommandGroup(replacing: .appTermination) {
+                Button("锁定 Termo") { AppLockManager.shared.lock() }
+                    .keyboardShortcut("l", modifiers: .command)
+                Divider()
+                Button("退出 Termo") { appDelegate.requestQuit() }
+                    .keyboardShortcut("q", modifiers: .command)
+            }
+        }
     }
 }
 
@@ -48,7 +65,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.appearance = NSAppearance(named: ThemeManager.shared.isDark ? .darkAqua : .aqua)
         NSApp.setActivationPolicy(.regular)
         applyAppIcon()
-        setupMainMenu()
         _ = OSLogo.fontName   // 预注册随包发行版 Logo 字体(Font Logos)
         _ = AppModel.shared   // 提前建好单例，使托盘/退出流程在窗口之外也能访问后台任务
         AppLockManager.shared.startIdleWatching()   // 空闲自动锁监听（⌘L 与超时锁定共用状态）
@@ -205,60 +221,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// 自定义中文主菜单：应用菜单只保留「关于」「退出」；保留「编辑」菜单以注册
     /// 输入框/代码编辑器复制粘贴等标准操作的快捷键（否则这些操作会失效）。
-    private func setupMainMenu() {
-        let main = NSMenu()
-
-        // 应用菜单（标题由系统替换为 App 名）
-        let appItem = NSMenuItem()
-        main.addItem(appItem)
-        let appMenu = NSMenu()
-        appItem.submenu = appMenu
-        let about = NSMenuItem(title: String(localized: "关于 Termo"), action: #selector(showAbout), keyEquivalent: "")
-        about.target = self
-        appMenu.addItem(about)
-        appMenu.addItem(.separator())
-        // 锁定 Termo（⌘L）：立即进入锁定屏（需已在设置 → 安全 启用启动锁）
-        let lockItem = NSMenuItem(title: String(localized: "锁定 Termo"), action: #selector(lockApp), keyEquivalent: "l")
-        lockItem.target = self
-        lockItem.keyEquivalentModifierMask = .command
-        appMenu.addItem(lockItem)
-        appMenu.addItem(.separator())
-        let quit = NSMenuItem(title: String(localized: "退出 Termo"), action: #selector(requestQuit), keyEquivalent: "q")
-        quit.target = self   // 经退出流程检查后台任务，而非直接 terminate
-        appMenu.addItem(quit)
-
-        // 编辑菜单：复制/粘贴/撤销等标准操作依赖这些菜单项把快捷键注册到响应链才生效（输入框/编辑器/sheet 内同理）。
-        // 父项必须有标题，否则菜单栏显示为空；每项显式设 keyEquivalentModifierMask = ⌘（与代码库其它菜单一致），
-        // 避免默认修饰键在自定义主菜单下未被识别导致 ⌘X/⌘C/⌘V/⌘A 失效。
-        let editItem = NSMenuItem()
-        editItem.title = String(localized: "编辑")
-        main.addItem(editItem)
-        let edit = NSMenu(title: String(localized: "编辑"))
-        editItem.submenu = edit
-        func addEdit(_ title: String, _ action: Selector, _ key: String,
-                     _ mask: NSEvent.ModifierFlags = .command) {
-            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
-            item.keyEquivalentModifierMask = mask
-            edit.addItem(item)
-        }
-        addEdit(String(localized: "撤销"), Selector(("undo:")), "z")
-        addEdit(String(localized: "重做"), Selector(("redo:")), "z", [.command, .shift])
-        edit.addItem(.separator())
-        addEdit(String(localized: "剪切"), #selector(NSText.cut(_:)), "x")
-        addEdit(String(localized: "复制"), #selector(NSText.copy(_:)), "c")
-        addEdit(String(localized: "粘贴"), #selector(NSText.paste(_:)), "v")
-        addEdit(String(localized: "全选"), #selector(NSText.selectAll(_:)), "a")
-
-        NSApp.mainMenu = main
-    }
-
-
     /// ⌘L 菜单动作：立即锁定（未启用启动锁时为无操作）。
     @objc private func lockApp() {
         AppLockManager.shared.lock()
     }
 
-    @objc private func showAbout() {
+    @objc func showAbout() {
         if aboutWindow == nil {
             let hosting = NSHostingView(rootView: AboutWindow())
             let w = NSWindow(
