@@ -101,9 +101,12 @@ final class HostDraft: ObservableObject {
     @Published var group = ""
     @Published var name = ""
     @Published var address = ""
-    @Published var authMethod: AuthMethod = .ask   // 新增主机默认「每次询问」（连接时弹窗输入，不存凭证）
+    @Published var authMethod: AuthMethod = .password {
+        didSet { if authMethod != oldValue { password = "" } }
+    }
     @Published var user = "root"
-    @Published var password = ""
+    @Published var password = "" { didSet { passwordWasEdited = true } }
+    private(set) var passwordWasEdited = false
     @Published var keyPath = ""        // 私钥文件路径（认证方式为「密钥」时使用）
     @Published var keyId = ""          // 关联密钥库的密钥 id（非空则用库密钥，优先于 keyPath）
     @Published var notes = ""
@@ -129,9 +132,56 @@ final class HostDraft: ObservableObject {
     // 端口
     @Published var port = "22"
 
-    var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty
-            && !address.trimmingCharacters(in: .whitespaces).isEmpty
+    var validationMessage: String? {
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return String(localized: "填写主机名称，便于在工作区中识别。")
+        }
+        return connectionValidationMessage
+    }
+
+    var connectionValidationMessage: String? {
+        if resolvedAddress.isEmpty { return String(localized: "填写服务器的 IP 地址或域名。") }
+        if resolvedAddress.contains(where: { $0.isWhitespace }) || resolvedAddress.contains("/")
+            || resolvedAddress.contains("@") || resolvedAddress.contains("[") || resolvedAddress.contains("]") {
+            return String(localized: "地址仅填写 IP 或域名；登录用户和端口请分别填写。")
+        }
+        // A single colon usually means host:port; an IPv6 literal has multiple colons.
+        if resolvedAddress.filter({ $0 == ":" }).count == 1 {
+            return String(localized: "请将端口填入独立的端口字段。")
+        }
+        guard let portNumber = Int(port.trimmingCharacters(in: .whitespacesAndNewlines)),
+              (1...65535).contains(portNumber) else {
+            return String(localized: "端口需为 1–65535 之间的整数。")
+        }
+        if authMethod == .key, keyId.isEmpty,
+           keyPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return String(localized: "选择密钥库中的密钥，或指定私钥文件。")
+        }
+        return nil
+    }
+
+    var canSave: Bool { validationMessage == nil }
+
+    var testUnavailableReason: String? {
+        if let connectionValidationMessage { return connectionValidationMessage }
+        if authMethod == .ask || (authMethod == .password && password.isEmpty) {
+            return String(localized: "测试需要登录凭证；可填写密码后测试，或先保存，再连接时输入。")
+        }
+        return nil
+    }
+
+    var resolvedAddress: String {
+        let value = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("["), value.hasSuffix("]"), value.contains(":") {
+            return String(value.dropFirst().dropLast())
+        }
+        return value
+    }
+
+    var targetLabel: String {
+        let login = user.trimmingCharacters(in: .whitespacesAndNewlines)
+        let host = resolvedAddress.contains(":") ? "[\(resolvedAddress)]" : resolvedAddress
+        return "\(login.isEmpty ? "root" : login)@\(host):\(port.trimmingCharacters(in: .whitespacesAndNewlines))"
     }
 
     var resolvedGroup: String {
@@ -140,7 +190,7 @@ final class HostDraft: ObservableObject {
     }
 
     /// 从已有主机回填表单（编辑模式）。
-    func load(from host: Host) {
+    func load(from host: Host, passwordIsTemporary: Bool = false) {
         name = host.name
         group = host.group
         notes = host.notes
@@ -149,7 +199,7 @@ final class HostDraft: ObservableObject {
         address = s.host
         port = String(s.port)
         authMethod = s.authMethod
-        password = s.password
+        password = passwordIsTemporary ? "" : s.password
         keyPath = s.keyPath
         keyId = s.keyId
         encoding = s.encoding
@@ -162,15 +212,16 @@ final class HostDraft: ObservableObject {
         heartbeat = String(s.heartbeatMs)
         initialCommand = s.initialCommand
         defaultPath = s.defaultPath
+        passwordWasEdited = false
     }
 
     func buildConnection() -> SSHConnection {
         SSHConnection(
-            user: user.trimmingCharacters(in: .whitespaces).isEmpty ? "root" : user.trimmingCharacters(in: .whitespaces),
-            host: address.trimmingCharacters(in: .whitespaces),
-            port: Int(port) ?? 22,
+            user: user.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "root" : user.trimmingCharacters(in: .whitespacesAndNewlines),
+            host: resolvedAddress,
+            port: Int(port.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 22,
             authMethod: authMethod,
-            password: password,
+            password: authMethod == .ask ? "" : password,
             keyPath: keyPath.trimmingCharacters(in: .whitespaces),
             keyId: keyId,
             encoding: encoding,

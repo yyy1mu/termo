@@ -42,7 +42,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 cloudza. 保留所有权利。</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Termo 需要访问本地网络，以便连接局域网内的 SSH / RDP 主机。</string>
+	<string>Termo 需要访问本地网络，以便连接局域网内的 SSH 主机和 WebDAV 服务。</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSAppTransportSecurity</key>

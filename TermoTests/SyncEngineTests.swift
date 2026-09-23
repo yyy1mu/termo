@@ -79,4 +79,17 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(m.merged.snippets.map(\.id), ["s1"])
         XCTAssertEqual(m.remoteOnlyCount, 1)
     }
+
+    func test_multilineSnippetConflict_showsFullContentBeforeChoosing() {
+        let local = Snippet(id: "s1", name: "部署", content: "echo prepare\necho local")
+        let remote = Snippet(id: "s1", name: "部署", content: "echo prepare\necho remote")
+        let result = SyncEngine.merge(
+            local: payload(hosts: [], snippets: [local]),
+            remote: payload(hosts: [], snippets: [remote]))
+        XCTAssertEqual(result.conflicts.count, 1)
+        let field = result.conflicts[0].fields.first { $0.label == "内容" }
+        XCTAssertEqual(field?.local, local.content)
+        XCTAssertEqual(field?.remote, remote.content)
+        XCTAssertEqual(field?.isDifferent, true)
+    }
 }

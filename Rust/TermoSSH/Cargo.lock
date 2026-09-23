@@ -1712,10 +1712,12 @@ name = "termo-ssh"
 version = "0.1.0"
 dependencies = [
  "data-encoding",
+ "hmac",
  "md5",
  "rand",
  "russh",
  "russh-sftp",
+ "sha1",
  "sha2 0.10.9",
  "tokio",
 ]

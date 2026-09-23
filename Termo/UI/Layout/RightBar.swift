@@ -8,55 +8,67 @@ struct RightBar: View {
     @ObservedObject var layout: LayoutModel
     @ObservedObject private var theme = ThemeManager.shared
 
+    static let width: CGFloat = 60
+    private let groups: [[RightPanel]] = [
+        [.monitor, .sftp, .ai], [.tmux, .forward, .snippets], [.services, .processes, .network, .docker],
+    ]
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 7) {
-                    ForEach(RightPanel.allCases, id: \.self) { panel in
-                        RightBarButton(symbol: panel.symbol,
-                                       selected: layout.rightPanel == panel,
-                                       help: panel.title) {
-                            layout.rightPanel = layout.rightPanel == panel ? nil : panel
+                VStack(spacing: 10) {
+                    ForEach(groups, id: \.self) { group in
+                        VStack(spacing: 3) {
+                            ForEach(group, id: \.self) { panel in
+                                RightBarButton(panel: panel, selected: layout.rightPanel == panel) {
+                                    layout.rightPanel = layout.rightPanel == panel ? nil : panel
+                                }
+                            }
                         }
+                        if group != groups.last { Rectangle().fill(Pal.border).frame(width: 22, height: 1) }
                     }
                 }
-                .padding(.top, 14)
+                .padding(.vertical, 9)
             }
             Rectangle().fill(Pal.border).frame(height: 1)
             BackgroundCenterButton(model: model, arrowEdge: .leading)
                 .frame(height: 48)
+                .help(String(localized: "后台传输与隧道"))
         }
-        .frame(width: 48)
+        .frame(width: Self.width)
         .frame(maxHeight: .infinity)
-        .background(Pal.mantle)
+        .background(Pal.crust)
         .overlay(alignment: .leading) { Rectangle().fill(Pal.border).frame(width: 1) }
     }
 }
 
 private struct RightBarButton: View {
-    let symbol: String
+    let panel: RightPanel
     let selected: Bool
-    let help: String
     let action: () -> Void
     @State private var hover = false
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 13))
-                .foregroundStyle(selected ? Pal.mauve : (hover ? Pal.subtext : Pal.overlay))
-                .frame(width: 34, height: 34)
-                .background(
-                    selected ? Pal.mauve.opacity(0.16) : (hover ? Pal.fill(0.08) : Color.clear),
-                    in: RoundedRectangle(cornerRadius: 7)
-                )
-                .contentShape(Rectangle())
+            VStack(spacing: 4) {
+                Image(systemName: panel.symbol).font(
+                    .system(size: 15, weight: selected ? .semibold : .regular))
+                Text(panel.shortTitle).font(.system(size: 9, weight: selected ? .semibold : .medium))
+            }
+            .foregroundStyle(selected ? Pal.mauve : (hover ? Pal.text : Pal.subtext))
+            .frame(width: 48, height: 42)
+            .background(
+                selected ? Pal.mauve.opacity(0.12) : (hover ? Pal.fill(0.05) : Color.clear),
+                in: RoundedRectangle(cornerRadius: 10)
+            )
+            .overlay(alignment: .leading) {
+                if selected { Capsule().fill(Pal.mauve).frame(width: 2, height: 16) }
+            }
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .pointerCursor()
-        .onHover { hover = $0 }
-        .help(help)
-        .accessibilityLabel(help)
+        .buttonStyle(.plain).pointerCursor().onHover { hover = $0 }
+        .help(panel.title).accessibilityLabel(panel.title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -72,15 +84,14 @@ struct CompanionPanel: View {
     @ObservedObject private var theme = ThemeManager.shared
     @State private var dragBaseWidth: CGFloat? = nil
 
-    /// 伴随面板固定用一个负的伪 tabId 存 FileBrowser 状态（真实 tabId 从 1 递增，永不冲突）。
-    private static let companionTabId = -1
-
     var body: some View {
         if let panel = layout.rightPanel {
+            let context = model.workspaceContext
             VStack(spacing: 0) {
-                header(panel)
+                header(panel, context: context)
                 Rectangle().fill(Pal.fill(0.08)).frame(height: 1)
-                content(panel)
+                content(panel, context: context)
+                    .id(context.scope)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(width: panelWidth)
@@ -92,8 +103,8 @@ struct CompanionPanel: View {
                     .contentShape(Rectangle())
                     .onContinuousHover { phase in
                         switch phase {
-                        case .active: NSCursor.resizeLeftRight.push()
-                        case .ended: NSCursor.pop()
+                        case .active: NSCursor.resizeLeftRight.set()
+                        case .ended: NSCursor.arrow.set()
                         }
                     }
                     .gesture(
@@ -101,7 +112,8 @@ struct CompanionPanel: View {
                             .onChanged { v in
                                 if dragBaseWidth == nil { dragBaseWidth = panelWidth }
                                 if let base = dragBaseWidth {
-                                    layout.rightPanelManualWidth = min(max(base - v.translation.width, 260), 560)
+                                    layout.rightPanelManualWidth = min(
+                                        max(base - v.translation.width, 260), 560)
                                 }
                             }
                             .onEnded { _ in dragBaseWidth = nil }
@@ -114,33 +126,40 @@ struct CompanionPanel: View {
         }
     }
 
-    private func header(_ panel: RightPanel) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: panel.symbol).font(.system(size: 12)).foregroundStyle(Pal.mauve)
-            Text(panel.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.text)
-            if let host = model.companionHost() {
-                Text("· \(host.name)")
-                    .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                    .lineLimit(1)
+    private func header(_ panel: RightPanel, context: WorkspaceContext) -> some View {
+        let host = model.host(context.hostId)
+        return HStack(alignment: .center, spacing: 8) {
+            Image(systemName: panel.symbol).font(.system(size: 15))
+                .foregroundStyle(Pal.mauve).frame(width: 28, height: 28)
+                .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(panel.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Pal.textBright)
+                if panel != .snippets, let host {
+                    Text(host.name).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                        .lineLimit(1).truncationMode(.middle).help(host.name)
+                } else {
+                    Text(panel == .snippets ? "跨主机复用常用命令"
+                         : (context.scope == .empty ? "未选择工作区" : "本地终端"))
+                        .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                }
             }
-            Spacer()
-            Button { layout.rightPanel = nil } label: {
-                Image(systemName: "xmark").font(.system(size: 10))
-                    .foregroundStyle(Pal.overlay)
-                    .frame(width: 22, height: 22)
-                    .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 5))
-                    .contentShape(Rectangle())
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                layout.rightPanel = nil
+            } label: {
+                Image(systemName: "xmark").font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Pal.subtext).frame(width: 28, height: 28)
+                    .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.plain)
-            .pointerCursor()
+            .buttonStyle(.plain).pointerCursor().help(String(localized: "收起面板"))
+            .accessibilityLabel("收起面板")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 11).padding(.vertical, 9)
     }
 
     @ViewBuilder
-    private func content(_ panel: RightPanel) -> some View {
-        let host = model.companionHost()
+    private func content(_ panel: RightPanel, context: WorkspaceContext) -> some View {
+        let host = model.host(context.hostId)
         if panel.needsHost && host == nil {
             CompanionPlaceholder(
                 symbol: panel.symbol,
@@ -149,44 +168,72 @@ struct CompanionPanel: View {
         } else {
             switch panel {
             case .ai:
-                // 会话按终端标签绑定（Multiton）：切标签 = 换会话实例；
-                // .id 驱动 SwiftUI 重建视图并切换被观察的 chat 对象。
-                AIPanel(model: model, chat: AIChatStore.shared.session(for: model.activeTabId))
-                    .id(model.activeTabId)
+                // 同主机共享 AI 对话；.id(context) 刷新当前命令目标与上下文预览。
+                AIPanel(model: model, chat: AIChatStore.shared.session(for: context))
+                    .id(context)
             case .sftp:
                 if let host {
                     FileBrowser(
                         state: model.browserState(for: FileWorkspaceModel.companionTabId, host: host),
                         host: host, model: model)
+                        .id(host.id)
                 }
             case .tmux:
-                if let host { TmuxPanel(model: model, host: host) }
+                if let host { TmuxPanel(model: model, host: host).id(host.id) }
             case .services:
-                if let host { ServicesPanel(model: model, host: host) }
+                if let host { ServicesPanel(model: model, host: host).id(host.id) }
             case .processes:
-                if let host { ProcessesPanel(model: model, host: host) }
+                if let host { ProcessesPanel(model: model, host: host).id(host.id) }
             case .network:
-                if let host { NetworkPanel(model: model, host: host) }
+                if let host { NetworkPanel(model: model, host: host).id(host.id) }
             case .docker:
-                if let host { DockerPanel(model: model, host: host) }
+                if let host { DockerPanel(model: model, host: host).id(host.id) }
             case .monitor:
                 if let host {
-                    // 高度自适应：内容超出可用高度时整体等比缩小，一页展示、永不滚动。
-                    FitToHeight {
-                        MonitorPanel(monitor: model.hostMonitor(for: host))
-                            .padding(.horizontal, 12)
-                            .padding(.top, 8)
-                            .padding(.bottom, 12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                    MonitorCompanionContent(model: model, host: host).id(host.id)
                 }
             case .forward:
                 if let host {
                     // 全功能转发管理（列表/新建/编辑/删除确认）直接入驻右侧面板
-                    PortForwardView(model: model, host: host)
+                    PortForwardView(model: model, host: host).id(host.id)
                 }
             case .snippets:
                 SnippetsPanel(model: model, tabs: tabs)
+            }
+        }
+    }
+}
+
+/// 监控采样只跟随右侧面板，而不是中间的主机资料页。
+private struct MonitorCompanionContent: View {
+    @ObservedObject var model: AppModel
+    let host: Host
+
+    private var needsAuth: Bool {
+        host.ssh?.authMethod == .ask && (host.ssh?.password ?? "").isEmpty
+    }
+
+    var body: some View {
+        Group {
+            if needsAuth {
+                PanelEmptyState(
+                    symbol: "lock.circle",
+                    title: "连接后查看监控",
+                    detail: "此主机需要本次连接的密码。验证后可查看实时资源。",
+                    actionTitle: "连接主机",
+                    action: { model.verifyConnect(host) }
+                )
+            } else {
+                FitToHeight {
+                    MonitorPanel(monitor: model.hostMonitor(for: host),
+                                 onVerifyHost: { model.verifyMonitorHost(host) })
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .onAppear { model.monitorPanelAppeared(host) }
+                .onDisappear { model.monitorPanelDisappeared(host.id) }
             }
         }
     }
@@ -198,15 +245,6 @@ private struct CompanionPlaceholder: View {
     let message: String
 
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: symbol).font(.system(size: 26)).foregroundStyle(Pal.overlay)
-            Text(message)
-                .font(.system(size: 12)).foregroundStyle(Pal.subtext)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.horizontal, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        PanelEmptyState(symbol: symbol, title: String(localized: "选择一台主机"), detail: message)
     }
 }
-
-/// 窄栏只呈现隧道概况；需要编辑时打开完整管理窗口，避免 560pt 表单被挤进 280–360pt。

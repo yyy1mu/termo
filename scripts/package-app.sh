@@ -4,7 +4,7 @@
 #
 #   构建   : xcodebuild archive（Release / arm64 / -Osize / strip / 分离 dSYM）
 #   产物   : dist/<版本>/Termo.app、dist/<版本>/Termo-<版本>.dmg、dist/dSYMs/<版本>/
-#   签名   : ad-hoc（"-"）。Developer ID 公证/装订见文末 RELEASE 说明（待付费账号到位）。
+#   签名   : 优先 Developer ID；本机自用可用 Apple Development，不回退临时签名。
 #
 # 依赖：Xcode、create-dmg(brew)。DMG 布局经 Finder/AppleScript 设定，需在图形会话(本机终端)运行。
 #
@@ -57,28 +57,34 @@ info "构建日志：$LOG"
 
 # ── 签名身份决议 ────────────────────────────────────────────────────────────
 # 钥匙串有 Developer ID Application 证书 → 正式签名（加固运行时 + 安全时间戳，可公证分发）；
-# 没有 → 回退 ad-hoc（仅本地自测；分发到其它 Mac 会被 Gatekeeper 拦）。
+# 没有 → 使用稳定 Apple Development（仅本机自用），避免每次构建重新索要钥匙串授权。
 # 末尾 `|| true`：无证书时 grep 返回非 0，在 pipefail 下会让赋值失败、触发 set -e；兜住它。
 DEVID="$(security find-identity -v -p codesigning 2>/dev/null \
         | grep -o 'Developer ID Application: [^"]*' | head -1 || true)"
+DEV_SIGN=""
 NOTARY_PROFILE="${NOTARY_PROFILE:-termo-notary}"   # notarytool 钥匙串凭证名（见文末 RELEASE 说明）
 NOTARIZED=false
 if [ -n "$DEVID" ]; then
     ok "签名身份：$DEVID"
 else
-    warn "无 Developer ID Application 证书 → 本次 ad-hoc（仅自测）"
+    DEV_SIGN="$(security find-identity -v -p codesigning 2>/dev/null \
+        | grep -o 'Apple Development: [^"]*' || true)"
+    [ -n "$DEV_SIGN" ] || die "没有可用的固定签名证书；不再交付 ad-hoc 构建。请先配置开发证书。"
+    [ "$(printf '%s\n' "$DEV_SIGN" | wc -l | tr -d ' ')" -eq 1 ] \
+        || die "存在多个开发证书；请用 TERMO_SIGNING_IDENTITY 指定并运行 scripts/build-local-release.sh。"
+    warn "无 Developer ID Application 证书 → 使用 Apple Development（仅本机自用，不进行公证）"
 fi
 
 # ── 归档 ────────────────────────────────────────────────────────────────────
 section "归档（Release / arm64 / 去符号）"
 step "xcodebuild archive…"
 rm -rf "$ARCHIVE"
-# Developer ID：正式签名 + 加固运行时 + 时间戳（公证前置条件）；否则 ad-hoc。
+# Developer ID：正式签名 + 加固运行时 + 时间戳；本机开发版保持固定证书身份。
 if [ -n "$DEVID" ]; then
     SIGN=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$DEVID" DEVELOPMENT_TEAM="$TEAM_ID" \
           ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp")
 else
-    SIGN=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="")
+    SIGN=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$DEV_SIGN" DEVELOPMENT_TEAM="" OTHER_CODE_SIGN_FLAGS="--timestamp=none")
 fi
 run_quiet xcodebuild archive \
     -project "$ROOT/$APP_NAME.xcodeproj" \
@@ -171,7 +177,7 @@ fi
 section "验收"
 BIN="$APP/Contents/MacOS/$APP_NAME"
 codesign --verify --deep --strict --verbose=2 "$APP" >>"$LOG" 2>&1 \
-    && ok "签名校验通过（$([ -n "$DEVID" ] && echo "Developer ID" || echo "ad-hoc")）" \
+    && ok "签名校验通过（$([ -n "$DEVID" ] && echo "Developer ID" || echo "Apple Development")）" \
     || warn "签名校验未通过"
 if [ "$NOTARIZED" = true ]; then
     spctl --assess --type execute -vv "$APP" >>"$LOG" 2>&1 \
@@ -185,7 +191,7 @@ printf '  版本     : %s (build %s)\n' "$VERSION" "$BUILDNO"
 printf '  App 体积 : %s\n' "$(du -sh "$APP" | cut -f1)"
 printf '  DMG 体积 : %s\n' "$(du -sh "$DMG" | cut -f1)"
 printf '  架构     : %s\n' "$(lipo -archs "$BIN" 2>/dev/null)"
-printf '  签名     : %s\n' "$([ -n "$DEVID" ] && { [ "$NOTARIZED" = true ] && echo 'Developer ID + 已公证（可分发）' || echo 'Developer ID（未公证）'; } || echo 'ad-hoc（仅自测）')"
+printf '  签名     : %s\n' "$([ -n "$DEVID" ] && { [ "$NOTARIZED" = true ] && echo 'Developer ID + 已公证（可分发）' || echo 'Developer ID（未公证）'; } || echo 'Apple Development（仅本机自用）')"
 printf '  符号数   : %s %s(已 strip 应很少)%s\n' "$(nm -a "$BIN" 2>/dev/null | wc -l | tr -d ' ')" "$DIM" "$RST"
 printf '  包内 dSYM: %s %s(应为 0)%s\n' "$(find "$APP" -name '*.dSYM' | wc -l | tr -d ' ')" "$DIM" "$RST"
 printf '  编译警告 : %s\n' "$WARNS"

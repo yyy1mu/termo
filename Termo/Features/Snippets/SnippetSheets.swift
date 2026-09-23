@@ -11,10 +11,11 @@ struct SnippetEditView: View {
     @State private var content = ""
     @State private var group = ""
     @State private var didLoad = false
+    @State private var confirmDelete = false
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
-            && !content.trimmingCharacters(in: .whitespaces).isEmpty
+            && !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -25,8 +26,9 @@ struct SnippetEditView: View {
                 Spacer()
                 Button { dismiss() } label: {
                     Image(systemName: "xmark").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.overlay)
+                        .frame(width: 26, height: 26).contentShape(Rectangle())
                 }
-                .buttonStyle(.plain).pointerCursor()
+                .buttonStyle(.plain).pointerCursor().help("关闭片段编辑").accessibilityLabel("关闭片段编辑")
             }
             .padding(.horizontal, 18).padding(.vertical, 14)
             Divider().overlay(Pal.fill(0.06))
@@ -36,7 +38,7 @@ struct SnippetEditView: View {
                     labeled("名称") { ThemedTextField(placeholder: "例如：查看磁盘占用", text: $name) }
                     labeled("命令正文") {
                         VStack(alignment: .leading, spacing: 6) {
-                            ThemedTextEditor(placeholder: "df -h\n支持多行；用 {{变量}} 占位，运行时填值", text: $content)
+                            ThemedTextEditor(placeholder: "df -h\n支持多行；用 {{变量}} 占位，运行时填值", text: $content, height: 180)
                             Text("用 {{变量名}} 写占位符，运行时会先弹出填值框。")
                                 .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                         }
@@ -45,7 +47,7 @@ struct SnippetEditView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             SearchableSelect(options: model.snippetGroupNames, text: $group,
                                              placeholder: String(localized: "搜索或新建分组…"))
-                            Text("在侧栏按分组折叠归类（可留空，归入「未分组」）。")
+                            Text("在片段库中按分组归类，留空时放入「未分组」。")
                                 .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                         }
                     }
@@ -55,8 +57,8 @@ struct SnippetEditView: View {
 
             Divider().overlay(Pal.fill(0.06))
             HStack {
-                if let ed = editing {
-                    Button { model.deleteSnippet(ed); dismiss() } label: {
+                if editing != nil {
+                    Button { confirmDelete = true } label: {
                         Text("删除").font(.system(size: 13, weight: .medium)).foregroundStyle(Pal.red)
                             .padding(.horizontal, 16).padding(.vertical, 7)
                             .background(Pal.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
@@ -70,10 +72,17 @@ struct SnippetEditView: View {
             }
             .padding(.horizontal, 18).padding(.vertical, 12)
         }
-        .frame(width: 480, height: 460)
+        .frame(width: 520, height: 580)
         .background(Pal.solidBase)
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .onAppear(perform: loadOnce)
+        .alert("删除片段？", isPresented: $confirmDelete) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                if let editing { model.deleteSnippet(editing) }
+                dismiss()
+            }
+        } message: { Text("此片段将从片段库移除。") }
     }
 
     private func loadOnce() {

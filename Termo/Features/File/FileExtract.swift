@@ -160,177 +160,134 @@ final class ExtractTask: ObservableObject {
     }
 }
 
-// MARK: - 解压弹窗
+// MARK: - 解压详情
 
-/// 解压弹窗：选目标（同名新文件夹 / 当前目录）→ 运行转盘 → 完成/失败。样式与上传弹窗一致，可后台运行。
+/// 与传输共用工作区内嵌详情；命令无字节进度，不显示虚构百分比。
 struct ExtractDialog: View {
     @ObservedObject var task: ExtractTask
     let onHide: () -> Void
     let onClose: () -> Void
-    @ObservedObject private var theme = ThemeManager.shared
+
+    private var status: (text: String, color: Color) {
+        switch task.phase {
+        case .ready: return (String(localized: "待解压"), Pal.overlay)
+        case .running: return (String(localized: "解压中"), Pal.mauve)
+        case .done: return (String(localized: "已完成"), Pal.green)
+        case .failed: return (String(localized: "解压失败"), Pal.red)
+        }
+    }
 
     var body: some View {
-        ZStack {
-            Color.black.opacity(theme.isDark ? 0.42 : 0.20).ignoresSafeArea()
-            card
-        }
-        .preferredColorScheme(theme.isDark ? .dark : .light)
-    }
-
-    private var card: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            header
-            archiveRow
-            stageView(task.phase)
-            buttons
-        }
-        .padding(18)
-        .frame(width: 420)
-        .background(Pal.solidMantle, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Pal.fill(0.08), lineWidth: 1))
-        .shadow(color: .black.opacity(theme.isDark ? 0.40 : 0.14), radius: 24, y: 8)
-    }
-
-    private var header: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "doc.zipper")
-                .font(.system(size: 15, weight: .medium)).foregroundStyle(Pal.mauve)
-                .frame(width: 30, height: 30)
-                .background(Pal.mauve.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("解压").font(.system(size: 14, weight: .semibold)).foregroundStyle(Pal.text)
-                Text("在 \(task.parentDir)")
-                    .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                    .lineLimit(1).truncationMode(.middle)
-            }
-            Spacer()
-            statusBadge
-            if task.phase == .running {
-                Button(action: onHide) {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .semibold)).foregroundStyle(Pal.overlay)
-                        .frame(width: 24, height: 24)
-                        .background(Pal.fill(0.06), in: Circle())
-                        .contentShape(Circle())
+        FileTaskDetailSurface {
+            FileTaskDetailHeader(title: String(localized: "解压文件"), hostName: task.hostName,
+                                 icon: "doc.zipper", status: status.text, color: status.color, onHide: onHide)
+        } content: {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 20) {
+                    FileTaskPathRow(title: String(localized: "压缩文件"), path: task.archive.path).frame(width: 250)
+                    stage.frame(minWidth: 260, idealWidth: 300, maxWidth: .infinity, alignment: .leading)
                 }
-                .buttonStyle(.plain)
-                .pointerCursor()
-                .help(String(localized: "后台运行（在左下角继续显示进度）"))
+                VStack(alignment: .leading, spacing: 16) {
+                    stage
+                    FileTaskPathRow(title: String(localized: "压缩文件"), path: task.archive.path)
+                }
+            }
+        } footer: {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { Spacer(minLength: 0); buttons }
+                VStack(alignment: .trailing, spacing: 8) { buttons }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
     }
 
-    @ViewBuilder private var statusBadge: some View {
-        let (label, fg): (String, Color) = {
-            switch task.phase {
-            case .ready:     return (String(localized: "待解压"), Pal.overlay)
-            case .running:   return (String(localized: "解压中"), Pal.mauve)
-            case .done:      return (String(localized: "完成"), Pal.green)
-            case .failed:    return (String(localized: "失败"), Pal.red)
+    private var stage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if task.phase == .ready {
+                destinationPicker
+            } else {
+                FileTaskPathRow(title: String(localized: "解压到"), path: task.destDir)
+                switch task.phase {
+                case .running:
+                    HStack(alignment: .top, spacing: 10) {
+                        ProgressView().controlSize(.small)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("正在远端解压…").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
+                            Text("收起后会继续运行，完成时通知你。")
+                                .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                case .done:
+                    Label("文件已解压完成", systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.green)
+                case .failed(let message):
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("解压未完成", systemImage: "exclamationmark.circle.fill")
+                            .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.red)
+                        Text(message.isEmpty ? String(localized: "远端未返回详细原因，请检查目标目录和解压工具。") : message)
+                            .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
+                            .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                    }
+                    .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Pal.red.opacity(0.07), in: RoundedRectangle(cornerRadius: 9))
+                case .ready: EmptyView()
+                }
             }
-        }()
-        Text(label).font(.system(size: 11, weight: .medium)).foregroundStyle(fg)
-            .padding(.horizontal, 9).padding(.vertical, 3)
-            .background(fg.opacity(0.14), in: RoundedRectangle(cornerRadius: 6))
-    }
-
-    private var archiveRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "doc.zipper").font(.system(size: 11)).foregroundStyle(Pal.subtext).frame(width: 14)
-            Text(task.archive.name)
-                .font(.system(size: 11.5, design: .monospaced)).foregroundStyle(Pal.subtext)
-                .lineLimit(1).truncationMode(.middle)
-            Spacer()
-        }
-        .padding(.horizontal, 10).padding(.vertical, 8)
-        .background(Pal.fill(0.03), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Pal.fill(0.06), lineWidth: 1))
-    }
-
-    @ViewBuilder private func stageView(_ phase: ExtractPhase) -> some View {
-        switch phase {
-        case .ready:          destinationPicker
-        case .running:        statusLine(icon: nil, String(localized: "正在解压…"), color: Pal.mauve)
-        case .done:           statusLine(icon: "checkmark.circle.fill", String(localized: "已解压到 \(task.destDir)"), color: Pal.green)
-        case .failed(let m):  failed(m)
         }
     }
 
     private var destinationPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("解压到").font(.system(size: 11)).foregroundStyle(Pal.overlay)
-            HStack(spacing: 8) {
-                destOption(String(localized: "新文件夹「\(task.folderName)」"), selected: task.toSubfolder) { task.toSubfolder = true }
-                destOption(String(localized: "当前目录"), selected: !task.toSubfolder) { task.toSubfolder = false }
-                Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("解压位置").font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.overlay)
+            VStack(spacing: 6) {
+                destinationOption(String(localized: "同名新文件夹"), detail: task.folderName, selected: task.toSubfolder) {
+                    task.toSubfolder = true
+                }
+                destinationOption(String(localized: "当前目录"), detail: task.parentDir, selected: !task.toSubfolder) {
+                    task.toSubfolder = false
+                }
             }
-            Text(task.destDir)
-                .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
-                .lineLimit(1).truncationMode(.middle)
+            FileTaskPathRow(title: String(localized: "实际目标"), path: task.destDir)
+            Text("目标位置已有的同名文件可能被覆盖。")
+                .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    private func destOption(_ title: String, selected: Bool, _ act: @escaping () -> Void) -> some View {
-        Button(action: act) {
-            Text(title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(selected ? Pal.mauve : Pal.subtext)
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(selected ? Pal.mauve.opacity(0.14) : Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 7))
-                .overlay(RoundedRectangle(cornerRadius: 7)
-                    .stroke(selected ? Pal.mauve.opacity(0.4) : Color.clear, lineWidth: 1))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .pointerCursor()
+    private func destinationOption(_ title: String, detail: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 9) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .foregroundStyle(selected ? Pal.mauve : Pal.overlay)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
+                    Text(detail).font(.system(size: 10.5, design: .monospaced)).foregroundStyle(Pal.subtext)
+                        .lineLimit(1).truncationMode(.middle).help(detail)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(10)
+            .background(selected ? Pal.mauve.opacity(0.09) : Pal.fill(0.03), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(selected ? Pal.mauve.opacity(0.35) : Pal.fill(0.06), lineWidth: 1))
+            .contentShape(Rectangle())
+        }.buttonStyle(.plain).pointerCursor()
+            .accessibilityLabel(title + "，" + detail)
+            .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    private func statusLine(icon: String?, _ text: String, color: Color) -> some View {
-        HStack(spacing: 8) {
-            if let icon {
-                Image(systemName: icon).font(.system(size: 12)).foregroundStyle(color)
-            } else {
-                ProgressView().controlSize(.small)
-            }
-            Text(text).font(.system(size: 12)).foregroundStyle(Pal.subtext)
-                .lineLimit(1).truncationMode(.middle)
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func failed(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Image(systemName: "xmark.circle.fill").font(.system(size: 12)).foregroundStyle(Pal.red)
-                Text("解压失败").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
-                Spacer(minLength: 0)
-            }
-            Text(message)
-                .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
-                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
-        }
-        .padding(10)
-        .background(Pal.red.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Pal.red.opacity(0.18), lineWidth: 1))
-    }
-
-    private var buttons: some View {
-        HStack(spacing: 10) {
-            Spacer()
-            switch task.phase {
-            case .ready:
-                SecondaryButton(title: "取消", action: onClose)
-                PrimaryButton(title: "解压") { task.begin() }
-            case .running:
-                SecondaryButton(title: "后台运行", action: onHide)
-            case .done:
-                PrimaryButton(title: "完成", action: onClose)
-            case .failed:
-                SecondaryButton(title: "关闭", action: onClose)
-                PrimaryButton(title: "重试") { task.retry() }
-            }
+    @ViewBuilder private var buttons: some View {
+        switch task.phase {
+        case .ready:
+            FileTaskAction(title: String(localized: "取消"), action: onClose)
+            FileTaskAction(title: String(localized: "开始解压"), prominent: true) { task.begin() }
+        case .running:
+            FileTaskAction(title: String(localized: "收起并继续工作"), prominent: true, action: onHide)
+        case .done:
+            FileTaskAction(title: String(localized: "清除记录"), action: onClose)
+            FileTaskAction(title: String(localized: "关闭详情"), prominent: true, action: onHide)
+        case .failed:
+            FileTaskAction(title: String(localized: "关闭详情"), action: onHide)
+            FileTaskAction(title: String(localized: "重试解压"), prominent: true) { task.retry() }
         }
     }
 }
-
-// 后台解压状态已并入左下角「后台任务」统一中控（见 BackgroundCenterView）。

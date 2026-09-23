@@ -227,76 +227,90 @@ struct BackgroundCenterPanel: View {
     @ObservedObject var model: AppModel
     let dismiss: () -> Void
     @ObservedObject private var theme = ThemeManager.shared
+    @State private var filter = BackgroundActivityFilter.all
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider().overlay(Pal.fill(0.06))
+            SegmentedControl(
+                options: [(value: BackgroundActivityFilter.all, label: "全部"),
+                          (value: .active, label: "未结束"), (value: .finished, label: "已结束")],
+                selection: $filter)
+                .padding(.horizontal, 14).padding(.bottom, 12)
+            Divider().overlay(Pal.border)
             content
         }
-        .frame(width: 360, height: 440)
+        .frame(width: 380, height: 520)
         .background(Pal.solidBase)
         .preferredColorScheme(theme.isDark ? .dark : .light)
     }
 
     private var header: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 13, weight: .medium)).foregroundStyle(Pal.mauve)
-                .frame(width: 26, height: 26)
-                .background(Pal.mauve.opacity(0.14), in: RoundedRectangle(cornerRadius: 7))
-            Text("后台任务").font(.system(size: 14, weight: .semibold)).foregroundStyle(Pal.text)
-            Spacer()
-            let n = model.activeBackgroundCount
-            if n > 0 {
-                Text("\(n) 进行中").font(.system(size: 11)).foregroundStyle(Pal.overlay)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "tray.full")
+                .font(.system(size: 16)).foregroundStyle(Pal.mauve)
+                .frame(width: 36, height: 36)
+                .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("后台任务").font(.system(size: 14, weight: .semibold)).foregroundStyle(Pal.text)
+                let pending = model.backgroundActivities.filter { !$0.isFinished }.count
+                Text(pending > 0 ? String(localized: "\(pending) 项未结束 · 关闭面板后继续") : String(localized: "传输、隧道与解压记录"))
+                    .font(.system(size: 11)).foregroundStyle(Pal.subtext)
             }
-            if model.hasFinishedBackground {
-                Button { withAnimation(popSpring) { model.clearFinishedBackground() } } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "trash").font(.system(size: 9))
-                        Text("清理已完成").font(.system(size: 10.5, weight: .medium))
-                    }
-                    .foregroundStyle(Pal.subtext)
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(Pal.fill(0.06), in: Capsule())
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .pointerCursor()
-                .help(String(localized: "清理所有已完成 / 已取消的任务"))
+            Spacer(minLength: 0)
+            Menu {
+                Button("清除已结束记录") { withAnimation(popSpring) { model.clearFinishedBackground() } }
+                    .disabled(!model.hasFinishedBackground)
+            } label: {
+                Image(systemName: "ellipsis").frame(width: 26, height: 26)
             }
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .foregroundStyle(Pal.subtext).help("任务记录操作")
+            Button(action: dismiss) {
+                Image(systemName: "xmark").font(.system(size: 10, weight: .medium))
+                    .frame(width: 26, height: 26)
+                    .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 7))
+            }
+            .buttonStyle(.plain).foregroundStyle(Pal.subtext).help("收起后台任务")
+            .accessibilityLabel("收起后台任务")
         }
-        .padding(.horizontal, 14).padding(.vertical, 11)
+        .padding(14)
     }
 
-    @ViewBuilder
     private var content: some View {
-        // 容器恒为 ScrollView：清除最后一条时行仍能完整播放退场动画，空态以 overlay 淡入。
         ScrollView {
-            BackgroundActivityList(model: model, dismiss: dismiss)
-                .padding(.horizontal, 12).padding(.vertical, 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            BackgroundActivityList(model: model, filter: filter, dismiss: dismiss)
+                .padding(12).frame(maxWidth: .infinity, alignment: .leading)
         }
         .overlay {
-            if model.backgroundActivities.isEmpty {
-                emptyState.transition(.opacity)
+            if !model.backgroundActivities.contains(where: { filter.includes($0) }) {
+                PanelEmptyState(
+                    symbol: "tray", title: emptyTitle,
+                    detail: filter == .all
+                        ? String(localized: "上传下载、端口转发和解压任务会显示在这里。")
+                        : String(localized: "切换到「全部」查看其他任务。"))
             }
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 10) {
-            Spacer()
-            Image(systemName: "tray")
-                .font(.system(size: 26)).foregroundStyle(Pal.overlay)
-            Text("暂无后台任务").font(.system(size: 13)).foregroundStyle(Pal.subtext)
-            Text("端口转发、上传下载、解压等会在此统一管理。")
-                .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                .multilineTextAlignment(.center).frame(maxWidth: 240)
-            Spacer()
+    private var emptyTitle: String {
+        switch filter {
+        case .all: return String(localized: "暂无后台任务")
+        case .active: return String(localized: "所有任务均已结束")
+        case .finished: return String(localized: "暂无已结束记录")
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+enum BackgroundActivityFilter: Hashable {
+    case all, active, finished
+
+    func includes(_ activity: BackgroundActivity) -> Bool {
+        switch self {
+        case .all: return true
+        case .active: return !activity.isFinished
+        case .finished: return activity.isFinished
+        }
     }
 }
 
@@ -307,6 +321,7 @@ struct BackgroundActivityList: View {
     @ObservedObject var model: AppModel
     var readOnly: Bool = false
     var includeFinished: Bool = true   // false=只列进行中（用于退出确认）
+    var filter: BackgroundActivityFilter = .all
     var dismiss: () -> Void = {}
 
     // 用具名结构而非元组：Swift 不支持指向元组成员的 KeyPath，ForEach(id:) 会编译失败。
@@ -321,7 +336,7 @@ struct BackgroundActivityList: View {
         var order: [String] = []
         var map: [String: [BackgroundActivity]] = [:]
         for a in model.backgroundActivities {
-            if !includeFinished && a.isFinished { continue }
+            if (!includeFinished && a.isFinished) || !filter.includes(a) { continue }
             let key = a.hostId ?? "__local__"
             if map[key] == nil { order.append(key); map[key] = [] }
             map[key]?.append(a)
@@ -359,6 +374,7 @@ struct BackgroundActivityList: View {
             if let id = hostId, let host = model.host(id) {
                 HostLeadingIcon(host: host).scaleEffect(0.64).frame(width: 20, height: 20)
                 Text(host.name).font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.subtext)
+                    .lineLimit(2).help(host.name)
             } else {
                 Image(systemName: "desktopcomputer").font(.system(size: 11)).foregroundStyle(Pal.overlay).frame(width: 20)
                 Text(hostId == nil ? "本机" : (fallback.isEmpty ? "未知主机" : fallback))
@@ -411,7 +427,7 @@ struct QuitConfirmDialog: View {
     private var hidesOnConfirm: Bool { !forceMode && settings.closeToTray }
     private var confirmTitle: String {
         if forceMode { return hasTasks ? String(localized: "停止任务并退出") : String(localized: "退出") }
-        return settings.closeToTray ? String(localized: "确定") : (hasTasks ? String(localized: "关闭任务并退出") : String(localized: "退出"))
+        return settings.closeToTray ? String(localized: "隐藏到菜单栏") : (hasTasks ? String(localized: "关闭任务并退出") : String(localized: "退出"))
     }
 
     var body: some View {
@@ -477,9 +493,9 @@ struct QuitConfirmDialog: View {
                 .frame(width: 30, height: 30)
                 .background((hasTasks ? Pal.yellow : Pal.mauve).opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 2) {
-                Text(hasTasks ? "仍有 \(model.activeBackgroundCount) 个后台任务在运行" : "退出 Termo？")
+                Text(hidesOnConfirm ? "隐藏 Termo 窗口？" : (hasTasks ? "仍有 \(model.activeBackgroundCount) 个后台任务未结束" : "退出 Termo？"))
                     .font(.system(size: 14, weight: .semibold)).foregroundStyle(Pal.text)
-                Text(hasTasks ? "退出会中断以下任务" : "确认后将关闭应用")
+                Text(hidesOnConfirm ? "窗口隐藏后，后台任务会继续运行。" : (hasTasks ? "退出会中断以下任务" : "确认后将关闭应用"))
                     .font(.system(size: 11)).foregroundStyle(Pal.overlay)
             }
             Spacer()
@@ -498,16 +514,22 @@ private struct HubForwardRow: View {
     let onManage: () -> Void
 
     private var status: ForwardManager.RuleStatus { manager.status(rule.id) }
+    private var enabled: Bool { manager.isEnabled(rule.id) }
+    private var failure: String? {
+        if case .failed(let reason) = status { return reason }
+        return nil
+    }
 
     var body: some View {
         rowShell(
             icon: "arrow.left.arrow.right", iconColor: Pal.mauve,
             title: rule.name.isEmpty ? rule.kind.title + String(localized: "转发") : rule.name,
             subtitle: rule.summary,
-            statusDot: statusColor, statusText: statusText
+            statusDot: statusColor, statusText: statusText, detail: failure
         ) {
             if !readOnly {
-                iconButton("stop.fill", color: Pal.red, help: String(localized: "停止"), action: onToggle)
+                iconButton(enabled ? "stop.fill" : "play.fill", color: enabled ? Pal.red : Pal.mauve,
+                           help: enabled ? String(localized: "停止") : String(localized: "重试"), action: onToggle)
                 iconButton("slider.horizontal.3", color: Pal.subtext, help: String(localized: "管理"), action: onManage)
             }
         }
@@ -517,7 +539,7 @@ private struct HubForwardRow: View {
         switch status {
         case .active:   return Pal.green
         case .starting: return Pal.yellow
-        case .failed:   return Pal.red
+        case .failed:   return enabled ? Pal.yellow : Pal.red
         case .stopped:  return Pal.overlay
         }
     }
@@ -525,7 +547,7 @@ private struct HubForwardRow: View {
         switch status {
         case .active:   return String(localized: "运行中")
         case .starting: return String(localized: "连接中")
-        case .failed(let r): return r
+        case .failed: return enabled ? String(localized: "等待重连") : String(localized: "连接失败")
         case .stopped:  return String(localized: "已停止")
         }
     }
@@ -542,16 +564,21 @@ private struct HubTransferRow: View {
         task.totalBytes > 0 ? min(1, Double(task.overallSent) / Double(task.totalBytes)) : 0
     }
     private var verb: String { task.direction == .upload ? String(localized: "上传") : String(localized: "下载") }
+    private var title: String {
+        if task.items.count == 1, let item = task.items.first { return "\(verb) · \(item.name)" }
+        return String(localized: "\(verb) \(task.items.count) 项")
+    }
 
     var body: some View {
         rowShell(
             icon: task.direction == .upload ? "arrow.up.circle" : "arrow.down.circle",
             iconColor: transferBlue,
-            title: String(localized: "\(verb) \(task.items.count) 项"),
+            title: title,
             subtitle: subtitle,
             statusDot: statusColor, statusText: statusText,
             progress: (task.phase == .running || task.phase == .paused) ? fraction : nil,
-            subtitleTooltip: task.destDir   // 悬停看完整保存路径（副标题中间截断，不便阅读）
+            subtitleTooltip: task.destDir,
+            detail: task.pendingAsk != nil ? String(localized: "存在同名文件，请打开详情选择处理方式。") : nil
         ) {
             if !readOnly {
                 switch task.phase {
@@ -563,22 +590,24 @@ private struct HubTransferRow: View {
                     iconButton(waiting ? "clock" : "play.fill",
                                color: waiting ? Pal.subtext : Pal.green,
                                help: waiting ? String(localized: "等待名额…") : String(localized: "继续")) { AppModel.shared.resumeTransfer(task) }
+                        .disabled(waiting)
                     iconButton("xmark", color: Pal.red, help: String(localized: "取消")) { task.cancel() }
                 case .queued:
                     iconButton("xmark", color: Pal.red, help: String(localized: "取消")) { task.cancel() }
                 case .done, .cancelled:
                     iconButton("trash", color: Pal.red, help: String(localized: "清除记录"), action: onClear)
                 }
-                iconButton("arrow.up.left.and.arrow.down.right", color: Pal.subtext, help: String(localized: "展开"), action: onOpen)
+                iconButton("arrow.up.left.and.arrow.down.right", color: Pal.subtext, help: task.pendingAsk != nil ? String(localized: "处理") : String(localized: "详情"), action: onOpen)
             }
         }
     }
 
     private var subtitle: String {
         if task.phase == .running {
-            return "\(Int(fraction * 100))%" + (task.speed > 0 ? " · \(Self.rate(task.speed))" : "")
+            return "\(humanSize(task.overallSent)) / \(humanSize(task.totalBytes))"
+                + (task.speed > 0 ? " · \(Self.rate(task.speed))" : "")
         }
-        if task.phase == .paused { return "\(Int(fraction * 100))%" }
+        if task.phase == .paused { return "\(humanSize(task.overallSent)) / \(humanSize(task.totalBytes))" }
         return task.destDir
     }
     private var statusColor: Color {
@@ -597,7 +626,15 @@ private struct HubTransferRow: View {
         case .queued:    return String(localized: "排队中")
         case .running:   return task.direction == .upload ? String(localized: "上传中") : String(localized: "下载中")
         case .paused:    return task.awaitingSlot ? String(localized: "等待名额") : String(localized: "已暂停")
-        case .done:      return task.hasFailures ? String(localized: "部分失败") : String(localized: "完成")
+        case .done:
+            if task.hasFailures {
+                let allFailed = !task.items.isEmpty && task.items.allSatisfy {
+                    if case .failed = $0.state { return true }
+                    return false
+                }
+                return allFailed ? String(localized: "传输失败") : String(localized: "部分失败")
+            }
+            return String(localized: "已完成")
         case .cancelled: return String(localized: "已取消")
         }
     }
@@ -660,7 +697,7 @@ private struct HubExtractRow: View {
 
 // MARK: - 行外壳（统一视觉）
 
-/// 统一的任务行外壳：左图标 + 标题/副标题(可选进度条) + 状态 + 右侧操作按钮。
+/// 名称、传输信息和状态操作分行，避免任务详情被图标按钮挤掉。
 @ViewBuilder
 private func rowShell<Actions: View>(
     icon: String, iconColor: Color,
@@ -668,56 +705,58 @@ private func rowShell<Actions: View>(
     statusDot: Color, statusText: String,
     progress: Double? = nil,
     subtitleTooltip: String? = nil,
+    detail: String? = nil,
     @ViewBuilder actions: () -> Actions
 ) -> some View {
-    HStack(spacing: 10) {
-        Image(systemName: icon).font(.system(size: 13)).foregroundStyle(iconColor)
-            .frame(width: 26, height: 26)
-            .background(iconColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
-
-        VStack(alignment: .leading, spacing: 3) {
+    VStack(alignment: .leading, spacing: 9) {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon).font(.system(size: 12)).foregroundStyle(iconColor)
+                .frame(width: 22, height: 22)
+                .background(iconColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
             Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
-                .lineLimit(1).truncationMode(.middle)
-            if let p = progress {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Pal.fill(0.10)).frame(height: 3)
-                        Capsule().fill(statusDot).frame(width: max(2, geo.size.width * p), height: 3)
-                    }
+                .lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).help(title)
+        }
+        if let p = progress {
+            HStack(spacing: 8) {
+                GeometryReader { geometry in
+                    Capsule().fill(Pal.fill(0.10))
+                        .overlay(alignment: .leading) {
+                            Capsule().fill(statusDot).frame(width: geometry.size.width * min(1, max(0, p)))
+                        }
                 }
-                .frame(height: 3)
-            }
-            HStack(spacing: 5) {
-                Circle().fill(statusDot).frame(width: 6, height: 6)
-                // 状态词让位（英文更长时先截断它）；副标题优先级更高：短的速率/进度完整显示，
-                // 长的路径仍按中间截断 + 悬停看全。
-                Text(statusText).font(.system(size: 10.5)).foregroundStyle(Pal.subtext)
-                    .lineLimit(1).truncationMode(.tail)
-                if !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.system(size: 10.5, design: .monospaced)).foregroundStyle(Pal.overlay)
-                        .lineLimit(1).truncationMode(.middle).layoutPriority(1)
-                        .tooltip(subtitleTooltip ?? "", when: subtitleTooltip?.isEmpty == false)
-                }
+                .frame(height: 4)
+                Text("\(Int(min(1, max(0, p)) * 100))%")
+                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(Pal.subtext)
             }
         }
-        Spacer(minLength: 6)
-        actions()
+        if !subtitle.isEmpty {
+            Text(subtitle).font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.overlay)
+                .lineLimit(2).truncationMode(.middle).help(subtitleTooltip ?? subtitle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        if let detail, !detail.isEmpty {
+            Text(detail).font(.system(size: 11)).foregroundStyle(statusDot)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        HStack(spacing: 6) {
+            Circle().fill(statusDot).frame(width: 6, height: 6)
+            Text(statusText).font(.system(size: 10, weight: .medium)).foregroundStyle(statusDot)
+                .lineLimit(2)
+            Spacer(minLength: 4)
+            actions()
+        }
     }
-    .padding(.horizontal, 10).padding(.vertical, 9)
-    .background(Pal.fill(0.03), in: RoundedRectangle(cornerRadius: 9))
-    .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.fill(0.06), lineWidth: 1))
+    .padding(12)
+    .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 10))
 }
 
-/// 行内紧凑图标按钮。
 private func iconButton(_ symbol: String, color: Color, help: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
-        Image(systemName: symbol).font(.system(size: 10)).foregroundStyle(color)
-            .frame(width: 24, height: 24)
+        Label(help == String(localized: "展开") ? String(localized: "详情") : help, systemImage: symbol)
+            .font(.system(size: 10)).foregroundStyle(color)
+            .padding(.horizontal, 7).frame(height: 26)
             .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 6))
             .contentShape(Rectangle())
     }
-    .buttonStyle(.plain)
-    .pointerCursor()
-    .help(help)
+    .buttonStyle(.plain).pointerCursor().help(help)
 }

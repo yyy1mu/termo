@@ -1,152 +1,204 @@
 import SwiftUI
 
-/// 「代码片段」活动栏分区的侧栏面板：按分组（可折叠）列出片段，支持搜索、运行/插入到当前终端、编辑。
-/// 观察 TabsModel 以便「是否有可运行终端」随标签切换即时刷新。
+/// 全局片段库；搜索独立于主机列表，执行目标跟随终端标签。
 struct SnippetsPanel: View {
     @ObservedObject var model: AppModel
     @ObservedObject var tabs: TabsModel
     @ObservedObject private var theme = ThemeManager.shared
-    @State private var collapsedGroups: Set<String> = []   // 本次运行内有效，重启不保留（同主机侧栏）
+    @State private var query = ""
+    @State private var collapsedGroups: Set<String> = []
+    @State private var pendingDelete: Snippet?
 
     private var filtered: [Snippet] {
-        let q = model.query.lowercased()
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return model.snippets }
         return model.snippets.filter {
-            $0.name.lowercased().contains(q)
-                || $0.content.lowercased().contains(q)
-                || $0.displayGroup.lowercased().contains(q)
+            $0.name.localizedCaseInsensitiveContains(q)
+                || $0.content.localizedCaseInsensitiveContains(q)
+                || $0.displayGroup.localizedCaseInsensitiveContains(q)
         }
     }
 
-    /// 出现过的分组名（保序，按片段顺序）。
     private var groups: [String] {
         var seen: [String] = []
-        for s in filtered where !seen.contains(s.displayGroup) { seen.append(s.displayGroup) }
+        for snippet in filtered where !seen.contains(snippet.displayGroup) {
+            seen.append(snippet.displayGroup)
+        }
         return seen
     }
 
+    private var targetTitle: String? {
+        guard let id = model.snippetTargetTabIdPublic() else { return nil }
+        return tabs.tabs.first { $0.id == id }?.title
+    }
+
     var body: some View {
-        if model.snippets.isEmpty {
-            emptyState
-        } else if filtered.isEmpty {
-            VStack(spacing: 10) {
-                Spacer().frame(height: 40)
-                Image(systemName: "magnifyingglass").font(.system(size: 26)).foregroundStyle(Pal.overlay)
-                Text("无匹配片段").font(.system(size: 13)).foregroundStyle(Pal.subtext)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity)
-        } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(groups, id: \.self) { group in
-                        groupHeader(group)
-                        if !collapsedGroups.contains(group) {
-                            ForEach(filtered.filter { $0.displayGroup == group }) { s in
-                                SnippetRow(snippet: s, model: model, canRun: model.hasSnippetTarget)
+        VStack(spacing: 0) {
+            toolbar
+            Divider().overlay(Pal.border)
+            if model.snippets.isEmpty {
+                PanelEmptyState(
+                    symbol: "curlybraces", title: String(localized: "保存常用命令"),
+                    detail: String(localized: "片段可在不同主机间复用，也支持填入变量。"),
+                    actionTitle: String(localized: "新建片段"), action: { model.showCreateSnippet = true })
+            } else if filtered.isEmpty {
+                PanelEmptyState(
+                    symbol: "magnifyingglass", title: String(localized: "没有匹配的片段"),
+                    detail: String(localized: "试试命令、名称或分组。"),
+                    actionTitle: String(localized: "清除搜索"), action: { query = "" })
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(groups, id: \.self) { group in
+                            groupHeader(group)
+                            if !collapsedGroups.contains(group) || !query.isEmpty {
+                                ForEach(filtered.filter { $0.displayGroup == group }) { snippet in
+                                    SnippetRow(
+                                        snippet: snippet, model: model, canRun: targetTitle != nil,
+                                        onDelete: { pendingDelete = snippet })
+                                }
                             }
                         }
                     }
+                    .padding(12)
                 }
-                .padding(.horizontal, 8)
-                .padding(.top, 6)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .alert(
+            "删除片段？",
+            isPresented: Binding(
+                get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
+            ), presenting: pendingDelete
+        ) { snippet in
+            Button("取消", role: .cancel) { pendingDelete = nil }
+            Button("删除", role: .destructive) {
+                model.deleteSnippet(snippet); pendingDelete = nil
+            }
+        } message: { snippet in
+            Text("「\(snippet.name)」将从片段库移除。")
+        }
+    }
+
+    private var toolbar: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(Pal.overlay)
+                    TextField("搜索片段", text: $query).textFieldStyle(.plain)
+                    if !query.isEmpty {
+                        Button {
+                            query = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                        }
+                        .buttonStyle(.plain).foregroundStyle(Pal.overlay).help("清除搜索")
+                    }
+                }
+                .font(.system(size: 12)).padding(8)
+                .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
+                Button {
+                    model.showCreateSnippet = true
+                } label: {
+                    Image(systemName: "plus").font(.system(size: 13, weight: .medium))
+                        .frame(width: 32, height: 32)
+                        .background(Pal.mauve.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain).foregroundStyle(Pal.mauve).help("新建片段")
+                .accessibilityLabel("新建片段")
+            }
+            Label {
+                Text(
+                    targetTitle.map { String(localized: "发送到：\($0)") }
+                        ?? String(localized: "先切到终端，再插入或运行片段")
+                )
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: targetTitle == nil ? "terminal" : "arrow.turn.down.right")
+            }
+            .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+        }
+        .padding(12)
     }
 
     private func groupHeader(_ group: String) -> some View {
-        let collapsed = collapsedGroups.contains(group)
+        let collapsed = collapsedGroups.contains(group) && query.isEmpty
         return Button {
             if collapsed { collapsedGroups.remove(group) } else { collapsedGroups.insert(group) }
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Pal.overlay)
-                    .frame(width: 11)
-                    .rotationEffect(.degrees(collapsed ? -90 : 0))
-                Text(group).font(.system(size: 11)).foregroundStyle(Pal.overlay)
+            HStack(spacing: 6) {
+                Image(systemName: collapsed ? "chevron.right" : "chevron.down").frame(width: 10)
+                Text(group).lineLimit(1)
                 Spacer(minLength: 0)
+                Text(filtered.filter { $0.displayGroup == group }.count, format: .number)
             }
-            .padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 4)
-            .contentShape(Rectangle())
+            .font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.overlay)
+            .padding(.vertical, 6).contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .pointerCursor()
-        .animation(.easeOut(duration: 0.15), value: collapsed)
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 10) {
-            Spacer().frame(height: 40)
-            Image(systemName: "chevron.left.forwardslash.chevron.right")
-                .font(.system(size: 26)).foregroundStyle(Pal.overlay)
-            Text("还没有代码片段").font(.system(size: 13)).foregroundStyle(Pal.subtext)
-            Text("把常用命令存成片段，一键发到终端").font(.system(size: 11)).foregroundStyle(Pal.overlay)
-            Button { model.showCreateSnippet = true } label: {
-                Text("新建片段").font(.system(size: 12)).foregroundStyle(Pal.mauve)
-                    .padding(.horizontal, 14).padding(.vertical, 7)
-                    .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain).pointerCursor()
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
+        .buttonStyle(.plain).disabled(!query.isEmpty)
     }
 }
 
-/// 片段行：单击编辑/详情，双击或悬停 ▶ 运行到当前终端，右键含运行/插入/复制/编辑/删除。
 private struct SnippetRow: View {
     let snippet: Snippet
     @ObservedObject var model: AppModel
     let canRun: Bool
+    let onDelete: () -> Void
     @ObservedObject private var theme = ThemeManager.shared
-    @State private var hover = false
 
-    private var hasVars: Bool { !Snippet.variableNames(in: snippet.content).isEmpty }
+    private var variableCount: Int { Snippet.variableNames(in: snippet.content).count }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "chevron.left.forwardslash.chevron.right")
-                .font(.system(size: 12)).foregroundStyle(Pal.mauve).frame(width: 18)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 5) {
-                    Text(snippet.name).font(.system(size: 13)).foregroundStyle(Pal.text).lineLimit(1)
-                    if hasVars {
-                        Image(systemName: "curlybraces").font(.system(size: 9)).foregroundStyle(Pal.overlay)
-                            .help(String(localized: "含 {{变量}}，运行时填值"))
-                    }
-                }
-                Text(snippet.preview)
-                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(Pal.overlay).lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            if hover && canRun {
-                Button { model.triggerSnippet(snippet) } label: {
-                    Image(systemName: "play.fill").font(.system(size: 11)).foregroundStyle(Pal.mauve)
-                        .frame(width: 22, height: 22)
-                        .background(Pal.mauve.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                Button {
+                    model.editingSnippet = snippet
+                } label: {
+                    Text(snippet.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Pal.text)
+                        .lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain).pointerCursor().help(String(localized: "使用片段"))
+                .buttonStyle(.plain).help("编辑片段")
+                Menu {
+                    actions
+                } label: {
+                    Image(systemName: "ellipsis").frame(width: 24, height: 20)
+                }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .foregroundStyle(Pal.subtext).help("片段操作")
+            }
+            Text(snippet.preview)
+                .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
+                .lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                if variableCount > 0 {
+                    Label("\(variableCount) 个变量", systemImage: "curlybraces")
+                        .font(.system(size: 10)).foregroundStyle(Pal.overlay)
+                }
+                Spacer(minLength: 4)
+                Button {
+                    model.triggerSnippet(snippet)
+                } label: {
+                    Label("使用片段", systemImage: "arrow.turn.down.right")
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 9).padding(.vertical, 6)
+                        .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain).foregroundStyle(canRun ? Pal.mauve : Pal.overlay)
+                .disabled(!canRun)
             }
         }
-        .padding(.horizontal, 8).padding(.vertical, 7)
-        .background(hover ? Pal.fill(0.06) : .clear, in: RoundedRectangle(cornerRadius: 7))
-        .contentShape(Rectangle())
-        .onHover { hover = $0 }
-        // 行本身不挂点击手势：之前的双击手势会和 ▶ 按钮的单击落在同一手势竞技场里互相等待，
-        // 导致「点 ▶ 没反应/延迟、询问弹窗迟迟不出」。运行统一走 ▶ 按钮与右键菜单，单击即时响应。
-        .contextMenu {
-            Button("运行到当前终端") { model.sendSnippet(snippet, run: true) }.disabled(!canRun)
-            Button("插入到当前终端") { model.sendSnippet(snippet, run: false) }.disabled(!canRun)
-            Button("复制正文") { model.copySnippet(snippet) }
-            Button("编辑") { model.editingSnippet = snippet }
-            Divider()
-            Button("删除", role: .destructive) { model.deleteSnippet(snippet) }
-        }
+        .padding(12)
+        .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 10))
+        .contextMenu { actions }
+    }
+
+    @ViewBuilder private var actions: some View {
+        Button("插入到终端") { model.sendSnippet(snippet, run: false) }.disabled(!canRun)
+        Button("运行到终端") { model.sendSnippet(snippet, run: true) }.disabled(!canRun)
+        Divider()
+        Button("编辑") { model.editingSnippet = snippet }
+        Button("复制正文") { model.copySnippet(snippet) }
+        Divider()
+        Button("删除", role: .destructive, action: onDelete)
     }
 }

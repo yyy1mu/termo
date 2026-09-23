@@ -9,8 +9,9 @@ struct Sidebar: View {
     @FocusState private var searchFocused: Bool
     // 已折叠的分组名集合（仅本次运行有效，重启不保留）
     @State private var collapsedGroups: Set<String> = []
-    /// 侧栏内容分段：服务器（主机树）/ 会话（当前全部 SSH 终端）/ 同步。
+    /// 主机资料与已打开的终端会话使用独立搜索，互不影响。
     @State private var segment: SidebarSegment = .servers
+    @State private var sessionQuery = ""
 
     enum SidebarSegment: String, CaseIterable {
         case servers, sessions
@@ -29,13 +30,13 @@ struct Sidebar: View {
     }
 
     private var filteredHosts: [Host] {
-        let sshHosts = model.hosts
-        guard !model.query.isEmpty else { return sshHosts }
-        let q = model.query.lowercased()
-        return sshHosts.filter {
-            $0.name.lowercased().contains(q) || $0.addr.lowercased().contains(q)
+        guard !hostQuery.isEmpty else { return model.hosts }
+        return model.hosts.filter {
+            [$0.name, $0.addr, $0.group].contains { $0.localizedStandardContains(hostQuery) }
         }
     }
+
+    private var hostQuery: String { model.query.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private var groups: [String] {
         var seen: [String] = []
@@ -45,24 +46,23 @@ struct Sidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 主区域负责主机导航；跨设备同步入口固定在底部全局区。
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 13) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("连接空间")
                         .font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.textBright)
                     Text(segmentSubtitle)
                         .font(.system(size: 10)).foregroundStyle(Pal.overlay)
                 }
-                Spacer()
                 segmentSwitcher
             }
             .padding(.horizontal, 16)
             .padding(.top, 18)
-            .padding(.bottom, 16)
+            .padding(.bottom, 12)
+
+            searchBox
 
             switch segment {
             case .servers:
-                searchBox()
                 if filteredHosts.isEmpty {
                     hostEmptyState
                 } else {
@@ -71,7 +71,9 @@ struct Sidebar: View {
                 // 服务器段底部固定入口：新建服务器 + 本地终端（本地在服务器之下）
                 VStack(alignment: .leading, spacing: 2) {
                     sidebarActionRow("plus.square", "新建服务器") { model.showAddHost = true }
-                    sidebarActionRow("terminal", "本地终端") { model.openLocalTerminal() }
+                    if AppEnv.localTerminalEnabled {
+                        sidebarActionRow("terminal", "本地终端") { model.openLocalTerminal() }
+                    }
                 }
                 .padding(.horizontal, 8).padding(.vertical, 6)
             case .sessions:
@@ -85,10 +87,9 @@ struct Sidebar: View {
         .frame(width: layout.sidebarWidth, alignment: .leading)
         .background(Pal.mantle)
         .clipped()
-        .onChange(of: tabs.activeTabId) { _ in searchFocused = false }
+        .onChange(of: tabs.activeTabId) { _, _ in searchFocused = false }
     }
 
-    /// 头部右侧的三段切换（图标 + tooltip，宽度受限不摆文字标签）。
     /// 侧栏动作行：图标 + 文字，主机列表同款行高。
     private func sidebarActionRow(_ symbol: String, _ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -110,15 +111,16 @@ struct Sidebar: View {
         HStack(spacing: 2) {
             ForEach(SidebarSegment.allCases, id: \.self) { seg in
                 Button { segment = seg } label: {
-                    Image(systemName: seg.symbol)
-                        .font(.system(size: 11))
-                        .foregroundStyle(segment == seg ? Pal.mauve : Pal.overlay)
-                        .frame(width: 26, height: 24)
+                    Label(seg.label, systemImage: seg.symbol)
+                        .font(.system(size: 11, weight: segment == seg ? .semibold : .medium))
+                        .foregroundStyle(segment == seg ? Pal.text : Pal.subtext)
+                        .frame(maxWidth: .infinity).frame(height: 30)
                         .background(segment == seg ? Pal.mauve.opacity(0.14) : Color.clear,
                                     in: RoundedRectangle(cornerRadius: 6))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).pointerCursor().help(seg.label)
+                .accessibilityAddTraits(segment == seg ? .isSelected : [])
             }
         }
         .padding(2)
@@ -127,25 +129,42 @@ struct Sidebar: View {
 
     private var segmentSubtitle: String {
         switch segment {
-        case .servers: return String(localized: "\(model.hosts.count) 台主机")
-        case .sessions: return String(localized: "\(sshTabs.count) 个 SSH 会话")
+        case .servers:
+            return hostQuery.isEmpty ? String(localized: "\(model.hosts.count) 台主机")
+                : String(localized: "找到 \(filteredHosts.count) / \(model.hosts.count) 台主机")
+        case .sessions: return String(localized: "\(terminalTabs.count) 个已打开的终端")
         }
     }
 
-    /// 当前全部 SSH 会话 = 打开中的 SSH 终端标签（排除本地终端与概览/文件页）。
-    private var sshTabs: [TabItem] {
-        model.tabs.filter { $0.kind == .terminal && $0.hostId != nil }
+    private var terminalTabs: [TabItem] {
+        tabs.tabs.filter { $0.kind == .terminal }
+    }
+
+    private var filteredSessions: [TabItem] {
+        let query = sessionQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return terminalTabs }
+        return terminalTabs.filter { tab in
+            let host = model.host(tab.hostId)
+            return [tab.title, host?.name ?? (tab.hostId == nil ? String(localized: "本地终端") : ""), host?.addr ?? ""]
+                .contains { $0.localizedStandardContains(query) }
+        }
     }
 
     private var sessionsList: some View {
         Group {
-            if sshTabs.isEmpty {
+            if filteredSessions.isEmpty {
                 VStack(spacing: 10) {
                     Spacer().frame(height: 40)
                     Image(systemName: "terminal").font(.system(size: 26)).foregroundStyle(Pal.overlay)
-                    Text("还没有 SSH 会话").font(.system(size: 13)).foregroundStyle(Pal.subtext)
-                    Text("打开一台主机的终端后会出现在这里")
+                    Text(terminalTabs.isEmpty ? "还没有终端会话" : "无匹配会话")
+                        .font(.system(size: 13)).foregroundStyle(Pal.subtext)
+                    Text(terminalTabs.isEmpty ? "远程与本地终端都会出现在这里" : "试试会话名称、主机名或地址")
                         .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                        .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                    Button(terminalTabs.isEmpty ? "查看服务器" : "清除搜索") {
+                        if terminalTabs.isEmpty { segment = .servers } else { sessionQuery = "" }
+                    }
+                    .buttonStyle(.plain).foregroundStyle(Pal.mauve).font(.system(size: 11))
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
@@ -153,7 +172,7 @@ struct Sidebar: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 4) {
-                        ForEach(sshTabs) { tab in
+                        ForEach(filteredSessions) { tab in
                             sessionRow(tab)
                         }
                     }
@@ -163,13 +182,16 @@ struct Sidebar: View {
         }
     }
 
-    /// 单个 SSH 会话行：终端图标 + 标签标题 + 主机名 + 连接状态点；点击切换到该标签。
+    /// 远程会话显示主机与连接状态，本地会话标明设备；点击切换到对应标签。
     private func sessionRow(_ tab: TabItem) -> some View {
         let isActive = model.activeTabId == tab.id
-        let hostName = model.host(tab.hostId)?.name ?? ""
+        let isLocal = tab.hostId == nil
+        let hostName = model.host(tab.hostId)?.name ?? String(localized: "主机不可用")
         // 连接状态：live 绿 / dropped 黄 / 无记录灰
         let phase = model.terminalConn(for: tab.id)?.phase
         let statusColor: Color = phase == .live ? Pal.green : (phase == .dropped ? Pal.yellow : Pal.overlay)
+        let status = isLocal ? String(localized: "此 Mac") : phase == .live ? String(localized: "已连接")
+            : phase == .dropped ? String(localized: "已断开") : String(localized: "等待连接")
         return Button {
             model.activeTabId = tab.id
         } label: {
@@ -180,15 +202,16 @@ struct Sidebar: View {
                     .background(Pal.mauve.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(tab.title).font(.system(size: 13)).foregroundStyle(Pal.text)
-                        .lineLimit(1).truncationMode(.middle)
-                    if !hostName.isEmpty {
+                        .lineLimit(2).truncationMode(.middle)
+                        .privacyBlur(model.privacyMode && !isLocal)
+                    if !isLocal {
                         Text(hostName).font(.system(size: 11)).foregroundStyle(Pal.subtext)
-                            .lineLimit(1).privacyBlur(model.privacyMode)
+                            .lineLimit(1).privacyBlur(model.privacyMode && !isLocal)
+                            .help(model.privacyMode ? "" : hostName)
                     }
+                    Text(status).font(.system(size: 10)).foregroundStyle(isLocal ? Pal.overlay : statusColor)
                 }
-                Spacer()
-                Circle().fill(statusColor).frame(width: 7, height: 7)
-                    .help(phase == .live ? "已连接" : (phase == .dropped ? "断线" : "未连接"))
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, 8).padding(.vertical, 9)
             .background(isActive ? Pal.mauve.opacity(0.12) : Color.clear,
@@ -199,6 +222,7 @@ struct Sidebar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain).pointerCursor()
+        .accessibilityAddTraits(isActive ? .isSelected : [])
         // 会话右键与服务器右键职责分离：这里管会话本身；主机级操作在「服务器」列表右键。
         // 原顶部标签页右键的有用功能全部收拢到这里（复制会话/重命名/关闭三件套）。
         .contextMenu {
@@ -210,8 +234,8 @@ struct Sidebar: View {
             Button("重命名") { model.requestRenameTab(tab.id) }
             Divider()
             Button("关闭会话") { model.closeTab(tab.id) }
-            Button("关闭其他会话") { model.closeOtherTabs(keep: tab.id) }
-            Button("关闭所有会话") { model.closeAllTabs() }
+            Button("关闭其他会话") { model.closeOtherTerminalTabs(keep: tab.id) }
+            Button("关闭所有会话") { model.closeAllTerminalTabs() }
         }
     }
 
@@ -223,7 +247,8 @@ struct Sidebar: View {
             cornerIcon(theme.isDark ? "sun.max" : "moon", help: String(localized: "切换主题")) {
                 theme.mode = theme.isDark ? .light : .dark
             }
-            cornerIcon(model.privacyMode ? "eye.slash" : "eye", help: String(localized: "脱敏显示")) {
+            cornerIcon(model.privacyMode ? "eye.slash" : "eye", help: model.privacyMode
+                ? String(localized: "显示主机信息") : String(localized: "隐藏主机名称和地址")) {
                 model.privacyMode.toggle()
             }
             Spacer()
@@ -245,26 +270,27 @@ struct Sidebar: View {
         .buttonStyle(.plain)
         .pointerCursor()
         .help(help)
+        .accessibilityLabel(help)
     }
 
-    private func searchBox(_ placeholder: String = String(localized: "搜索主机…")) -> some View {
-        HStack(spacing: 7) {
+    private var searchBox: some View {
+        let query = segment == .servers ? $model.query : $sessionQuery
+        return HStack(spacing: 7) {
             Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(Pal.overlay)
-            TextField(placeholder, text: $model.query)
+            TextField(segment == .servers ? "搜索主机或分组…" : "搜索会话…", text: query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundStyle(Pal.text)
                 .focused($searchFocused)
-            // 脱敏开关：开启后隐藏列表/概览中的 IP、主机名（便于截图或共享屏幕）。
-            Button { model.privacyMode.toggle() } label: {
-                Image(systemName: model.privacyMode ? "eye.slash" : "eye")
-                    .font(.system(size: 12))
-                    .foregroundStyle(model.privacyMode ? Pal.mauve : Pal.overlay)
-                    .contentShape(Rectangle())
+            if !query.wrappedValue.isEmpty {
+                Button { query.wrappedValue = ""; searchFocused = true } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12)).foregroundStyle(Pal.overlay)
+                        .frame(width: 20, height: 20).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).pointerCursor()
+                .help("清除搜索").accessibilityLabel("清除搜索")
             }
-            .buttonStyle(.plain)
-            .pointerCursor()
-            .help(model.privacyMode ? String(localized: "显示真实信息") : String(localized: "脱敏显示(隐藏 IP / 主机名)"))
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 9)
@@ -272,10 +298,6 @@ struct Sidebar: View {
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.border, lineWidth: 1))
         .padding(.horizontal, 14)
     }
-
-    /// 活动栏「文件」面板：有活动主机时显示其文件树，否则提示。
-    @ViewBuilder
-
 
     private var hostEmptyState: some View {
         VStack(spacing: 10) {
@@ -293,6 +315,11 @@ struct Sidebar: View {
                 }
                 .buttonStyle(.plain)
                 .pointerCursor()
+            } else {
+                Text("试试名称、地址或分组")
+                    .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                Button("清除搜索") { model.query = "" }
+                    .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Pal.mauve)
             }
             Spacer()
         }
@@ -304,7 +331,7 @@ struct Sidebar: View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(groups, id: \.self) { group in
                 groupHeader(group)
-                if !collapsedGroups.contains(group) {
+                if !hostQuery.isEmpty || !collapsedGroups.contains(group) {
                     ForEach(filteredHosts.filter { $0.group == group }) { host in
                         HostRow(host: host, model: model, isActive: model.activeHostId == host.id)
                     }
@@ -316,7 +343,7 @@ struct Sidebar: View {
     }
 
     private func groupHeader(_ group: String) -> some View {
-        let collapsed = collapsedGroups.contains(group)
+        let collapsed = hostQuery.isEmpty && collapsedGroups.contains(group)
         return Button {
             if collapsed { collapsedGroups.remove(group) } else { collapsedGroups.insert(group) }
         } label: {
@@ -329,35 +356,20 @@ struct Sidebar: View {
                     .rotationEffect(.degrees(collapsed ? -90 : 0))
                 Text(group.isEmpty ? String(localized: "未分组") : group)
                     .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                    .lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 0)
+                Text("\(filteredHosts.filter { $0.group == group }.count)")
+                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(Pal.overlay)
             }
             .padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 4)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .pointerCursor()
+        .disabled(!hostQuery.isEmpty)
         .animation(.easeOut(duration: 0.15), value: collapsed)
     }
 
-    private var localTerminalButton: some View {
-        Button {
-            model.openLocalTerminal()
-        } label: {
-            HStack(spacing: 9) {
-                Image(systemName: "terminal")
-                    .font(.system(size: 12)).foregroundStyle(Pal.mauve)
-                    .frame(width: 22, height: 22)
-                    .background(Pal.mauve.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
-                Text("本地终端").font(.system(size: 12)).foregroundStyle(Pal.subtext)
-                Spacer()
-            }
-            .padding(.horizontal, 10).padding(.vertical, 8)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .pointerCursor()
-        .padding(8)
-    }
 }
 
 struct HostRow: View {
@@ -371,21 +383,29 @@ struct HostRow: View {
         Button {
             model.openHost(host)
         } label: {
-            HStack(spacing: 9) {
+            HStack(alignment: .top, spacing: 9) {
                 HostLeadingIcon(host: host)
-                VStack(alignment: .leading, spacing: 1) {
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 4) {
                     Text(host.name).font(.system(size: 13)).foregroundStyle(Pal.text)
-                        .lineLimit(1).truncationMode(.middle)
+                        .lineLimit(2).truncationMode(.middle)
+                        .privacyBlur(model.privacyMode)
                     Text(host.ipOrHost)
                         .font(.system(size: 11)).foregroundStyle(Pal.subtext)
-                        .lineLimit(1)
+                        .lineLimit(1).truncationMode(.middle)
                         .privacyBlur(model.privacyMode)
+                    HStack(spacing: 6) {
+                        Text(host.status == .online ? "可达" : host.status == .offline ? "不可达" : "待检测")
+                            .font(.system(size: 10))
+                            .foregroundStyle(host.status == .online ? Pal.green : host.status == .offline ? Pal.red : Pal.overlay)
+                        Spacer(minLength: 0)
+                        if host.status == .online, let ms = host.latencyMs {
+                            Text("\(ms) ms").font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(LatencyLevel(ms: ms).color).fixedSize()
+                        }
+                    }
                 }
-                Spacer()
-                // 延迟值统一右对齐到行末，多主机竖排时对齐整齐
-                if host.status == .online, let ms = host.latencyMs {
-                    Text("\(ms) ms").font(.system(size: 11)).foregroundStyle(LatencyLevel(ms: ms).color)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, 8).padding(.vertical, 9)
             .background(
@@ -409,6 +429,8 @@ struct HostRow: View {
         .buttonStyle(.plain)
         .pointerCursor()
         .onHover { hover = $0 }
+        .help(model.privacyMode ? "" : "\(host.name)\n\(host.ipOrHost)")
+        .accessibilityAddTraits(isActive ? .isSelected : [])
         .contextMenu {
             Button("打开终端") { model.openHostTerminal(host) }
             Button("新建终端") { model.openHostTerminal(host, forceNew: true) }

@@ -14,7 +14,7 @@ enum HostKeyDecision { case cancel, once, save }
 
 /// 基于 SSH 引擎的主机密钥验证（替代旧的 ssh-keyscan / ssh-keygen 子进程）。
 /// known_hosts 用「真实文件 + 本次会话临时文件」两份：信任并保存写真实文件，仅本次写临时文件（重启即失效）。
-/// 实际连接的 MITM 强制由 `SSHSession.connect`（termo_ssh_open 认证前查 known_hosts、不匹配即拒）保证；
+/// 实际连接由 `SSHSession.connect` 在认证前强制核对 known_hosts，仅匹配才继续；
 /// 本类负责连接前的「首次未知/已变更」交互式确认。
 enum HostKeyVerifier {
     enum Preflight { case known, prompt(HostKeyInfo), changed(HostKeyInfo), scanFailed }
@@ -43,16 +43,25 @@ enum HostKeyVerifier {
         }
     }
 
-    /// 写入信任：persist=true 写真实 known_hosts，false 写会话临时文件。追加单行（不重写用户文件）。
-    static func trust(_ info: HostKeyInfo, persist: Bool) {
-        let file = persist ? realKnownHosts : sessionKnownHosts
-        ensureParentDir(file)
-        let line = info.keyLine.hasSuffix("\n") ? info.keyLine : info.keyLine + "\n"
-        if let fh = FileHandle(forWritingAtPath: file) {
-            fh.seekToEndOfFile(); fh.write(Data(line.utf8)); try? fh.close()
-        } else {
-            try? line.write(toFile: file, atomically: true, encoding: .utf8)
+    private static let writeLock = NSLock()
+
+    /// 保留既有信任记录，原子追加；写入失败必须告知调用方，不能假装信任已保存。
+    static func trust(_ info: HostKeyInfo, persist: Bool,
+                      realPath: String = realKnownHosts, sessionPath: String = sessionKnownHosts) throws {
+        writeLock.lock(); defer { writeLock.unlock() }
+        let line = info.keyLine.trimmingCharacters(in: .newlines)
+        guard !line.isEmpty, !line.contains(where: \.isNewline) else {
+            throw SSHSession.SSHError(message: String(localized: "主机指纹记录无效，未保存信任。"))
         }
+        let url = URL(fileURLWithPath: persist ? realPath : sessionPath)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var content: String
+        do { content = try String(contentsOf: url, encoding: .utf8) }
+        catch CocoaError.fileReadNoSuchFile { content = "" }
+        if content.components(separatedBy: .newlines).contains(line) { return }
+        if !content.isEmpty && !content.hasSuffix("\n") { content += "\n" }
+        content += line + "\n"
+        try content.write(to: url, atomically: true, encoding: .utf8)
     }
 
     // MARK: - 内部

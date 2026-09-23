@@ -8,9 +8,15 @@ import Foundation
 final class SSHSession: @unchecked Sendable {
     struct SSHError: LocalizedError {
         let message: String
-        var errorDescription: String? { message }
+        var errorDescription: String? {
+            if message.hasPrefix("HOSTKEY_"), let separator = message.range(of: ": ") {
+                return String(message[separator.upperBound...])
+            }
+            return message
+        }
         /// 主机密钥与已知记录不匹配（疑似 MITM）——上层可据此给出区别于普通失败的提示。
         var isHostKeyMismatch: Bool { message.hasPrefix("HOSTKEY_MISMATCH") }
+        var isHostKeyFailure: Bool { message.hasPrefix("HOSTKEY_") }
     }
     struct ExecResult { let output: String; let stderr: String; let exitCode: Int }
     /// 二进制安全的 exec 结果（供 RemoteFS.run）：stdout/stderr 为原始字节，timedOut/cancelled 标识非正常结束。
@@ -29,7 +35,7 @@ final class SSHSession: @unchecked Sendable {
     }
 
     /// 连接 + 握手 + 认证（同步，务必后台调用）。keyPath 非空走公钥认证。
-    /// 握手后认证前对照 known_hosts 校验主机密钥：仅明确不匹配（疑似 MITM）才抛错拒绝；未知主机放行。
+    /// 握手后、认证前必须匹配 known_hosts；未知、变更、撤销或读取失败均拒绝。
     /// known_hosts 路径显式传参（默认值即 HostKeyVerifier 的全局两份文件），消除对全局单例的隐式依赖——
     /// russh FFI 侧本就按参数传递，此处对齐后引擎层不再需要任何 Swift 全局状态。
     static func connect(host: String, port: Int, user: String,

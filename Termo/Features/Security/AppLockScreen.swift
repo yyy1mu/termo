@@ -1,192 +1,183 @@
 import SwiftUI
 
-/// 启动锁定屏：Touch ID（自动弹出 + 手动重试）或 6 位锁定码解锁。
-/// 盖在 ContentView 之上（TermoApp overlay），遮挡全部交互。
+/// 锁屏与 WebDAV 备份加密共用主密码。
 struct AppLockScreen: View {
     @ObservedObject private var lock = AppLockManager.shared
     @ObservedObject private var theme = ThemeManager.shared
-    @State private var pin = ""
-    @State private var shakeOffset: CGFloat = 0
+    @State private var password = ""
+    @State private var error = ""
+    @State private var busy = false
     @State private var biometryPrompted = false
-
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    @FocusState private var passwordFocused: Bool
 
     var body: some View {
         ZStack {
             Pal.crust.ignoresSafeArea()
-
-            VStack(spacing: 20) {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Pal.mauve)
-                Text("Termo 已锁定")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Pal.text)
-
-                // 6 位进度点
-                HStack(spacing: 10) {
-                    ForEach(0..<6, id: \.self) { i in
-                        Circle()
-                            .fill(i < pin.count ? Pal.mauve : Color.clear)
-                            .frame(width: 10, height: 10)
-                            .overlay(Circle().stroke(Pal.border, lineWidth: 1))
-                    }
+            VStack(spacing: 22) {
+                Image(systemName: "lock.shield")
+                    .font(.system(size: 36, weight: .light)).foregroundStyle(Pal.mauve)
+                    .frame(width: 80, height: 80)
+                    .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 22))
+                VStack(spacing: 7) {
+                    Text("Termo 已锁定").font(.system(size: 23, weight: .semibold)).foregroundStyle(
+                        Pal.textBright)
+                    Text("输入密码，继续你的工作")
+                        .font(.system(size: 12)).foregroundStyle(Pal.subtext)
                 }
-                .offset(x: shakeOffset)
-
-                // 数字键盘
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(["1", "2", "3", "4", "5", "6", "7", "8", "9"], id: \.self) { digit in
-                        keyButton(digit)
+                VStack(alignment: .leading, spacing: 10) {
+                    SecureField("解锁密码", text: $password)
+                        .textFieldStyle(.plain).font(.system(size: 15))
+                        .padding(13).background(Pal.card, in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Pal.border, lineWidth: 1))
+                        .focused($passwordFocused).onSubmit { verify() }
+                        .disabled(busy)
+                    if !error.isEmpty { Text(error).font(.system(size: 11)).foregroundStyle(Pal.red) }
+                    Button(action: verify) {
+                        HStack {
+                            Spacer()
+                            if busy { ProgressView().controlSize(.small) }
+                            Text("解锁").font(.system(size: 13, weight: .semibold))
+                            Spacer()
+                        }
+                        .padding(12).foregroundStyle(.white)
+                        .background(Pal.mauve, in: RoundedRectangle(cornerRadius: 10))
                     }
-                    keyButton("⌫", action: { if !pin.isEmpty { pin.removeLast() } })
-                    keyButton("0", action: { appendDigit("0") })
-                    keyButton("✓", action: { verify() })
+                    .buttonStyle(.plain).disabled(password.isEmpty || busy).pointerCursor()
                 }
-                .frame(width: 220)
-
                 if lock.biometryAvailable {
                     Button {
-                        Task { if await lock.unlockWithBiometrics() { lock.unlock() } }
+                        biometricUnlock()
                     } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "touchid").font(.system(size: 12))
-                            Text("使用 Touch ID 解锁").font(.system(size: 12))
-                        }
-                        .foregroundStyle(Pal.subtext)
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Pal.border, lineWidth: 1))
-                        .contentShape(Rectangle())
+                        Label("使用 Touch ID", systemImage: "touchid")
+                            .font(.system(size: 12)).foregroundStyle(Pal.subtext)
                     }
-                    .buttonStyle(.plain).pointerCursor()
+                    .buttonStyle(.plain).disabled(busy).pointerCursor()
                 }
-
-                Text("输入 6 位锁定码，或使用 Touch ID")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Pal.overlay)
+                Text("主密码同时用于应用解锁与 WebDAV 备份加密。")
+                    .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                    .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
             }
+            .frame(width: 320).padding(32)
         }
-        .onAppear(perform: promptBiometryOnce)
-    }
-
-    private func keyButton(_ label: String, action: (() -> Void)? = nil) -> some View {
-        Button {
-            if let action {
-                action()
-            } else if let digit = Int(label) {
-                appendDigit(String(digit))
-            }
-        } label: {
-            Text(label)
-                .font(.system(size: 17, weight: .medium, design: .rounded))
-                .foregroundStyle(Pal.text)
-                .frame(maxWidth: .infinity, minHeight: 40)
-                .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 9))
-                .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.border, lineWidth: 1))
-                .contentShape(Rectangle())
+        .onAppear {
+            passwordFocused = true
+            guard !biometryPrompted, lock.biometryAvailable else { return }
+            biometryPrompted = true
+            biometricUnlock()
         }
-        .buttonStyle(.plain).pointerCursor()
-    }
-
-    private func appendDigit(_ d: String) {
-        guard pin.count < 6 else { return }
-        pin += d
-        if pin.count == 6 { verify() }   // 满 6 位自动校验
+        .onDisappear { password = "" }
     }
 
     private func verify() {
-        if lock.verifyPin(pin) {
-            lock.unlock()
-            pin = ""
-        } else {
-            pin = ""
-            // 错误抖动提示
-            withAnimation(.easeInOut(duration: 0.06).repeatCount(3, autoreverses: true)) {
-                shakeOffset = -8
+        guard !busy, !password.isEmpty else { return }
+        busy = true
+        error = ""
+        let candidate = password
+        Task {
+            if await lock.verifyPassword(candidate) {
+                lock.unlock()
+            } else {
+                error = lock.credentialError ?? String(localized: "密码不正确，请重试")
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                withAnimation(.easeOut(duration: 0.08)) { shakeOffset = 0 }
-            }
+            password = ""
+            busy = false
+            passwordFocused = true
         }
     }
 
-    /// 锁定屏出现时自动弹一次 Touch ID（失败/取消后由按钮手动重试，不骚扰）。
-    private func promptBiometryOnce() {
-        guard !biometryPrompted, lock.biometryAvailable else { return }
-        biometryPrompted = true
-        Task { if await lock.unlockWithBiometrics() { lock.unlock() } }
+    private func biometricUnlock() {
+        guard !busy else { return }
+        busy = true
+        error = ""
+        Task {
+            if await lock.unlockWithBiometrics() { lock.unlock() }
+            busy = false
+            passwordFocused = true
+        }
     }
 }
 
-/// 锁定码设置弹窗（设置 → 安全 →「锁定码」）：两次输入一致的 6 位数字。
+/// 所有入口共用此设置页；改密需验证当前密码，不覆盖旧备份。
 struct AppLockSetupSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var lock = AppLockManager.shared
     @ObservedObject private var theme = ThemeManager.shared
-    @State private var pin1 = ""
-    @State private var pin2 = ""
+    @ObservedObject private var sync = SyncModel.shared
+    @State private var currentPassword = ""
+    @State private var password = ""
+    @State private var confirmation = ""
     @State private var error = ""
+    @State private var busy = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("设置锁定码").font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.text)
-
-            pinField("输入 6 位数字", text: $pin1)
-            pinField("再次输入确认", text: $pin2)
-
-            if !error.isEmpty {
-                Text(error).font(.system(size: 11)).foregroundStyle(Pal.red)
-            }
-
-            HStack(spacing: 10) {
-                Button { dismiss() } label: {
-                    Text("取消").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
-                        .padding(.horizontal, 14).padding(.vertical, 7)
-                        .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 7))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).pointerCursor()
-
-                Button(action: saveAction) {
-                    Text("保存并启用").font(.system(size: 12, weight: .medium)).foregroundStyle(.white)
-                        .padding(.horizontal, 14).padding(.vertical, 7)
-                        .background(canSave ? Pal.mauve : Pal.fill(0.08), in: RoundedRectangle(cornerRadius: 7))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).pointerCursor().disabled(!canSave)
-            }
-
-            Text("忘记锁定码无法找回（Touch ID 仍可解锁）；可在 设置 → 安全 关闭启动锁。")
-                .font(.system(size: 10)).foregroundStyle(Pal.overlay)
+        VStack(alignment: .leading, spacing: 16) {
+            Label(lock.hasMasterPassword ? "修改主密码" : "设置主密码", systemImage: "key.horizontal")
+                .font(.system(size: 19, weight: .semibold)).foregroundStyle(Pal.textBright)
+            Text("一个密码，用于应用解锁和 WebDAV 备份加密。至少 8 个字符，支持文字、数字和符号。")
+                .font(.system(size: 12)).foregroundStyle(Pal.subtext)
                 .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(18)
-        .frame(width: 320)
-    }
-
-    private var canSave: Bool { pin1.count == 6 && pin1 == pin2 }
-
-    private func pinField(_ hint: String, text: Binding<String>) -> some View {
-        TextField(hint, text: text)
-            .textFieldStyle(.plain)
-            .font(.system(size: 14, design: .monospaced))
-            .foregroundStyle(Pal.text)
-            .padding(.horizontal, 10).padding(.vertical, 8)
-            .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Pal.border, lineWidth: 1))
-            .onChange(of: text.wrappedValue) { v in
-                // 只留数字、最多 6 位
-                text.wrappedValue = String(v.filter(\.isNumber).prefix(6))
+            if lock.hasPin {
+                passwordField("当前密码", text: $currentPassword)
             }
+            passwordField("新主密码", text: $password)
+            passwordField("再次输入新主密码", text: $confirmation)
+            if !confirmation.isEmpty && password != confirmation {
+                Text("两次输入不一致").font(.system(size: 11)).foregroundStyle(Pal.red)
+            }
+            if !error.isEmpty { Text(error).font(.system(size: 11)).foregroundStyle(Pal.red) }
+            if sync.busy {
+                Text("同步进行中，请在同步结束后保存主密码。")
+                    .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("所有设备使用同一个主密码。修改密码后，已有备份仍需要原密码才能读取。")
+                .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("主密码无法找回。Touch ID 可解锁应用，但加解密备份仍需主密码。")
+                .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button("取消") { dismiss() }.keyboardShortcut(.cancelAction).disabled(busy)
+                Spacer()
+                if busy { ProgressView().controlSize(.small) }
+                Button(busy ? "保存中…" : "保存主密码") { save() }
+                    .buttonStyle(.borderedProminent).tint(Pal.mauve)
+                    .disabled(!canSave || busy || sync.busy).keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24).frame(width: 420).background(Pal.solidBase)
+        .interactiveDismissDisabled(busy)
+        .onChange(of: [currentPassword, password, confirmation]) { error = "" }
+        .onDisappear {
+            currentPassword = ""; password = ""; confirmation = ""
+        }
     }
 
-    private func saveAction() {
-        guard pin1.count == 6, pin1 == pin2 else {
-            error = pin1 != pin2 ? "两次输入不一致" : "请输入完整的 6 位数字"
-            return
+    private var canSave: Bool {
+        password.count >= 8 && !password.contains("\0") && !password.contains(where: \.isNewline)
+            && password == confirmation
+            && (!lock.hasPin || !currentPassword.isEmpty)
+    }
+
+    private func passwordField(_ title: LocalizedStringKey, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+            SecureField(title, text: text).textFieldStyle(.roundedBorder).disabled(busy)
         }
-        AppLockManager.shared.setPin(pin1)
-        AppLockManager.shared.setEnabled(true)
-        dismiss()
+    }
+
+    private func save() {
+        guard canSave, !busy, !sync.busy else { return }
+        busy = true
+        error = ""
+        let wasConfigured = lock.hasPin
+        Task {
+            do {
+                try await lock.setMasterPassword(password, currentPassword: currentPassword)
+                if !wasConfigured { lock.setEnabled(true) }
+                dismiss()
+            } catch { self.error = error.localizedDescription }
+            busy = false
+        }
     }
 }

@@ -45,16 +45,18 @@ struct TerminalDropArea: View {
     }
 
     private func loadURLs(_ providers: [NSItemProvider], _ completion: @escaping ([URL]) -> Void) {
-        var urls: [URL] = []
+        var urls = Array<URL?>(repeating: nil, count: providers.count)
         let group = DispatchGroup()
-        for p in providers {
+        for (index, p) in providers.enumerated() {
             group.enter()
             _ = p.loadObject(ofClass: URL.self) { url, _ in
-                if let url, url.isFileURL { urls.append(url) }
-                group.leave()
+                DispatchQueue.main.async {
+                    if let url, url.isFileURL { urls[index] = url }
+                    group.leave()
+                }
             }
         }
-        group.notify(queue: .main) { completion(urls) }
+        group.notify(queue: .main) { completion(urls.compactMap { $0 }) }
     }
 }
 
@@ -125,9 +127,10 @@ struct TerminalSurface: NSViewRepresentable {
 @MainActor
 final class TerminalConn: ObservableObject {
     enum Phase { case live, dropped }
+    enum ReconnectStatus { case waitingForNetwork, scheduled, connecting }
     @Published var phase: Phase = .live
+    @Published var reconnectStatus: ReconnectStatus = .scheduled
     var attempt = 0    // 连续重连失败的退避代数，连上后清零
-    var dropGen = 0    // 掉线代数，供看门狗判断某次重连尝试期间是否又掉线
 }
 
 /// 终端断线覆盖层：连接断开时盖在终端之上，显示重连状态与「立即重连」入口；连接正常时不渲染。
@@ -143,8 +146,8 @@ struct TerminalReconnectOverlay: View {
                     Image(systemName: "wifi.exclamationmark").font(.system(size: 28)).foregroundStyle(Pal.yellow)
                     Text("连接已断开").font(.system(size: 14, weight: .semibold)).foregroundStyle(Pal.text)
                     HStack(spacing: 7) {
-                        ProgressView().controlSize(.small)
-                        Text("正在重连…").font(.system(size: 12)).foregroundStyle(Pal.subtext)
+                        if conn.reconnectStatus == .connecting { ProgressView().controlSize(.small) }
+                        Text(reconnectDescription).font(.system(size: 12)).foregroundStyle(Pal.subtext)
                     }
                     Button(action: onReconnect) {
                         Text("立即重连").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.mauve)
@@ -153,12 +156,22 @@ struct TerminalReconnectOverlay: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain).pointerCursor()
+                    .disabled(conn.reconnectStatus != .scheduled)
+                    .opacity(conn.reconnectStatus == .scheduled ? 1 : 0.45)
                 }
                 .padding(24)
                 .background(Pal.solidMantle, in: RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(Pal.fill(0.08), lineWidth: 1))
             }
             .transition(.opacity)
+        }
+    }
+
+    private var reconnectDescription: String {
+        switch conn.reconnectStatus {
+        case .waitingForNetwork: return String(localized: "等待网络恢复后重连")
+        case .scheduled: return String(localized: "即将自动重连")
+        case .connecting: return String(localized: "正在重连…")
         }
     }
 }

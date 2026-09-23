@@ -1,6 +1,73 @@
 import AppKit
 import SwiftTerm
 
+/// 只过滤本次 shell 初始化命令的 TTY 回显；允许回显被分片、自动换行或 ANSI 重绘打断。
+struct TerminalHookEchoFilter {
+    private var expected: [UInt8] = []
+    private var matched = 0
+    private var armedAt = Date.distantPast
+    private var escapeState = 0
+
+    mutating func arm(_ line: String, now: Date = Date()) {
+        expected = Array(line.trimmingCharacters(in: .newlines).utf8)
+        matched = 0
+        escapeState = 0
+        armedAt = now
+    }
+
+    mutating func disarm() {
+        expected = []
+        matched = 0
+        escapeState = 0
+    }
+
+    mutating func filter(_ input: [UInt8], now: Date = Date()) -> [UInt8] {
+        guard !expected.isEmpty else { return input }
+        guard now.timeIntervalSince(armedAt) < 30 else {
+            disarm()
+            return input
+        }
+        var output: [UInt8] = []
+        for byte in input {
+            if expected.isEmpty {
+                output.append(byte)
+                continue
+            }
+            // Readline 可能在长行回显中插入光标控制序列；这些不是命令内容。
+            if escapeState != 0 {
+                switch escapeState {
+                case 1: escapeState = byte == 0x5B ? 2 : (byte == 0x5D ? 3 : 0)
+                case 2: if (0x40...0x7E).contains(byte) { escapeState = 0 }
+                case 3: if byte == 0x07 { escapeState = 0 } else if byte == 0x1B { escapeState = 4 }
+                default: escapeState = byte == 0x5C ? 0 : 3
+                }
+                continue
+            }
+            if matched > 0, byte == 0x1B {
+                escapeState = 1
+                continue
+            }
+            if byte == expected[matched] {
+                matched += 1
+                if matched == expected.count { disarm() }
+                continue
+            }
+            if matched > 0, byte == 0x08 || byte == 0x0D || byte == 0x0A { continue }
+            if matched > 0 {
+                output.append(contentsOf: expected[..<matched])
+                matched = 0
+            }
+            if byte == expected[0] {
+                matched = 1
+                if matched == expected.count { disarm() }
+            } else {
+                output.append(byte)
+            }
+        }
+        return output
+    }
+}
+
 /// 用 russh 引擎的交互式 shell 驱动一个 SwiftTerm 终端视图：作为 `TerminalView` 的 `terminalDelegate`，
 /// 把用户输入/尺寸变化写入远端 PTY，把远端输出 `feed` 回视图——替代 `LocalProcessTerminalView` 起的
 /// `/usr/bin/ssh` 子进程（终端类型全仓不变，仅 SSH 终端换掉这条传输层）。
@@ -18,14 +85,18 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
     private var terminatedReported = false
 
     var onCwd: ((String) -> Void)?
+    /// 认证和 shell 通道均已成功；不依赖远端 shell 是否支持 OSC 7。
+    var onReady: (() -> Void)?
     var onTerminated: ((Int32?) -> Void)?
 
     /// 该终端的命令/输出记录（见 TerminalTranscript）；nil=不记录。
     var transcript: TerminalTranscript?
     /// 命令完成事件（OSC 133;D 驱动）：携带退出码与输出切片，主线程回调。
     var onCommandCompleted: ((CommandResult) -> Void)?
-    /// 命令开始时记录的 transcript 行偏移（输出切片起点）。
-    private var pendingCmdStart: Int? = nil
+    /// 命令开始时记录的 transcript 游标（输出切片起点）。
+    private var pendingCmdStart: TerminalTranscript.OutputCursor? = nil
+    private let echoLock = NSLock()
+    private var hookEchoFilter = TerminalHookEchoFilter()
 
     init(tv: LocalProcessTerminalView, ssh: SSHConnection, hub: TerminalSessionHub,
          transcript: TerminalTranscript? = nil) {
@@ -53,9 +124,6 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
             let box = Unmanaged.passRetained(self).toOpaque()         // pump 持一份强引用，on_closed 时释放
             var err = [CChar](repeating: 0, count: 256)
             let cmd = command.flatMap { $0.isEmpty ? nil : $0 } ?? nil
-            if command == nil, !initialLine.isEmpty {
-                self.armEchoSuppression(initialLine)   // 泵启动前武装回显抑制（与 onData 同线程，无竞态）
-            }
             guard let sh = termo_ssh_shell_open(raw, Int32(cols), Int32(rows), cmd,
                                                 Self.onData, Self.onClosed, box, &err, 256) else {
                 Unmanaged<SSHTerminalDriver>.fromOpaque(box).release()
@@ -65,17 +133,22 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
                 return
             }
             DispatchQueue.main.async {
-                if self.closed {                 // 建连期间已被关闭：拆掉刚建的
+                if self.closed || self.terminatedReported { // 建连期间已关闭或通道已掉线
                     termo_ssh_shell_close(sh)
+                    if self.terminatedReported { hub.invalidate(session) }
                     hub.release(session)
                     return
                 }
                 self.session = session
                 self.shell = sh
+                self.onReady?()
                 if command == nil, !initialLine.isEmpty {
                     // 等远端 shell 的 rc 文件加载完，再注入 OSC7 钩子（否则可能被 .bashrc 覆盖）。
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-                        self?.sendText(initialLine)
+                        guard let self, !self.closed, !self.terminatedReported else { return }
+                        // 必须紧贴真正写入的时刻武装；SSH 连接和 shell 启动可能超过过滤超时。
+                        self.armEchoSuppression(initialLine)
+                        if !self.sendText(initialLine) { self.disarmEchoSuppression() }
                     }
                 }
             }
@@ -93,15 +166,22 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
     }
 
     /// 写入一段文本（初始命令注入用）。
-    func sendText(_ text: String) {
+    @discardableResult
+    func sendText(_ text: String) -> Bool {
         let bytes = Array(text.utf8)
-        guard let shell, !bytes.isEmpty else { return }
-        if text.hasSuffix("\n") { markCommandStarted() }   // 注入并回车 = 命令开始
-        bytes.withUnsafeBufferPointer { bp in
+        guard let shell, !bytes.isEmpty else { return false }
+        let previousStart = pendingCmdStart
+        if text.hasSuffix("\n") { markCommandStarted() }
+        let written = bytes.withUnsafeBufferPointer { bp in
             bp.baseAddress!.withMemoryRebound(to: CChar.self, capacity: bp.count) {
-                _ = termo_ssh_shell_write(shell, $0, Int32(bp.count))
+                termo_ssh_shell_write(shell, $0, Int32(bp.count))
             }
         }
+        guard written == bytes.count else {
+            pendingCmdStart = previousStart
+            return false
+        }
+        return true
     }
 
     private func reportClosed(_ code: Int32) {
@@ -112,43 +192,25 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
         onTerminated?(code)
     }
 
-    // MARK: 注入行回显抑制（仅泵线程访问：connect 后台块武装、onData 消费）
-    // 登录后注入的 initialLine 会被远端 TTY 回显；正常被随后的清屏抹掉，但 .bashrc 慢于
-    // 注入延迟/用户按键打断/非 bash·zsh shell 报语法错时，这行长文本会留在屏上很难看。
-    // 按字节精确匹配吞掉回显；不匹配立即放行（安全降级），超时 10s 自动解除。
-    private var echoExpected: [UInt8] = []
-    private var echoMatched = 0
-    private var echoArmedAt = Date.distantPast
+    // MARK: 注入行回显抑制
+    // 泵回调与主线程写入并行，锁保护状态；只遮盖本次注入的命令回显，不吞正常终端输出。
 
     private func armEchoSuppression(_ line: String) {
-        echoExpected = Array(line.dropLast().utf8)   // 去掉结尾 \n：回显按行内容匹配
-        echoMatched = 0
-        echoArmedAt = Date()
+        echoLock.lock()
+        hookEchoFilter.arm(line)
+        echoLock.unlock()
+    }
+
+    private func disarmEchoSuppression() {
+        echoLock.lock()
+        hookEchoFilter.disarm()
+        echoLock.unlock()
     }
 
     private func filterEcho(_ input: [UInt8]) -> [UInt8] {
-        guard !echoExpected.isEmpty else { return input }
-        guard echoMatched < echoExpected.count, Date().timeIntervalSince(echoArmedAt) < 10 else {
-            echoExpected = []
-            return input
-        }
-        var out: [UInt8] = []
-        for b in input {
-            if echoMatched < echoExpected.count {
-                if b == echoExpected[echoMatched] {
-                    echoMatched += 1
-                    continue                      // 吞回显字节
-                }
-                if echoMatched > 0 {
-                    // 误判（对端内容恰好前缀相同）：放行已吞字节，保持武装继续等真回显
-                    out.append(contentsOf: echoExpected[0..<echoMatched])
-                    echoMatched = 0
-                }
-            }
-            out.append(b)
-        }
-        if echoMatched >= echoExpected.count { echoExpected = [] }   // 完整匹配：抑制结束
-        return out
+        echoLock.lock()
+        defer { echoLock.unlock() }
+        return hookEchoFilter.filter(input)
     }
 
     // MARK: OSC 133;D 完成标记（仅泵线程访问）
@@ -179,17 +241,15 @@ final class SSHTerminalDriver: NSObject, TerminalViewDelegate, @unchecked Sendab
     }
 
     private func markCommandStarted() {
-        pendingCmdStart = transcript?.lineCount
+        pendingCmdStart = transcript?.outputCursor()
     }
 
     /// 完成标记到达：从 [命令开始, 完成) 切出输出，去命令行自身，主线程上报。
     private func finishPendingCommand(exitCode: Int32) {
-        let start = pendingCmdStart ?? 0
+        let start = pendingCmdStart
         pendingCmdStart = nil
-        var outLines = transcript?.lines(from: start) ?? []
-        while let first = outLines.first, first.hasPrefix("$ ") { outLines.removeFirst() }
-        let output = outLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-        let result = CommandResult(output: String(output.prefix(4000)), exitCode: exitCode)
+        let output = start.flatMap { transcript?.output(since: $0) } ?? ""
+        let result = CommandResult(output: output, exitCode: exitCode)
         DispatchQueue.main.async { [weak self] in self?.onCommandCompleted?(result) }
     }
 

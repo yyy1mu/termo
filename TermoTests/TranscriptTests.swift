@@ -63,4 +63,52 @@ final class TranscriptTests: XCTestCase {
         t.appendOutput(Array("cmd-echo\nout1\nout2\n".utf8))
         XCTAssertEqual(t.lines(from: start), ["cmd-echo", "out1", "out2"])
     }
+
+    func test_commandCaptureIncludesUnterminatedOutputWithoutOldPrompt() {
+        let t = TerminalTranscript()
+        t.appendOutput(Array("old output\nroot@host:~# ".utf8))
+        let cursor = t.outputCursor()
+        t.appendOutput(Array("READY\nuid=0(root)".utf8))
+        XCTAssertEqual(t.output(since: cursor), "READY\nuid=0(root)")
+    }
+
+    func test_commandCaptureNeverReusesEarlierOutput() {
+        let t = TerminalTranscript()
+        t.appendOutput(Array("earlier command result\n".utf8))
+        let cursor = t.outputCursor()
+        XCTAssertEqual(t.output(since: cursor), "")
+        t.appendOutput(Array("new result".utf8))
+        XCTAssertEqual(t.output(since: cursor), "new result")
+    }
+
+    func test_commandCaptureIgnoresSyntheticInputBeforeOldPrompt() {
+        let t = TerminalTranscript()
+        t.appendOutput(Array("root# ".utf8))
+        let cursor = t.outputCursor()
+        t.appendInput(Array("id\r".utf8))
+        t.appendOutput(Array("id\r\nuid=0(root)".utf8))
+        XCTAssertEqual(t.output(since: cursor), "uid=0(root)")
+    }
+
+    func test_hookEchoFilterArmsAtInjectionAndHandlesWrappedChunks() {
+        var filter = TerminalHookEchoFilter()
+        let started = Date(timeIntervalSince1970: 100)
+        XCTAssertEqual(String(decoding: filter.filter(Array("Welcome\n".utf8), now: started), as: UTF8.self), "Welcome\n")
+        // 模拟连接耗时很久：发送前才武装，不能让建连时间消耗过滤窗口。
+        let injected = started.addingTimeInterval(40)
+        filter.arm("internal-long-command\n", now: injected)
+        let first = filter.filter(Array("user@host$ internal-l".utf8), now: injected)
+        let second = filter.filter(Array("ong\r\n-command\r\nready".utf8), now: injected.addingTimeInterval(1))
+        XCTAssertEqual(String(decoding: first + second, as: UTF8.self), "user@host$ \r\nready")
+    }
+
+    func test_hookEchoFilterPreservesUnrelatedOutputAndExpires() {
+        var filter = TerminalHookEchoFilter()
+        let now = Date(timeIntervalSince1970: 100)
+        filter.arm("hook-command\n", now: now)
+        let unrelated = filter.filter(Array("normal output\n".utf8), now: now)
+        XCTAssertEqual(String(decoding: unrelated, as: UTF8.self), "normal output\n")
+        let expired = filter.filter(Array("hook-command\n".utf8), now: now.addingTimeInterval(31))
+        XCTAssertEqual(String(decoding: expired, as: UTF8.self), "hook-command\n")
+    }
 }

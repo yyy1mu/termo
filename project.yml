@@ -34,7 +34,8 @@ settings:
     CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: YES
     # 开发签名：自动管理，由 Xcode 用本账号的 Apple Development 证书签名 + 自动管描述文件。
     # 分发证书（直发 Developer ID Application / 上架 Apple Distribution）待创建后再按发布方式覆盖；
-    # package-app.sh 归档时仍以参数覆盖为 ad-hoc，公证管线接入时再改那里。
+    # 本机 Release 走 build-local-release.sh 的固定开发证书；package-app.sh 优先 Developer ID，
+    # 无 Developer ID 时仅用开发证书签名供本机使用，不回退临时签名。
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: KTP97H9YFF
 

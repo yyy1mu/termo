@@ -55,6 +55,10 @@ final class AppModel: ObservableObject {
     @Published var pendingSnippetAction: Snippet? = nil    // 非 nil 显示「插入/运行」选择弹窗
     @Published var snippetNotice: String? = nil            // 片段操作提示（如无可用终端）
     @Published var pendingAskAuth: Host? = nil     // 「每次询问」主机的密码弹窗（连接前）
+    @Published var askAuthError: String? = nil
+    @Published var hostSaveError: String? = nil
+    @Published var hostCredentialNotice: String? = nil
+    private var sessionOnlyHostPasswords: Set<String> = []
     private var pendingAskContinuation: (() -> Void)?   // 密码确认后要执行的动作（终端/文件/转发等）
     private var connectingContinuation: (() -> Void)?   // 「正在连接」验证弹窗成功后要执行的原动作
     var connectingActionHint = String(localized: "正在进入终端…")          // 连接弹窗成功提示，按动作变化（ContentView 读取）
@@ -62,16 +66,19 @@ final class AppModel: ObservableObject {
     @Published var pendingHostKey: PendingHostKey? = nil   // 首次连接待验证的主机指纹
     @Published var connectingHost: Host? = nil   // 正在连接的主机（展示连接进度弹窗）
 
-    // 文件栏右键操作弹窗（删除确认 / 重命名 / 权限 / 刷新冲突 / 信息提示）
+    // 文件操作的工作区内嵌编辑状态（始终绑定发起操作的主机与目标）。
     @Published var pendingFileDelete: FileOpContext? = nil
     @Published var pendingFileRename: FileOpContext? = nil
     @Published var pendingFileChmod: ChmodContext? = nil
     @Published var pendingFileCreate: CreateContext? = nil   // 新建文件/文件夹的名称输入弹窗
     @Published var pendingFileInfo: FileInfoContext? = nil
+    private var fileOperationGeneration = UUID()
     // 上传/下载任务队列：可并发（上限 maxConcurrentTransfers），超出排队。含进行中/排队/已完成（完成后保留待用户清除）。
     @Published var transfers: [UploadTask] = []
-    // 当前展开传输弹窗的任务 id（nil=无弹窗）；任务本身在后台继续跑，统一在左下角后台中控管理。
-    @Published var focusedTransferId: UUID? = nil
+    // 底部任务详情互斥展示；收起不影响后台任务，文件编辑优先占用同一区域。
+    @Published var focusedTransferId: UUID? = nil {
+        didSet { if focusedTransferId != nil { showExtractDialog = false } }
+    }
     // 「下载不弹窗」时的飞入动画事件（一次性，动画结束即清空，不常驻、不占用 CPU/内存）。
     @Published var flyTransfer: FlyEvent? = nil
     // 左下角后台任务按钮的全局中心点（由按钮自身上报）；飞入动画的终点。
@@ -79,7 +86,9 @@ final class AppModel: ObservableObject {
     // 选中文件行的全局矩形（仅选中行上报，按远端路径索引）；飞入动画起点取此处，未命中则回退鼠标位置。
     var fileRowGlobalFrames: [String: CGRect] = [:]
     @Published var extractTask: ExtractTask? = nil // 当前解压任务（nil=无）
-    @Published var showExtractDialog = false       // 解压弹窗是否展开；隐藏后任务仍在后台跑，齿轮旁显示迷你状态
+    @Published var showExtractDialog = false {
+        didSet { if showExtractDialog { focusedTransferId = nil } }
+    }
     @Published var fileDeleteBusy = false          // 删除进行中：弹窗保留 + 删除键旁转圈，可中途取消
     private var deleteHandle: CommandHandle?        // 取消正在进行的删除（终止远端 rm）
     @Published var pendingBatchDelete: BatchDeleteContext? = nil   // 批量删除确认弹窗
@@ -106,7 +115,9 @@ final class AppModel: ObservableObject {
         return seen
     }
 
-    func addHost(from draft: HostDraft) {
+    @discardableResult
+    func addHost(from draft: HostDraft) -> Bool {
+        guard draft.canSave else { hostSaveError = draft.validationMessage; return false }
         let conn = draft.buildConnection()
         let name = draft.name.trimmingCharacters(in: .whitespaces)
         let addr = "\(conn.user)@\(conn.host)"
@@ -122,9 +133,12 @@ final class AppModel: ObservableObject {
             ssh: conn,
             notes: draft.notes.trimmingCharacters(in: .whitespaces)
         )
-        hosts.append(newHost)
-        HostStore.saveHosts(hosts)
+        let saved = hosts + [newHost]
+        guard persistHosts(saved) else { return false }
+        hosts = saved
+        if !conn.password.isEmpty { hostCredentialNotice = String(localized: "主机和密码已保存，密码会随加密备份同步。") }
         checkReachability(newHost)
+        return true
     }
 
     func beginEditHost(_ host: Host) {
@@ -132,14 +146,21 @@ final class AppModel: ObservableObject {
     }
 
     /// 用编辑后的表单覆盖已有主机（保持 id / 状态 / 系统不变）。
-    func updateHost(id: String, from draft: HostDraft) {
-        guard let idx = hosts.firstIndex(where: { $0.id == id }) else { return }
-        let conn = draft.buildConnection()
+    @discardableResult
+    func updateHost(id: String, from draft: HostDraft) -> Bool {
+        guard draft.canSave else { hostSaveError = draft.validationMessage; return false }
+        guard let idx = hosts.firstIndex(where: { $0.id == id }) else { return false }
+        var conn = draft.buildConnection()
         let old = hosts[idx]
+        if sessionOnlyHostPasswords.contains(id), !draft.passwordWasEdited,
+           conn.authMethod == old.ssh?.authMethod {
+            conn.password = old.ssh?.password ?? ""
+        }
         // 连接相关配置（ssh：ip/端口/用户/密码/认证方式/密钥/编码/算法/代理/超时等）是否变化。
         // 只改名称/备注/分组时为 false → 不重探可达性、不刷新监控连接，避免无谓的状态闪烁与重连。
         let connectionChanged = old.ssh != conn
-        hosts[idx] = Host(
+        var saved = hosts
+        saved[idx] = Host(
             id: id,
             name: draft.name.trimmingCharacters(in: .whitespaces),
             addr: "\(conn.user)@\(conn.host)",
@@ -152,12 +173,46 @@ final class AppModel: ObservableObject {
         )
         // 保留运行时探测结果：延迟徽标沿用旧值；系统信息缓存仅在连接变化时作废（迫使概览重探），
         // 只改名称/备注/分组时原样保留 → 概览不再触发 SSH 重新探测，主机图标不闪「探测中」。
-        hosts[idx].latencyMs = old.latencyMs
-        hosts[idx].specs = connectionChanged ? nil : old.specs
-        HostStore.saveHosts(hosts)
+        saved[idx].latencyMs = old.latencyMs
+        saved[idx].specs = connectionChanged ? nil : old.specs
+        let changedPassword = draft.passwordWasEdited || conn.authMethod != old.ssh?.authMethod
+        let temporary = changedPassword ? sessionOnlyHostPasswords.subtracting([id]) : sessionOnlyHostPasswords
+        guard persistHosts(saved, clearingPasswordsFor: changedPassword ? [id] : [], temporary: temporary) else { return false }
+        hosts = saved
+        sessionOnlyHostPasswords = temporary
+        if changedPassword {
+            hostCredentialNotice = conn.authMethod == .ask || conn.password.isEmpty
+                ? String(localized: "主机已保存，不保留登录密码。")
+                : String(localized: "主机和密码已保存，密码会随加密备份同步。")
+        }
         if connectionChanged {
             checkReachability(hosts[idx])
             hostMonitors[id]?.updateConnection(conn)   // 活动监控按新配置重连；无活动监控则无操作
+        }
+        return true
+    }
+
+    func isHostPasswordTemporary(_ id: String) -> Bool { sessionOnlyHostPasswords.contains(id) }
+
+    /// 同步已先完成持久化，回填时清除旧会话的临时口令标记。
+    func applyPersistedHosts(_ values: [Host]) {
+        hosts = values
+        sessionOnlyHostPasswords.removeAll()
+        hostSaveError = nil
+    }
+
+    /// 所有主机保存入口统一处理错误；只用于当前会话的口令不参与落盘。
+    @discardableResult
+    private func persistHosts(_ values: [Host], clearingPasswordsFor cleared: Set<String> = [],
+                              temporary: Set<String>? = nil) -> Bool {
+        switch HostStore.saveHosts(values, clearingPasswordsFor: cleared,
+                                 ignoringPasswordValuesFor: temporary ?? sessionOnlyHostPasswords) {
+        case .success:
+            hostSaveError = nil
+            return true
+        case .failure(let error):
+            hostSaveError = String(localized: "主机未能完整保存：\(error.localizedDescription)")
+            return false
         }
     }
 
@@ -177,6 +232,9 @@ final class AppModel: ObservableObject {
     func cancelHostDelete() { pendingHostDelete = nil }
 
     func deleteHost(_ id: String) {
+        sessionOnlyHostPasswords.remove(id)
+        fileWorkspace.removeHost(id)
+        AIChatStore.shared.discard(scope: .host(id))
         // 先停掉该主机的转发隧道并清除其规则，避免删除后残留运行中的 ssh -N
         forwardManagers[id]?.stopAll()
         forwardManagers.removeValue(forKey: id)
@@ -188,52 +246,77 @@ final class AppModel: ObservableObject {
         hosts.removeAll { $0.id == id }
         sessions.removeAll { $0.hostId == id }
         HostKeychain.delete(id)
-        HostStore.saveHosts(hosts)
+        persistHosts(hosts)
         HostStore.saveSessions(sessions)
     }
 
     // ---------- 密钥库（SSH Keys）----------
-    /// 生成新密钥对：私钥进钥匙串，元数据落 JSON。
-    func generateKey(name: String, type: SSHKeyType, comment: String, passphrase: String) {
+    /// 私钥与元数据都成功保存后才发布，供表单可靠决定是否关闭。
+    @discardableResult
+    func generateKey(name: String, type: SSHKeyType, comment: String, passphrase: String) async -> Bool {
+        keyOpError = nil
         do {
-            let g = try KeyTools.generate(type: type, comment: comment, passphrase: passphrase)
+            // RSA 4096 的生成和口令加密可能持续数秒；不要在主线程阻塞整个工作台。
+            let generation = Task.detached(priority: .userInitiated) {
+                try KeyTools.generate(type: type, comment: comment, passphrase: passphrase)
+            }
+            let g = try await withTaskCancellationHandler {
+                try await generation.value
+            } onCancel: {
+                generation.cancel()
+            }
+            guard !Task.isCancelled else { return false }
             let key = SSHKey(name: name.isEmpty ? String(localized: "未命名密钥") : name, type: type,
                              publicKey: g.publicKey, fingerprint: g.fingerprint,
                              comment: comment, hasPassphrase: !passphrase.isEmpty)
-            KeyKeychain.set(key.id, g.privateKey)
-            sshKeys.append(key)
-            KeyStore.save(sshKeys)
+            let saved = sshKeys + [key]
+            try KeyStore.save(saved, updatingPrivateKeys: { $0[key.id] = g.privateKey })
+            sshKeys = saved
+            return true
         } catch {
+            guard !Task.isCancelled else { return false }
             keyOpError = (error as? KeyError)?.errorDescription ?? error.localizedDescription
+            return false
         }
     }
 
-    /// 弹文件选择器导入已有私钥。
+    /// 原生选择器支持查看完整路径；导入结果在密钥库显示，失败由设置页提示。
     func presentImportKey() {
         let panel = NSOpenPanel()
         panel.title = String(localized: "导入私钥")
+        panel.message = String(localized: "选择一份私钥；加密私钥可按住 ⌘ 同时选中同名 .pub 文件。")
+        panel.prompt = String(localized: "导入私钥")
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.showsHiddenFiles = true   // ~/.ssh 下私钥多为隐藏
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        _ = importKey(from: url)
+        panel.allowsMultipleSelection = true
+        panel.showsHiddenFiles = true
+        guard panel.runModal() == .OK else { return }
+        do {
+            let files = try KeyTools.selectedImportFiles(panel.urls)
+            _ = importKey(from: files.privateKey, publicKeyURL: files.publicKey)
+        } catch {
+            keyOpError = error.localizedDescription
+        }
     }
 
-    /// 从文件导入私钥到密钥库（Keychain + 元数据），返回新建的密钥。
-    /// MAS 沙盒下：AddHostView 选私钥时调用本方法，把容器外文件导入库（改用 keyId），规避沙盒读路径限制。
+    /// 从用户选择的文件导入；保存失败不发布临时条目或改变主机选择。
     @discardableResult
-    func importKey(from url: URL) -> SSHKey? {
+    func importKey(from url: URL, publicKeyURL: URL? = nil) -> SSHKey? {
+        keyOpError = nil
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+        let accessedPublic = publicKeyURL?.startAccessingSecurityScopedResource() ?? false
+        defer { if accessedPublic { publicKeyURL?.stopAccessingSecurityScopedResource() } }
         do {
             let pem = try String(contentsOf: url, encoding: .utf8)
-            let info = try KeyTools.importInfo(privatePath: url.path)
+            let info = try KeyTools.importInfo(privatePath: url.path, publicKeyURL: publicKeyURL)
             let key = SSHKey(name: url.deletingPathExtension().lastPathComponent,
                              type: info.type, publicKey: info.publicKey,
                              fingerprint: info.fingerprint, comment: info.comment,
                              hasPassphrase: info.hasPassphrase)
-            KeyKeychain.set(key.id, pem)
-            sshKeys.append(key)
-            KeyStore.save(sshKeys)
+            let saved = sshKeys + [key]
+            try KeyStore.save(saved, updatingPrivateKeys: { $0[key.id] = pem })
+            sshKeys = saved
             return key
         } catch {
             keyOpError = (error as? KeyError)?.errorDescription ?? error.localizedDescription
@@ -241,27 +324,63 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func deleteKey(_ key: SSHKey) {
-        sshKeys.removeAll { $0.id == key.id }
-        KeyKeychain.remove(key.id)
-        KeyMaterializer.remove(key.id)   // 清理落盘的工作私钥文件
-        KeyStore.save(sshKeys)
-        if detailKey?.id == key.id { detailKey = nil }
+    @discardableResult
+    func deleteKey(_ key: SSHKey) -> Bool {
+        keyOpError = nil
+        do {
+            let saved = sshKeys.filter { $0.id != key.id }
+            try KeyStore.save(saved, updatingPrivateKeys: { $0.removeValue(forKey: key.id) },
+                beforePrivateKeysChange: { ids in
+                    for id in ids { try KeyMaterializer.invalidate(id) }
+                })
+            sshKeys = saved
+            if detailKey?.id == key.id { detailKey = nil }
+            return true
+        } catch {
+            keyOpError = error.localizedDescription
+            return false
+        }
     }
 
-    func renameKey(_ id: String, to name: String) {
-        guard let i = sshKeys.firstIndex(where: { $0.id == id }) else { return }
-        sshKeys[i].name = name.isEmpty ? sshKeys[i].name : name
-        KeyStore.save(sshKeys)
+    @discardableResult
+    func renameKey(_ id: String, to name: String) -> Bool {
+        keyOpError = nil
+        guard let i = sshKeys.firstIndex(where: { $0.id == id }) else { return false }
+        var saved = sshKeys
+        saved[i].name = name.isEmpty ? saved[i].name : name
+        do {
+            try KeyStore.save(saved)
+            sshKeys = saved
+            return true
+        } catch {
+            keyOpError = error.localizedDescription
+            return false
+        }
     }
 
-    /// 复制公钥到剪贴板（贴到服务器 authorized_keys 用）。
-    /// 公钥部署成功后，把该密钥设为主机的登录密钥（写入 ssh.keyId 并持久化）。
-    /// 下次连接该主机即用此密钥认证（KeyMaterializer 落 0600 工作文件）。
-    func associateKey(_ keyId: String, hostId: String) {
-        guard let idx = hosts.firstIndex(where: { $0.id == hostId }) else { return }
-        hosts[idx].ssh?.keyId = keyId
-        HostStore.saveHosts(hosts)
+    /// 切换到受管密钥认证。旧服务器密码不能被误当成新私钥的解密口令。
+    @discardableResult
+    func associateKey(_ keyId: String, hostId: String) -> Bool {
+        keyOpError = nil
+        guard sshKeys.contains(where: { $0.id == keyId }),
+              let idx = hosts.firstIndex(where: { $0.id == hostId }), let connection = hosts[idx].ssh else {
+            keyOpError = String(localized: "目标主机或密钥已不存在，请重新选择。")
+            return false
+        }
+        var saved = hosts
+        let credentialsChanged = connection.authMethod != .key || connection.keyId != keyId
+        saved[idx].ssh?.authMethod = .key
+        saved[idx].ssh?.keyId = keyId
+        saved[idx].ssh?.keyPath = ""
+        if credentialsChanged { saved[idx].ssh?.password = "" }
+        let temporary = credentialsChanged ? sessionOnlyHostPasswords.subtracting([hostId]) : sessionOnlyHostPasswords
+        guard persistHosts(saved, clearingPasswordsFor: credentialsChanged ? [hostId] : [], temporary: temporary) else {
+            keyOpError = hostSaveError ?? String(localized: "主机的登录密钥未能保存，请重试。")
+            return false
+        }
+        hosts = saved
+        sessionOnlyHostPasswords = temporary
+        return true
     }
 
     func copyPublicKey(_ key: SSHKey) {
@@ -350,17 +469,23 @@ final class AppModel: ObservableObject {
     /// 「先进片段模块、再开终端」时按钮不刷新，须重进模块才出现）。
     var hasSnippetTarget: Bool { snippetTargetTabId() != nil }
 
-    /// 片段的目标终端标签 id：优先当前活动标签（若是终端），否则取唯一打开的终端标签。
+    /// 仅向当前工作区的终端投递；概览/文件页可以使用同主机唯一打开的终端。
     private func snippetTargetTabId() -> Int? {
-        if let id = activeTabId, tabs.first(where: { $0.id == id })?.kind == .terminal { return id }
-        let termTabs = tabs.filter { $0.kind == .terminal }
-        return termTabs.count == 1 ? termTabs[0].id : nil
+        workspaceContext.terminalTabId
     }
 
     /// AI 面板用公开包装：目标终端标签 id（优先当前活动的终端）。
     func snippetTargetTabIdPublic() -> Int? { snippetTargetTabId() }
-    /// AI 面板用公开包装：向目标终端注入文本（run=false 仅插入不回车）。
-    func deliverSnippetPublic(_ text: String, run: Bool) { deliverSnippet(text, run: run) }
+    /// AI 投递固定绑定终端，不随前台标签变化重新选择目标；返回通道是否接受文本。
+    @discardableResult
+    func deliverSnippetPublic(_ text: String, run: Bool, tabId: Int) -> Bool {
+        guard tabs.contains(where: { $0.id == tabId && $0.kind == .terminal }),
+              let tv = terminals[tabId] else { return false }
+        let line = run ? text.trimmingCharacters(in: .newlines) + "\n" : text
+        if let driver = termDrivers[tabId] { return driver.sendText(line) }
+        tv.send(txt: line)
+        return true
+    }
 
     private func deliverSnippet(_ text: String, run: Bool) {
         guard let id = snippetTargetTabId(), let tv = terminals[id] else {
@@ -412,7 +537,7 @@ final class AppModel: ObservableObject {
     private static let monitorDebounce: TimeInterval = 0.4           // 频繁切换主机时，未停留够此时长不启动
     private static let monitorStopGrace: TimeInterval = 4            // 切走后保留监控连接的宽限期
 
-    /// 取得（或惰性创建）某主机的监控对象；不在此启动采集——采集只在其概览为当前激活视图时跑（见 overviewAppeared）。
+    /// 取得（或惰性创建）某主机的监控对象；采集由右侧监控面板的可见性驱动。
     func hostMonitor(for host: Host) -> HostMonitor {
         if let m = hostMonitors[host.id] { return m }
         let m = HostMonitor(ssh: host.ssh ?? SSHConnection())
@@ -422,9 +547,21 @@ final class AppModel: ObservableObject {
         return m
     }
 
-    /// 概览成为当前激活视图：防抖后再启动采集。在该时长内切走则启动被取消——飞速切换主机时不会把一堆监控点着，
+    /// 由用户在监控错误卡片中主动核对，不在后台循环弹出信任请求。
+    func verifyMonitorHost(_ host: Host) {
+        Task {
+            guard await verifyHostKey(host), let current = self.host(host.id),
+                  current.ipOrHost == host.ipOrHost, current.port == host.port,
+                  let ssh = current.ssh else { return }
+            let monitor = hostMonitor(for: current)
+            monitor.updateConnection(ssh)
+            monitor.start(allowTrustRetry: true)
+        }
+    }
+
+    /// 右侧监控面板出现：防抖后再启动采集。在该时长内切走则启动被取消——飞速切换主机时不会把一堆监控点着，
     /// 任一时刻只有真正停留的那台在跑。
-    func overviewAppeared(_ host: Host) {
+    func monitorPanelAppeared(_ host: Host) {
         monitorStopWork[host.id]?.cancel()                 // 切回了：取消挂起的延迟停流，保留连接、不重连
         monitorStopWork.removeValue(forKey: host.id)
         // 「每次询问」未输密码前无凭证，跳过实时指标采集（UI 显示占位；后台 ssh 否则会反复认证失败/挂起）。
@@ -441,8 +578,8 @@ final class AppModel: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.monitorDebounce, execute: work)
     }
 
-    /// 概览不再是当前激活视图：取消待启动，并在宽限期后停流（快速切回则取消停止，避免反复连断）。
-    func overviewDisappeared(_ hostId: String) {
+    /// 右侧监控面板收起或切换主机：取消待启动，并在宽限期后停流。
+    func monitorPanelDisappeared(_ hostId: String) {
         monitorStartWork[hostId]?.cancel()
         monitorStartWork.removeValue(forKey: hostId)
         monitorStopWork[hostId]?.cancel()
@@ -490,9 +627,9 @@ final class AppModel: ObservableObject {
     var backgroundActivities: [BackgroundActivity] {
         var out: [BackgroundActivity] = []
         for rule in forwards {
-            if let m = forwardManagers[rule.hostId], m.status(rule.id).isRunning {
+            if let m = forwardManagers[rule.hostId], m.status(rule.id) != .stopped {
                 out.append(BackgroundActivity(id: "fwd-\(rule.id.uuidString)", hostId: rule.hostId,
-                                              fallbackHostName: "", isFinished: false,
+                                              fallbackHostName: "", isFinished: !m.isEnabled(rule.id),
                                               payload: .forward(rule: rule, manager: m)))
             }
         }
@@ -532,9 +669,11 @@ final class AppModel: ObservableObject {
     /// 后台中控里是否有「已完成」的任务可清理（已完成/已取消的传输，或终态的解压）。
     var hasFinishedBackground: Bool {
         transfers.contains { $0.phase == .done || $0.phase == .cancelled } || isExtractFinished
+            || forwardManagers.values.contains { $0.hasStoppedFailure }
     }
     /// 一键清理所有已结束的后台任务记录（不影响进行中/排队的传输与运行中的转发）。
     func clearFinishedBackground() {
+        for manager in forwardManagers.values { manager.clearStoppedFailures() }
         let removed = Set(transfers.filter { $0.phase == .done || $0.phase == .cancelled }.map { $0.id })
         transfers.removeAll { removed.contains($0.id) }
         if let id = focusedTransferId, removed.contains(id) { focusedTransferId = nil }
@@ -545,7 +684,7 @@ final class AppModel: ObservableObject {
     /// 进行中的后台活动数（用于中控按钮角标）：运行中的转发 + 进行中/排队的传输 + 进行中的解压。
     var activeBackgroundCount: Int {
         var n = 0
-        for rule in forwards where forwardManagers[rule.hostId]?.status(rule.id).isRunning == true { n += 1 }
+        for rule in forwards where forwardManagers[rule.hostId]?.isEnabled(rule.id) == true { n += 1 }
         n += transfers.filter { $0.phase == .running || $0.phase == .queued || $0.phase == .paused }.count
         if extractTask?.phase == .running { n += 1 }
         return n
@@ -588,10 +727,16 @@ final class AppModel: ObservableObject {
         requireAuth(host) { [weak self] in self?.proceedForward(host.id) }
     }
 
-    /// 「每次询问」首次（未验证）先走连接验证弹窗后再开转发面板；已验证或密码/密钥直接开（你要求的：连过一次后转发进入不再弹窗）。
+    /// 认证确认后再切换主机，取消询问时保留原工作区；复用已有标签，避免为管理隧道新建终端。
     private func proceedForward(_ hostId: String) {
-        guard hosts.first(where: { $0.id == hostId }) != nil else { return }
-        // 转发管理入驻右侧功能区：验证通过后展开 .forward 面板（主机上下文=活动标签）
+        guard let host = hosts.first(where: { $0.id == hostId }) else { return }
+        if companionHost()?.id != hostId {
+            if let existing = tabs.first(where: { $0.hostId == hostId }) {
+                selectTab(existing.id)
+            } else {
+                openHost(host)
+            }
+        }
         layoutModel.rightPanel = .forward
     }
 
@@ -611,7 +756,7 @@ final class AppModel: ObservableObject {
     func toggleForward(_ rule: ForwardRule) {
         guard let host = hosts.first(where: { $0.id == rule.hostId }) else { return }
         let m = forwardManager(for: host)
-        if m.status(rule.id).isRunning {
+        if m.isEnabled(rule.id) {
             m.stop(rule.id)
         } else {
             m.start(rule)
@@ -660,18 +805,43 @@ final class AppModel: ObservableObject {
     // ---------- 系统信息探测 ----------
     /// 远端一次性探测脚本：输出多行 key=value。MEM/DISK 输出原始字节（客户端再按
     /// 1000 进制统一格式化，避免 free -h/df -h 的 Gi/Mi 单位浮动）；DISK 为「已用 总量」两个字节数；
-    /// VRAM 每卡一行（MiB，客户端按 1024 进制 GiB 显示，与监控卡片口径一致）、GPU 每卡一行型号
-    /// （去引号：nvidia-smi 会给含逗号的型号名加引号）；二者仅在有 NVIDIA 显卡（nvidia-smi 可用）时输出。
+    /// VRAM 每张有独立显存且可读取的卡输出一行（MiB）；GPU 每卡一行型号。
+    /// NVIDIA 用 nvidia-smi，AMD/Intel 从 DRM sysfs 识别；集显不伪造独立显存容量。
     private static let probeScript = """
-    . /etc/os-release 2>/dev/null
+    [ -r /etc/os-release ] && . /etc/os-release
     echo "OS=${PRETTY_NAME:-$(uname -sr)}"
     echo "CORES=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null)"
     mem=$(awk '/MemTotal/{printf "%.0f", $2*1024; exit}' /proc/meminfo 2>/dev/null)
     [ -z "$mem" ] && mem=$(sysctl -n hw.memsize 2>/dev/null)
     echo "MEM=$mem"
     echo "DISK=$(df -k / 2>/dev/null | awk 'NR==2{printf "%.0f %.0f", $3*1024, $2*1024}')"
-    nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | awk '$1 ~ /^[0-9]+$/{print "VRAM="$1}'
-    nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | awk '{gsub(/"/,""); print "GPU="$0}'
+    NVIDIA_SMI=$(command -v nvidia-smi 2>/dev/null)
+    if [ -z "$NVIDIA_SMI" ]; then
+      for candidate in /usr/bin/nvidia-smi /usr/local/bin/nvidia-smi /usr/local/nvidia/bin/nvidia-smi /opt/nvidia/bin/nvidia-smi; do
+        [ -x "$candidate" ] && { NVIDIA_SMI=$candidate; break; }
+      done
+    fi
+    if [ -n "$NVIDIA_SMI" ]; then
+      "$NVIDIA_SMI" --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | awk '$1 ~ /^[0-9]+$/{print "VRAM="$1}'
+    fi
+    nvidia_names=$([ -n "$NVIDIA_SMI" ] && "$NVIDIA_SMI" --query-gpu=name --format=csv,noheader 2>/dev/null)
+    [ -n "$nvidia_names" ] && printf '%s\\n' "$nvidia_names" | awk '{gsub(/"/,""); print "GPU="$0}'
+    for card in /sys/class/drm/card[0-9]*; do
+      [ -r "$card/device/vendor" ] || continue
+      vendor=$(cat "$card/device/vendor" 2>/dev/null)
+      case "$vendor" in
+        0x10de) [ -n "$nvidia_names" ] && continue; vendor=NVIDIA; fallback=GPU ;;
+        0x1002) vendor=AMD; fallback=Radeon ;;
+        0x8086) vendor=Intel; fallback=Graphics ;;
+        *) continue ;;
+      esac
+      index=${card##*/}; index=${index#card}
+      name=$(cat "$card/device/product_name" 2>/dev/null)
+      [ -n "$name" ] || name="$fallback card$index"
+      printf 'GPU=%s %s\\n' "$vendor" "$name"
+      bytes=$(cat "$card/device/mem_info_vram_total" 2>/dev/null)
+      case "$bytes" in ''|*[!0-9]*) ;; *) [ "$bytes" -gt 0 ] && printf 'VRAM=%s\\n' "$((bytes / 1048576))";; esac
+    done
     """
 
     /// 系统信息缓存有效期：探测结果(OS/配置/磁盘)在此时间内复用，不重新 SSH 探测。
@@ -721,7 +891,7 @@ final class AppModel: ObservableObject {
             default: break
             }
         }
-        // 显存与型号按卡数对齐展示：多卡同型号/同容量用「×N」标明，避免把多卡总和误读为单卡规格。
+        // 有独立显存指标的卡与全部 GPU 分开汇总：Intel 集显可能只提供名称。
         if !vramMiB.isEmpty { specs.vram = Self.fmtVram(vramMiB) }
         if !gpuNames.isEmpty {
             specs.gpu = gpuNames.count > 1
@@ -733,7 +903,7 @@ final class AppModel: ObservableObject {
         specs.probedAt = Date()                // 标记探测时间，供 TTL 缓存判定
         hosts[idx].specs = specs
         hosts[idx].status = .online            // 探测成功 ⇒ 一定在线
-        HostStore.saveHosts(hosts)
+        persistHosts(hosts)
     }
 
     /// 字节数 → 1000 进制单位（KB/MB/GB/TB）。用十进制（decimal）风格，避免 1024 进制
@@ -911,6 +1081,12 @@ final class AppModel: ObservableObject {
             if online {
                 self.reconnectDroppedTerminals()
                 self.reconnectFileViewsAfterNetworkChange()
+            } else {
+                for (tabId, conn) in self.terminalConns where conn.phase == .dropped {
+                    self.terminalReconnectWork[tabId]?.cancel()
+                    self.terminalReconnectWork[tabId] = nil
+                    conn.reconnectStatus = .waitingForNetwork
+                }
             }
         }
 
@@ -947,7 +1123,7 @@ final class AppModel: ObservableObject {
     /// 当前进行中的后台任务可读清单（用于退出确认弹窗）：运行中的转发、进行中/排队的传输、进行中的解压。
     var runningBackgroundSummaries: [String] {
         var out: [String] = []
-        for rule in forwards where forwardManagers[rule.hostId]?.status(rule.id).isRunning == true {
+        for rule in forwards where forwardManagers[rule.hostId]?.isEnabled(rule.id) == true {
             let host = hosts.first(where: { $0.id == rule.hostId })?.name ?? String(localized: "主机")
             out.append(String(localized: "端口转发 · \(host) · \(rule.summary)"))
         }
@@ -980,13 +1156,15 @@ final class AppModel: ObservableObject {
     /// 侧栏「文件」面板要显示的树 + 稳定标识 + 所属主机。
     /// 终端/文件标签 → 各自跟随 cwd 的按标签树；编辑器标签 → 主机级资源管理器树（高亮当前文件）。
 
-    /// 右侧伴随面板的「当前主机」：活动标签所关联的 SSH 主机（终端/文件/概览均可）。
+    /// 主机与命令目标只从同一活动标签解析，禁止从全局唯一终端推测另一台主机。
+    var workspaceContext: WorkspaceContext {
+        WorkspaceContext(tabs: tabs, activeTabId: activeTabId,
+                         sshHostIds: Set(hosts.filter { $0.ssh != nil }.map(\.id)))
+    }
+
+    /// 右侧伴随面板与中间工作区共用当前主机。
     func companionHost() -> Host? {
-        guard let id = activeTabId,
-              let tab = tabs.first(where: { $0.id == id }),
-              let host = host(tab.hostId),
-              host.ssh != nil else { return nil }
-        return host
+        host(workspaceContext.hostId)
     }
 
     func host(_ id: String?) -> Host? {
@@ -1151,18 +1329,32 @@ final class AppModel: ObservableObject {
         let hub = hostId.map { terminalHub(for: $0) } ?? TerminalSessionHub()
         let driver = SSHTerminalDriver(tv: tv, ssh: ssh, hub: hub,
                                        transcript: TerminalTranscriptStore.shared.transcript(for: tabId))
-        driver.onCommandCompleted = { [weak self] result in
-            Task { @MainActor in self?.handleCommandCompleted(tabId: tabId, result: result) }
+        driver.onCommandCompleted = { [weak self, weak driver] result in
+            Task { @MainActor in
+                guard let self, let driver, self.termDrivers[tabId] === driver else { return }
+                // 真正收到 OSC 133 完成标记后才开放精确等待；注入尚未完成时走输出快照。
+                if command == nil { self.markCompletionReady(tabId, ready: true) }
+                self.handleCommandCompleted(tabId: tabId, result: result)
+            }
         }
-        driver.onCwd = { [weak self] path in
-            Task { @MainActor in self?.handleTerminalCwd(tabId: tabId, path: path) }
+        driver.onCwd = { [weak self, weak driver] path in
+            Task { @MainActor in
+                guard let self, let driver, self.termDrivers[tabId] === driver else { return }
+                self.handleTerminalCwd(tabId: tabId, path: path)
+            }
+        }
+        driver.onReady = { [weak self, weak driver] in
+            guard let self, let driver, self.termDrivers[tabId] === driver,
+                  let conn = self.terminalConns[tabId], conn.phase == .dropped else { return }
+            conn.phase = .live
+            conn.attempt = 0
         }
         driver.onTerminated = { [weak self] code in
             Task { @MainActor in self?.handleTerminalExit(tabId: tabId, hostId: hostId, exitCode: code) }
         }
         tv.terminalDelegate = driver                // 接管输入/resize/cwd（替代 LocalProcessTerminalView 自身）
         termDrivers[tabId] = driver
-        markCompletionReady(tabId, ready: command == nil)   // 登录 shell 才有完成钩子
+        markCompletionReady(tabId, ready: false)
         driver.connect(cols: term.cols, rows: term.rows, initialLine: initialCommandLine(ssh), command: command)
     }
 
@@ -1180,8 +1372,8 @@ final class AppModel: ObservableObject {
         // 不以离线状态判定，否则离线时主动 exit 会被误当掉线。本地终端无 TerminalConn，落到关闭分支。
         if let hostId, let conn = terminalConns[tabId], exitCode == 255,
            hosts.contains(where: { $0.id == hostId }) {
-            conn.dropGen += 1
             conn.phase = .dropped
+            conn.reconnectStatus = NetworkMonitor.shared.isOnline ? .scheduled : .waitingForNetwork
             scheduleTerminalReconnect(tabId: tabId, hostId: hostId)
             return
         }
@@ -1197,7 +1389,12 @@ final class AppModel: ObservableObject {
     /// 退避重连：离线时不试（等网络恢复回调触发），在线时按失败次数递增延迟（封顶 15 秒）后重连。
     /// 先撤销该标签已挂起的重连，确保同一时刻只排一个，避免反复掉线时叠加多次并发重连。
     private func scheduleTerminalReconnect(tabId: Int, hostId: String) {
-        guard NetworkMonitor.shared.isOnline, let conn = terminalConns[tabId] else { return }
+        guard let conn = terminalConns[tabId] else { return }
+        guard NetworkMonitor.shared.isOnline else {
+            conn.reconnectStatus = .waitingForNetwork
+            return
+        }
+        conn.reconnectStatus = .scheduled
         terminalReconnectWork[tabId]?.cancel()
         let delay = min(15.0, 2.0 * Double(conn.attempt + 1))
         let work = DispatchWorkItem { [weak self] in
@@ -1208,26 +1405,23 @@ final class AppModel: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
-    /// 在原终端视图上重发 SSH 连接。连上判定：OSC 7 的 onCwd 最快置 live；无 OSC 7 的主机由看门狗兜底
-    /// ——尝试期间未再掉线（dropGen 未变）即视为已连。
+    /// 在原终端视图上重发 SSH 连接。只有 shell 通道打开或收到 OSC 7 才确认已连；
+    /// 单纯等待一段时间不能证明重连成功。
     private func reconnectTerminal(tabId: Int, hostId: String) {
         terminalReconnectWork[tabId]?.cancel()   // 立即重连（手动/网络恢复）撤销可能挂起的退避重连
         terminalReconnectWork[tabId] = nil
         guard let conn = terminalConns[tabId], conn.phase == .dropped,
               tabs.contains(where: { $0.id == tabId }),
               let tv = terminals[tabId],
-              let host = hosts.first(where: { $0.id == hostId }), let ssh = host.ssh,
-              NetworkMonitor.shared.isOnline else { return }
+              let host = hosts.first(where: { $0.id == hostId }), let ssh = host.ssh else { return }
+        guard NetworkMonitor.shared.isOnline else {
+            conn.reconnectStatus = .waitingForNetwork
+            return
+        }
         conn.attempt += 1
-        let gen = conn.dropGen
+        conn.reconnectStatus = .connecting
         startTerminalProcess(tv: tv, ssh: ssh, tabId: tabId, hostId: hostId,
                              command: terminalCommands[tabId])   // 重连沿用同一命令（tmux 接入掉线重进同一会话）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
-            guard let self, let c = self.terminalConns[tabId],
-                  c.phase == .dropped, c.dropGen == gen else { return }
-            c.phase = .live
-            c.attempt = 0
-        }
     }
 
     /// 网络恢复时立即重连所有断开的终端（清零退避）。先快照，避免重连过程中字典被改动。
@@ -1327,8 +1521,22 @@ final class AppModel: ObservableObject {
         TerminalTranscriptStore.shared.existing(tabId)?.tail(maxChars: maxChars)
     }
 
+    func transcriptCursor(tabId: Int) -> TerminalTranscript.OutputCursor? {
+        guard tabs.contains(where: { $0.id == tabId && $0.kind == .terminal }) else { return nil }
+        return TerminalTranscriptStore.shared.transcript(for: tabId).outputCursor()
+    }
+
+    func transcriptOutput(tabId: Int, since cursor: TerminalTranscript.OutputCursor, maxChars: Int = 4000) -> String? {
+        TerminalTranscriptStore.shared.existing(tabId)?.output(since: cursor, maxChars: maxChars)
+    }
+
     // ---------- 命令完成等待（Agent 精确等结果，见 SSHTerminalDriver 的 OSC 133;D 解析）----------
-    private var commandWaiters: [Int: CheckedContinuation<CommandResult, Never>] = [:]
+    private struct CommandWaiter {
+        let id: UUID
+        let continuation: CheckedContinuation<CommandResult?, Never>
+        let timeoutTask: Task<Void, Never>
+    }
+    private var commandWaiters: [Int: CommandWaiter] = [:]
     /// 装了完成钩子的终端（登录 shell 才会注入 initialLine；tmux/本地终端没有）。
     /// 没装钩子的终端等完成标记永远不来——Agent 必须走尾部兜底而非干等。
     private(set) var completionReadyTabs: Set<Int> = []
@@ -1340,24 +1548,52 @@ final class AppModel: ObservableObject {
 
     /// 等待指定终端下一条命令完成（退出码+输出切片）。超时兜底给当前记录尾部，不让 Agent 卡死
     /// （钩子未装上/命令超长时降级为近似行为）。
-    func awaitCommandCompletion(tabId: Int, timeout: UInt64 = 60_000_000_000) async -> CommandResult {
-        await withCheckedContinuation { cont in
-            commandWaiters[tabId] = cont
-            Task { [weak self] in
-                try? await Task.sleep(nanoseconds: timeout)
-                guard let self, let w = commandWaiters.removeValue(forKey: tabId) else { return }
-                let tail = transcriptTail(tabId: tabId, maxChars: 2000) ?? ""
-                w.resume(returning: CommandResult(
-                    output: tail + "\n（等待完成超时：命令可能仍在运行）",
-                    exitCode: -1))
+    func awaitCommandCompletion(
+        tabId: Int, command: String, timeout: UInt64 = 60_000_000_000
+    ) async -> CommandResult? {
+        let requestID = UUID()
+        let cursor = transcriptCursor(tabId: tabId)
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { cont in
+                guard !Task.isCancelled else { cont.resume(returning: nil); return }
+                // 即使调用方异常重复注册，旧 continuation 也必须结束，不能被字典覆盖后遗失。
+                cancelCommandWait(tabId: tabId)
+                let timer = Task { [weak self] in
+                    do { try await Task.sleep(nanoseconds: timeout) } catch { return }
+                    guard let self, commandWaiters[tabId]?.id == requestID else { return }
+                    let tail = cursor.flatMap { transcriptOutput(tabId: tabId, since: $0, maxChars: 2000) } ?? ""
+                    finishCommandWait(tabId: tabId, requestID: requestID, result: CommandResult(
+                        output: tail, exitCode: -1))
+                }
+                commandWaiters[tabId] = CommandWaiter(id: requestID, continuation: cont, timeoutTask: timer)
+                // 与注册位于同一 MainActor 操作，快速回执不会先于等待者到达。
+                if !deliverSnippetPublic(command, run: true, tabId: tabId) {
+                    finishCommandWait(tabId: tabId, requestID: requestID, result: nil)
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.finishCommandWait(tabId: tabId, requestID: requestID, result: nil)
             }
         }
     }
 
+    private func finishCommandWait(tabId: Int, requestID: UUID, result: CommandResult?) {
+        guard commandWaiters[tabId]?.id == requestID,
+              let waiter = commandWaiters.removeValue(forKey: tabId) else { return }
+        waiter.timeoutTask.cancel()
+        waiter.continuation.resume(returning: result)
+    }
+
+    private func cancelCommandWait(tabId: Int) {
+        guard let waiter = commandWaiters[tabId] else { return }
+        finishCommandWait(tabId: tabId, requestID: waiter.id, result: nil)
+    }
+
     /// 驱动的命令完成事件：唤醒等待者（无等待者则丢弃——用户手动跑的命令不打扰 Agent）。
     func handleCommandCompleted(tabId: Int, result: CommandResult) {
-        guard let w = commandWaiters.removeValue(forKey: tabId) else { return }
-        w.resume(returning: result)
+        guard let waiter = commandWaiters[tabId] else { return }
+        finishCommandWait(tabId: tabId, requestID: waiter.id, result: result)
     }
 
     // ---------- 标签操作 ----------
@@ -1367,11 +1603,23 @@ final class AppModel: ObservableObject {
     }
 
     func openHost(_ host: Host) {
+        if activeHostId == host.id,
+           tabs.contains(where: { $0.id == activeTabId && $0.kind == .terminal }) {
+            layoutModel.rightPanel = .monitor
+            return
+        }
+        if let terminal = tabs.first(where: { $0.kind == .terminal && $0.hostId == host.id }) {
+            activeTabId = terminal.id
+            layoutModel.rightPanel = .monitor
+            return
+        }
         if let existing = tabs.first(where: { $0.kind == .overview && $0.hostId == host.id }) {
             activeTabId = existing.id
+            layoutModel.rightPanel = .monitor
             return
         }
         addTab(.overview, title: host.name, hostId: host.id)
+        layoutModel.rightPanel = .monitor
     }
 
     // ---------- 终端共享会话（每主机一条连接，多终端复用通道） ----------
@@ -1409,8 +1657,20 @@ final class AppModel: ObservableObject {
     /// 适用于终端 / 文件 / 端口转发等所有需要 SSH 凭证的入口。
     /// **始终按 id 取最新 host 判断**：调用方常传旧快照（不含本会话已缓存的密码），用快照判断会重复弹框。
     private func requireAuth(_ host: Host, _ action: @escaping () -> Void) {
-        let live = hosts.first(where: { $0.id == host.id }) ?? host
-        if live.ssh?.authMethod == .ask, (live.ssh?.password ?? "").isEmpty {
+        guard let idx = hosts.firstIndex(where: { $0.id == host.id }), let ssh = hosts[idx].ssh else { return }
+        askAuthError = nil
+        if ssh.authMethod == .password, ssh.password.isEmpty {
+            do {
+                if let saved = try HostStore.savedPasswords(for: [hosts[idx]])[host.id] {
+                    hosts[idx].ssh?.password = saved
+                    sessionOnlyHostPasswords.remove(host.id)
+                }
+            } catch {
+                askAuthError = String(localized: "已保存的密码暂时无法读取：\(error.localizedDescription)")
+            }
+        }
+        let live = hosts[idx]
+        if live.ssh?.authMethod != .key, (live.ssh?.password ?? "").isEmpty {
             pendingAskAuth = live
             pendingAskContinuation = action
             return
@@ -1418,20 +1678,40 @@ final class AppModel: ObservableObject {
         action()
     }
 
-    /// 「每次询问」弹窗确认：把密码写进该主机内存 ssh（本会话有效、绝不落盘——saveHosts 对 .ask 跳过），
-    /// 此后该主机的终端/文件/转发/监控等所有走 host.ssh 的操作自动带上密码；冷启动后为空、需重新输入。
-    func submitAskAuth(_ password: String) {
+    /// 用户显式选择保存才写钥匙串并改为密码认证；临时值只在当前会话内使用。
+    @discardableResult
+    func submitAskAuth(_ password: String, remember: Bool = false) -> Bool {
+        guard !password.isEmpty else { askAuthError = String(localized: "请输入登录密码。"); return false }
         guard let host = pendingAskAuth, let idx = hosts.firstIndex(where: { $0.id == host.id }) else {
-            pendingAskAuth = nil; pendingAskContinuation = nil; return
+            pendingAskAuth = nil; pendingAskContinuation = nil; return false
+        }
+        if remember {
+            var saved = hosts
+            saved[idx].ssh?.password = password
+            saved[idx].ssh?.authMethod = .password
+            let temporary = sessionOnlyHostPasswords.subtracting([host.id])
+            guard persistHosts(saved, temporary: temporary) else {
+                askAuthError = hostSaveError
+                return false
+            }
+            hosts = saved
+            sessionOnlyHostPasswords = temporary
+            hostCredentialNotice = String(localized: "密码已保存，下次自动登录，并随加密备份同步。")
+        } else {
+            hosts[idx].ssh?.password = password
+            sessionOnlyHostPasswords.insert(host.id)
+            hostSaveError = nil
+            hostCredentialNotice = String(localized: "密码仅用于本次会话，不会保存或同步。")
         }
         pendingAskAuth = nil
-        hosts[idx].ssh?.password = password
+        askAuthError = nil
         let cont = pendingAskContinuation
         pendingAskContinuation = nil
         cont?()
+        return true
     }
 
-    func cancelAskAuth() { pendingAskAuth = nil; pendingAskContinuation = nil }
+    func cancelAskAuth() { pendingAskAuth = nil; pendingAskContinuation = nil; askAuthError = nil }
 
     /// 启动「正在连接」验证弹窗（用 askpass 密码真实认证 + 展示连接日志），成功后执行 then。
     /// 「每次询问」从任意入口（终端/文件/转发/监控）确认密码后都经此验证；密码/密钥的终端连接亦走此弹窗。
@@ -1453,8 +1733,10 @@ final class AppModel: ObservableObject {
 
     /// 清掉「每次询问」主机的本会话密码（连接失败/取消时）：下次操作重新询问，并停掉用错误密码的监控。
     private func clearAskPassword(_ hostId: String) {
-        guard let i = hosts.firstIndex(where: { $0.id == hostId }), hosts[i].ssh?.authMethod == .ask else { return }
+        guard let i = hosts.firstIndex(where: { $0.id == hostId }),
+              hosts[i].ssh?.authMethod == .ask || sessionOnlyHostPasswords.contains(hostId) else { return }
         hosts[i].ssh?.password = ""
+        sessionOnlyHostPasswords.remove(hostId)
         askVerifiedHosts.remove(hostId)   // 验证态一并清除：下次需重新验证
         hostMonitors[hostId]?.stop()
     }
@@ -1477,7 +1759,7 @@ final class AppModel: ObservableObject {
 
     func cancelConnecting() {
         // 「每次询问」连接失败/取消：清掉本会话密码，下次重新询问（处理密码输错）。
-        if let host = connectingHost, host.ssh?.authMethod == .ask { clearAskPassword(host.id) }
+        if let host = connectingHost { clearAskPassword(host.id) }
         connectingHost = nil
         connectingContinuation = nil
     }
@@ -1492,19 +1774,28 @@ final class AppModel: ObservableObject {
         guard let ssh = host.ssh, !ssh.host.isEmpty else { return true }
         let h = ssh.host, p = ssh.port
         let pf = await Task.detached { HostKeyVerifier.preflight(host: h, port: p) }.value
+        guard !Task.isCancelled else { return false }
         switch pf {
         case .known, .scanFailed:
             return true   // 已知放行；扫描失败交给后续实际连接报错
         case .prompt(let info), .changed(let info):
+            guard pendingHostKey == nil else { return false }
             // 未知主机 / 已变更（info.changed=true 时弹窗醒目警示）→ 让用户核对指纹后决定。
             let decision: HostKeyDecision = await withCheckedContinuation { cont in
-                pendingHostKey = PendingHostKey(info: info) { cont.resume(returning: $0) }
+                pendingHostKey = PendingHostKey(info: info) { decision in
+                    guard self.pendingHostKey != nil else { return }
+                    self.pendingHostKey = nil
+                    cont.resume(returning: decision)
+                }
             }
             pendingHostKey = nil
-            switch decision {
-            case .cancel: return false
-            case .once: HostKeyVerifier.trust(info, persist: false); return true
-            case .save: HostKeyVerifier.trust(info, persist: true); return true
+            guard decision != .cancel else { return false }
+            do {
+                try HostKeyVerifier.trust(info, persist: decision == .save)
+                return true
+            } catch {
+                hostSaveError = String(localized: "主机信任记录未能保存：\(error.localizedDescription)")
+                return false
             }
         }
     }
@@ -1617,7 +1908,7 @@ final class AppModel: ObservableObject {
         if task.direction == .download && !AppSettings.shared.showDownloadDialog {
             triggerDownloadFly(for: task)
         } else {
-            focusedTransferId = task.id   // 自动展开新任务弹窗（保持单任务时的体验）
+            focusedTransferId = task.id   // 在工作区底部展开新任务详情
         }
         pumpTransferQueue()
     }
@@ -1778,14 +2069,38 @@ final class AppModel: ObservableObject {
         tabs.first(where: { $0.id == tabId })?.hostId
     }
 
+    /// 一次只编辑一个文件操作；运行中的删除结束前不接受新的文件写操作。
+    private func prepareFileOperation(for host: Host) -> UUID? {
+        guard workspaceContext.hostId == host.id, !fileDeleteBusy, !batchDeleteBusy else { return nil }
+        fileOperationGeneration = UUID()
+        pendingFileRename = nil
+        pendingFileCreate = nil
+        pendingFileChmod = nil
+        pendingFileDelete = nil
+        pendingBatchDelete = nil
+        pendingFileInfo = nil
+        return fileOperationGeneration
+    }
+
+    /// 切换主机时放弃尚未提交的编辑；已提交的删除仍按其原始目标完成。
+    func cancelFileEditingOnWorkspaceChange() {
+        fileOperationGeneration = UUID()
+        pendingFileRename = nil
+        pendingFileCreate = nil
+        pendingFileChmod = nil
+        if !fileDeleteBusy { pendingFileDelete = nil }
+        if !batchDeleteBusy { pendingBatchDelete = nil }
+    }
+
     func fileMenuRequestDelete(_ file: RemoteFile, host: Host, target: any FileOpsTarget) {
+        guard prepareFileOperation(for: host) != nil else { return }
         pendingFileDelete = FileOpContext(file: file, host: host, target: target)
     }
 
     /// 确认删除：弹窗保留并进入「删除中」（删除键旁转圈），过程可经 cancelFileDelete 中途取消。
     /// 删除可能较慢（大目录 rm -rf），故不立刻关弹窗——成功后才关，失败弹错误，取消后刷新真实状态。
     func confirmFileDelete() {
-        guard let ctx = pendingFileDelete, !fileDeleteBusy else { return }
+        guard let ctx = pendingFileDelete, ctx.host.id == workspaceContext.hostId, !fileDeleteBusy else { return }
         fileDeleteBusy = true
         let handle = CommandHandle()
         deleteHandle = handle
@@ -1802,7 +2117,7 @@ final class AppModel: ObservableObject {
             }
             pendingFileDelete = nil
             if case .failure(let e) = r {
-                pendingFileInfo = FileInfoContext(title: String(localized: "删除失败"), message: e.message)
+                pendingFileInfo = FileInfoContext(title: String(localized: "删除失败"), message: e.message, hostId: ctx.host.id)
             }
         }
     }
@@ -1816,13 +2131,13 @@ final class AppModel: ObservableObject {
     // MARK: - 批量删除
 
     func requestBatchDelete(_ files: [RemoteFile], host: Host, target: any FileOpsTarget) {
-        guard !files.isEmpty else { return }
+        guard !files.isEmpty, prepareFileOperation(for: host) != nil else { return }
         pendingBatchDelete = BatchDeleteContext(files: files, host: host, target: target)
     }
 
     /// 确认批量删除：逐个删除（弹窗保留 + 转圈），完成后关弹窗；任一失败弹错误提示。
     func confirmBatchDelete() {
-        guard let ctx = pendingBatchDelete, !batchDeleteBusy else { return }
+        guard let ctx = pendingBatchDelete, ctx.host.id == workspaceContext.hostId, !batchDeleteBusy else { return }
         batchDeleteBusy = true
         Task { @MainActor in
             var failed: [String] = []
@@ -1834,7 +2149,7 @@ final class AppModel: ObservableObject {
             if !failed.isEmpty {
                 let shown = failed.prefix(8).joined(separator: "、")
                 pendingFileInfo = FileInfoContext(title: String(localized: "部分删除失败"),
-                                                  message: String(localized: "未能删除：\(shown)\(failed.count > 8 ? String(localized: " 等") : "")"))
+                                                  message: String(localized: "未能删除：\(shown)\(failed.count > 8 ? String(localized: " 等") : "")"), hostId: ctx.host.id)
             }
         }
     }
@@ -1842,43 +2157,45 @@ final class AppModel: ObservableObject {
     func cancelBatchDelete() { if !batchDeleteBusy { pendingBatchDelete = nil } }
 
     func fileMenuRequestRename(_ file: RemoteFile, host: Host, target: any FileOpsTarget) {
+        guard prepareFileOperation(for: host) != nil else { return }
         pendingFileRename = FileOpContext(file: file, host: host, target: target)
     }
 
     func confirmFileRename(newName: String) {
-        guard let ctx = pendingFileRename else { return }
+        guard let ctx = pendingFileRename, ctx.host.id == workspaceContext.hostId else { return }
         pendingFileRename = nil
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !trimmed.contains("/") else {
-            pendingFileInfo = FileInfoContext(title: String(localized: "名称无效"), message: String(localized: "名称不能为空或包含「/」。"))
+        guard !trimmed.isEmpty, !trimmed.contains("/"), !trimmed.contains("\0"), trimmed != ".", trimmed != ".." else {
+            pendingFileInfo = FileInfoContext(title: String(localized: "名称无效"), message: String(localized: "名称不能为空、为「.」或「..」，也不能包含「/」。"), hostId: ctx.host.id)
             return
         }
         if trimmed == ctx.file.name { return }
-        let oldPath = ctx.file.path
         Task { @MainActor in
             switch await ctx.target.performRename(ctx.file, newName: trimmed) {
-            case .success(let newPath):
+            case .success:
                 break   // 树自会刷新；无编辑器标签需要同步
             case .failure(let e):
-                pendingFileInfo = FileInfoContext(title: String(localized: "重命名失败"), message: e.message)
+                pendingFileInfo = FileInfoContext(title: String(localized: "重命名失败"), message: e.message, hostId: ctx.host.id)
             }
         }
     }
 
 
     func fileMenuRequestChmod(_ file: RemoteFile, host: Host, target: any FileOpsTarget) {
+        guard let generation = prepareFileOperation(for: host) else { return }
         Task { @MainActor in
             let perms = await target.currentPerms(file) ?? (file.isDir ? 0o755 : 0o644)
+            guard fileOperationGeneration == generation, workspaceContext.hostId == host.id else { return }
             pendingFileChmod = ChmodContext(file: file, host: host, target: target, mode: perms)
         }
     }
 
     func confirmFileChmod(mode: Int) {
-        guard let ctx = pendingFileChmod else { return }
+        guard let ctx = pendingFileChmod, ctx.host.id == workspaceContext.hostId else { return }
         pendingFileChmod = nil
         Task { @MainActor in
             if case .failure(let e) = await ctx.target.performChmod(ctx.file, mode: String(mode, radix: 8)) {
-                pendingFileInfo = FileInfoContext(title: String(localized: "修改权限失败"), message: e.message)
+                pendingFileInfo = FileInfoContext(title: String(localized: "修改权限失败"), message: e.message, hostId: ctx.host.id)
             }
         }
     }
@@ -1886,20 +2203,21 @@ final class AppModel: ObservableObject {
     // MARK: - 新建文件 / 文件夹
 
     func fileMenuRequestCreate(isDir: Bool, inDir dir: String, host: Host, target: any FileOpsTarget) {
+        guard prepareFileOperation(for: host) != nil else { return }
         pendingFileCreate = CreateContext(dir: dir, isDir: isDir, host: host, target: target)
     }
 
     func confirmFileCreate(name: String) {
-        guard let ctx = pendingFileCreate else { return }
+        guard let ctx = pendingFileCreate, ctx.host.id == workspaceContext.hostId else { return }
         pendingFileCreate = nil
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !trimmed.contains("/") else {
-            pendingFileInfo = FileInfoContext(title: String(localized: "名称无效"), message: String(localized: "名称不能为空或包含「/」。"))
+        guard !trimmed.isEmpty, !trimmed.contains("/"), !trimmed.contains("\0"), trimmed != ".", trimmed != ".." else {
+            pendingFileInfo = FileInfoContext(title: String(localized: "名称无效"), message: String(localized: "名称不能为空、为「.」或「..」，也不能包含「/」。"), hostId: ctx.host.id)
             return
         }
         Task { @MainActor in
             if case .failure(let e) = await ctx.target.performCreate(trimmed, isDir: ctx.isDir, inDir: ctx.dir) {
-                pendingFileInfo = FileInfoContext(title: ctx.isDir ? String(localized: "新建文件夹失败") : String(localized: "新建文件失败"), message: e.message)
+                pendingFileInfo = FileInfoContext(title: ctx.isDir ? String(localized: "新建文件夹失败") : String(localized: "新建文件失败"), message: e.message, hostId: ctx.host.id)
             }
         }
     }
@@ -2085,6 +2403,10 @@ final class AppModel: ObservableObject {
     /// 关闭其它标签 / 关闭全部：逐个走 performCloseTab 完成资源拆除；有需确认的（运行中会话/未保存）先聚合确认一次。
     func closeOtherTabs(keep id: Int) { requestMultiClose(tabs.filter { $0.id != id }.map(\.id)) }
     func closeAllTabs() { requestMultiClose(tabs.map(\.id)) }
+    func closeOtherTerminalTabs(keep id: Int) {
+        requestMultiClose(tabs.filter { $0.kind == .terminal && $0.id != id }.map(\.id))
+    }
+    func closeAllTerminalTabs() { requestMultiClose(tabs.filter { $0.kind == .terminal }.map(\.id)) }
 
     private func requestMultiClose(_ ids: [Int]) {
         guard !ids.isEmpty else { return }
@@ -2121,12 +2443,16 @@ final class AppModel: ObservableObject {
         terminalReconnectWork[id]?.cancel()      // 撤销该标签挂起的重连，避免关闭后仍唤醒
         terminalReconnectWork.removeValue(forKey: id)
         terminalCommands.removeValue(forKey: id)
-        AIChatStore.shared.discard(tabId: id)   // 该终端的 AI 会话一并回收
+        AIChatStore.shared.discard(tabId: id)   // 解绑终端；主机 AI 对话保留到删除主机或退出 App
+        cancelCommandWait(tabId: id)
         TerminalTranscriptStore.shared.discard(tabId: id)   // 命令/输出记录一并回收
         completionReadyTabs.remove(id)
         tabCwd.removeValue(forKey: id)
         if activeTabId == id {
             activeTabId = tabs.isEmpty ? nil : tabs[min(idx, tabs.count - 1)].id
+        }
+        if let hid = closedHostId, !tabs.contains(where: { $0.hostId == hid }) {
+            fileWorkspace.closeCompanion(hostId: hid)
         }
         if let hid = closedHostId { stopMonitorIfUnused(hid) }   // 主机最后一个标签关闭即停监控
     }
@@ -2223,4 +2549,5 @@ struct FileInfoContext: Identifiable {
     let id = UUID()
     let title: String
     let message: String
+    var hostId: String? = nil
 }

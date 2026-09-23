@@ -5,6 +5,7 @@ final class ScrollMetrics: ObservableObject {
     @Published var offsetX: CGFloat = 0
     @Published var contentW: CGFloat = 0
     @Published var visibleW: CGFloat = 0
+    @Published var interaction = UUID()
     var maxScroll: CGFloat { max(0, contentW - visibleW) }
     var scrollTo: ((CGFloat) -> Void)?
 
@@ -20,12 +21,14 @@ final class ScrollMetrics: ObservableObject {
 
 final class HScroll: NSScrollView {
     var onScroll: (() -> Void)?
+    var onUserScroll: (() -> Void)?
 
     // 隐藏滚动条但保留滑动（用户要求）：滚轮/触控板滚动驱动标签条横移，
     // 纵向滚动也映射为横向（顶栏区域纵向滚动无意义）。
     override func scrollWheel(with e: NSEvent) {
         guard let doc = documentView else { super.scrollWheel(with: e); return }
         let maxX = max(0, doc.frame.width - contentView.bounds.width)
+        if maxX > 1 { onUserScroll?() }
         var d = e.scrollingDeltaX
         if abs(e.scrollingDeltaY) > abs(d) { d = e.scrollingDeltaY }
         if d == 0 { d = e.deltaX != 0 ? e.deltaX : e.deltaY }
@@ -90,6 +93,7 @@ struct HScrollRep<Content: View>: NSViewRepresentable {
             }
         }
         sv.onScroll = push
+        sv.onUserScroll = { metrics.interaction = UUID() }
         sv.contentView.postsBoundsChangedNotifications = true
         context.coordinator.obs = NotificationCenter.default.addObserver(
             forName: NSView.boundsDidChangeNotification, object: sv.contentView, queue: .main
@@ -147,6 +151,8 @@ struct HScrollRep<Content: View>: NSViewRepresentable {
 
     static func dismantleNSView(_ nsView: HScroll, coordinator: Coordinator) {
         if let o = coordinator.obs { NotificationCenter.default.removeObserver(o) }
+        nsView.onScroll = nil
+        nsView.onUserScroll = nil
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -215,8 +221,11 @@ struct TabStrip<Content: View>: View {
     var activeMaxX: CGFloat
     @ViewBuilder var content: Content
     @StateObject private var metrics = ScrollMetrics()
-    @State private var hovering = false
+    @State private var showsScrollIndicator = false
     @State private var dragStart: CGFloat?
+    @State private var hideIndicatorTask: Task<Void, Never>?
+
+    private var overflows: Bool { metrics.contentW > metrics.visibleW + 1 }
 
     init(newKey: Int, activeKey: Int, activeMinX: CGFloat = 0, activeMaxX: CGFloat = 0, @ViewBuilder content: () -> Content) {
         self.newKey = newKey
@@ -233,34 +242,73 @@ struct TabStrip<Content: View>: View {
             scrollbar
                 .frame(height: 5)
         }
-        .onHover { hovering = $0 }
+        .onContinuousHover { phase in
+            switch phase {
+            case .active: revealIndicator()
+            case .ended: scheduleHide(after: 0.45)
+            }
+        }
+        .onChange(of: activeKey) { revealIndicator() }
+        .onChange(of: metrics.interaction) { revealIndicator() }
+        .onChange(of: metrics.offsetX) { revealIndicator() }
+        .onChange(of: overflows) {
+            if !overflows {
+                hideIndicatorTask?.cancel()
+                dragStart = nil
+                showsScrollIndicator = false
+            }
+        }
+        .onDisappear { hideIndicatorTask?.cancel() }
+    }
+
+    private func revealIndicator() {
+        guard overflows else { return }
+        showsScrollIndicator = true
+        scheduleHide(after: 1.2)
+    }
+
+    private func scheduleHide(after delay: Double) {
+        hideIndicatorTask?.cancel()
+        guard dragStart == nil else { return }
+        hideIndicatorTask = Task { @MainActor in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard !Task.isCancelled, dragStart == nil else { return }
+            showsScrollIndicator = false
+        }
     }
 
     @ViewBuilder
     private var scrollbar: some View {
         GeometryReader { g in
-            if metrics.contentW > metrics.visibleW + 1, g.size.width > 0 {
+            if overflows, g.size.width > 0 {
                 let track = g.size.width
-                let thumbW = max(28, track * track / metrics.contentW)
+                let thumbW = min(track, max(28, track * track / metrics.contentW))
                 let maxX = max(0, track - thumbW)
                 let x = metrics.maxScroll > 0 ? metrics.offsetX / metrics.maxScroll * maxX : 0
                 Capsule()
-                    .fill(Pal.fill(hovering ? 0.32 : 0.18))
+                    .fill(Pal.fill(0.32))
                     .frame(width: thumbW, height: 4)
                     .frame(width: thumbW, height: g.size.height)
                     .contentShape(Rectangle())
                     .position(x: x + thumbW / 2, y: g.size.height / 2)
-                    .animation(.easeOut(duration: 0.12), value: hovering)
+                    .opacity(showsScrollIndicator || dragStart != nil ? 1 : 0)
+                    .animation(.easeOut(duration: 0.18), value: showsScrollIndicator)
+                    .allowsHitTesting(showsScrollIndicator || dragStart != nil)
+                    .accessibilityHidden(!showsScrollIndicator)
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { v in
-                                if dragStart == nil { dragStart = metrics.offsetX }
+                                if dragStart == nil {
+                                    dragStart = metrics.offsetX
+                                    hideIndicatorTask?.cancel()
+                                    showsScrollIndicator = true
+                                }
                                 if maxX > 0, let start = dragStart {
                                     let off = min(max(0, start + v.translation.width / maxX * metrics.maxScroll), metrics.maxScroll)
                                     metrics.scrollTo?(off)
                                 }
                             }
-                            .onEnded { _ in dragStart = nil }
+                            .onEnded { _ in dragStart = nil; scheduleHide(after: 0.8) }
                     )
             }
         }

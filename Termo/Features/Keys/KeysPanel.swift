@@ -4,9 +4,10 @@ import SwiftUI
 struct KeysPanel: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var theme = ThemeManager.shared
+    @State private var query = ""
 
     private var keys: [SSHKey] {
-        let q = model.query.lowercased()
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !q.isEmpty else { return model.sshKeys }
         return model.sshKeys.filter {
             $0.name.lowercased().contains(q)
@@ -16,6 +17,27 @@ struct KeysPanel: View {
     }
 
     var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                ThemedTextField(placeholder: "搜索名称、指纹或备注", text: $query)
+                Menu {
+                    Button("生成密钥") { model.showGenerateKey = true }
+                    Button("导入私钥…") { model.presentImportKey() }
+                } label: {
+                    Label("添加", systemImage: "plus")
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 10).padding(.vertical, 8)
+                        .background(Pal.mauve.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
+                }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .foregroundStyle(Pal.mauve)
+            }
+            list
+        }
+    }
+
+    @ViewBuilder
+    private var list: some View {
         if model.sshKeys.isEmpty {
             emptyState
         } else if keys.isEmpty {
@@ -23,6 +45,8 @@ struct KeysPanel: View {
                 Spacer().frame(height: 40)
                 Image(systemName: "magnifyingglass").font(.system(size: 26)).foregroundStyle(Pal.overlay)
                 Text("无匹配密钥").font(.system(size: 13)).foregroundStyle(Pal.subtext)
+                Button("清除搜索") { query = "" }
+                    .buttonStyle(.plain).foregroundStyle(Pal.mauve)
                 Spacer()
             }
             .frame(maxWidth: .infinity)
@@ -72,6 +96,7 @@ private struct KeyRow: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var theme = ThemeManager.shared
     @State private var hover = false
+    @State private var confirmDelete = false
 
     var body: some View {
         Button { model.detailKey = key } label: {
@@ -99,7 +124,13 @@ private struct KeyRow: View {
             Button("复制公钥") { model.copyPublicKey(key) }
             Button("查看详情") { model.detailKey = key }
             Divider()
-            Button("删除", role: .destructive) { model.deleteKey(key) }
+            Button("删除…", role: .destructive) { confirmDelete = true }
+        }
+        .alert("删除这把密钥？", isPresented: $confirmDelete) {
+            Button("取消", role: .cancel) { }
+            Button("删除密钥", role: .destructive) { model.deleteKey(key) }
+        } message: {
+            Text("将从此设备的密钥库删除“\(key.name)”及其私钥。使用它的主机需要重新选择登录凭据，服务器上的公钥不会被移除。此操作无法撤销。")
         }
     }
 

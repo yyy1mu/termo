@@ -77,8 +77,7 @@ pub unsafe extern "C" fn termo_russh_probe(
 }
 
 /// 建立已认证会话。key_path 非空走公钥认证，否则密码认证。
-/// real/session known_hosts 非空时在认证前校验主机密钥（仅明确不匹配拒绝，
-/// 错误文案以 HOSTKEY_MISMATCH 开头，与 libssh2 版一致）。
+/// 认证前仅接受 real/session known_hosts 中明确匹配的主机密钥；HOSTKEY_* 为验证失败。
 /// 成功返回会话句柄；失败返回 NULL 并写 err。指纹形如 "SHA256:base64"。超时 ms ≤0 用 20s。
 ///
 /// # Safety

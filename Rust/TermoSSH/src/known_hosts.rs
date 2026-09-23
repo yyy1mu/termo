@@ -1,23 +1,26 @@
-//! known_hosts 主机密钥策略：对标 libssh2 引擎的口径——
-//! 仅当「明确与已存指纹不匹配」（疑似 MITM）才拒绝；未知主机/解析失败放行
-//! （UI 预检弹窗负责建立首次信任）。持久文件 ~/.ssh/known_hosts + 会话文件
-//! ~/.termo/session_known_hosts（应用启动时清空）。
-//!
-//! 支持条目：`host`（22 端口）与 `[host]:port`，逗号分隔多主机名；
-//! 哈希条目（|1|…）、@标记、通配符暂不支持（按未知放行，同旧行为）。
-
-use std::collections::HashMap;
+//! All authenticated connections require a trusted host key. The scan path only
+//! observes keys; it never authenticates. Each handshake reads a fresh snapshot.
+use data_encoding::{BASE64, BASE64_NOPAD};
+use hmac::{Hmac, KeyInit, Mac};
+use sha2::Digest;
 use std::sync::OnceLock;
 
-use data_encoding::{BASE64, BASE64_NOPAD};
-use sha2::Digest;
-
-/// 判定结果：0=已知匹配 1=未知 2=不匹配(疑似 MITM)。
 pub const HOST_MATCH: i32 = 0;
 pub const HOST_UNKNOWN: i32 = 1;
 pub const HOST_MISMATCH: i32 = 2;
+pub const HOST_UNREADABLE: i32 = 3;
+pub const HOST_REVOKED: i32 = 4;
+pub const HOST_UNSUPPORTED: i32 = 5;
 
-/// host+port → known_hosts 主机段。
+#[derive(Clone)]
+pub(crate) struct Entry {
+    patterns: String,
+    fingerprint: Option<String>,
+    revoked: bool,
+    authority: bool,
+}
+pub(crate) type FileCache = OnceLock<Result<Vec<Entry>, ()>>;
+
 pub fn host_spec(host: &str, port: u16) -> String {
     if port == 22 {
         host.to_string()
@@ -26,94 +29,173 @@ pub fn host_spec(host: &str, port: u16) -> String {
     }
 }
 
-/// blob（known_hosts 第三列 b64）→ "SHA256:<unpadded b64>"。
-pub fn blob_fingerprint(blob_b64: &str) -> Option<String> {
-    let raw = BASE64.decode(blob_b64.trim().as_bytes()).ok()?;
-    let digest = sha2::Sha256::digest(&raw);
-    Some(format!("SHA256:{}", BASE64_NOPAD.encode(digest.as_slice())))
+pub fn blob_fingerprint(blob: &str) -> Option<String> {
+    let raw = BASE64
+        .decode(blob.as_bytes())
+        .or_else(|_| BASE64_NOPAD.decode(blob.as_bytes()))
+        .ok()?;
+    Some(format!(
+        "SHA256:{}",
+        BASE64_NOPAD.encode(&sha2::Sha256::digest(raw))
+    ))
 }
 
-/// 解析单个 known_hosts 行 → (主机段集合, 指纹)；不支持的条目返回 None。
-fn parse_line(line: &str) -> Option<(Vec<String>, String)> {
-    let line = line.trim();
-    if line.is_empty() || line.starts_with('#') {
-        return None;
+fn load(path: &str) -> Result<Vec<Entry>, ()> {
+    if path.is_empty() {
+        return Ok(Vec::new());
     }
-    let mut fields = line.split_whitespace();
-    let host_field = fields.next()?;
-    let _algo = fields.next()?;
-    let blob = fields.next()?;
-    if host_field.starts_with('@') || host_field.starts_with('|') {
-        return None;
-    }
-    if host_field.contains('*') || host_field.contains('?') {
-        return None;
-    }
-    let fp = blob_fingerprint(blob)?;
-    let hosts = host_field
-        .split(',')
-        .map(str::trim)
-        .map(str::to_string)
-        .collect();
-    Some((hosts, fp))
-}
-
-type FpMap = HashMap<String, Vec<String>>;
-
-/// 读文件 → {主机段: [指纹]}（解析失败的行跳过）。
-fn load(path: &str) -> FpMap {
-    let mut map: FpMap = HashMap::new();
-    let Ok(content) = std::fs::read_to_string(path) else {
-        return map;
+    let content = match std::fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(_) => return Err(()),
     };
-    for line in content.lines() {
-        if let Some((hosts, fp)) = parse_line(line) {
-            for h in hosts {
-                map.entry(h).or_default().push(fp.clone());
+    let mut entries = Vec::new();
+    for line in content
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+    {
+        let mut fields = line.split_whitespace();
+        let first = fields.next().unwrap_or("");
+        let (marker, patterns) = if first.starts_with('@') {
+            (first, fields.next().ok_or(())?)
+        } else {
+            ("", first)
+        };
+        let algorithm = fields.next();
+        let blob = fields.next();
+        let fingerprint = match (algorithm, blob) {
+            (Some(algorithm), Some(blob))
+                if marker.is_empty() || marker == "@revoked" || marker == "@cert-authority" =>
+            {
+                // A malformed matching record cannot silently become an unknown host.
+                russh::keys::parse_public_key_base64(blob)
+                    .ok()
+                    .filter(|key| key.algorithm().as_str() == algorithm)
+                    .and_then(|_| blob_fingerprint(blob))
             }
+            _ => None,
+        };
+        entries.push(Entry {
+            patterns: patterns.to_string(),
+            fingerprint,
+            revoked: marker == "@revoked",
+            authority: marker == "@cert-authority",
+        });
+    }
+    Ok(entries)
+}
+
+fn wildcard_match(pattern: &str, value: &str) -> bool {
+    let (p, v) = (pattern.as_bytes(), value.as_bytes());
+    let (mut i, mut j, mut star, mut resume) = (0, 0, None, 0);
+    while j < v.len() {
+        if i < p.len() && (p[i] == b'?' || p[i].eq_ignore_ascii_case(&v[j])) {
+            i += 1;
+            j += 1;
+        } else if i < p.len() && p[i] == b'*' {
+            star = Some(i);
+            i += 1;
+            resume = j;
+        } else if let Some(s) = star {
+            resume += 1;
+            j = resume;
+            i = s + 1;
+        } else {
+            return false;
         }
     }
-    map
+    while i < p.len() && p[i] == b'*' {
+        i += 1;
+    }
+    i == p.len()
 }
 
-/// 判定 host:port 的密钥指纹状态（两个文件；进程级缓存由调用方持有）。
-pub fn check_status(
+fn pattern_matches(pattern: &str, spec: &str) -> bool {
+    if let Some(hash) = pattern.strip_prefix("|1|") {
+        let Some((salt, expected)) = hash.split_once('|') else {
+            return false;
+        };
+        let (Ok(salt), Ok(expected)) = (
+            BASE64.decode(salt.as_bytes()),
+            BASE64.decode(expected.as_bytes()),
+        ) else {
+            return false;
+        };
+        let Ok(mut mac) = Hmac::<sha1::Sha1>::new_from_slice(&salt) else {
+            return false;
+        };
+        mac.update(spec.as_bytes());
+        mac.verify_slice(&expected).is_ok()
+    } else {
+        wildcard_match(pattern, spec)
+    }
+}
+
+fn matches_host(patterns: &str, spec: &str) -> bool {
+    let mut matched = false;
+    for pattern in patterns.split(',') {
+        if let Some(negative) = pattern.strip_prefix('!') {
+            if pattern_matches(negative, spec) {
+                return false;
+            }
+        } else if pattern_matches(pattern, spec) {
+            matched = true;
+        }
+    }
+    matched
+}
+
+/// Revocation and unreadable/malformed records win over matches, across both files.
+pub(crate) fn check_status(
     host: &str,
     port: u16,
     fingerprint: &str,
     real_known_hosts: &str,
     session_known_hosts: &str,
-    real_cache: &OnceLock<FpMap>,
-    session_cache: &OnceLock<FpMap>,
+    real_cache: &FileCache,
+    session_cache: &FileCache,
 ) -> i32 {
     let spec = host_spec(host, port);
     let mut has_entry = false;
-    for map in [
+    let mut matched = false;
+    for entries in [
         real_cache.get_or_init(|| load(real_known_hosts)),
         session_cache.get_or_init(|| load(session_known_hosts)),
     ] {
-        // 取反条目命中 → 明确撤销 → 不匹配
-        if map
-            .get(&format!("!{spec}"))
-            .is_some_and(|fps| fps.iter().any(|f| f == fingerprint))
+        let Ok(entries) = entries else {
+            return HOST_UNREADABLE;
+        };
+        for entry in entries
+            .iter()
+            .filter(|entry| matches_host(&entry.patterns, &spec))
         {
-            return HOST_MISMATCH;
-        }
-        if let Some(fps) = map.get(&spec) {
-            has_entry = true;
-            if fps.iter().any(|f| f == fingerprint) {
-                return HOST_MATCH;
+            let Some(recorded) = &entry.fingerprint else {
+                return HOST_UNREADABLE;
+            };
+            if entry.revoked {
+                if recorded == fingerprint {
+                    return HOST_REVOKED;
+                }
+                continue;
             }
+            // A CA record is not direct trust in the server's ordinary public key.
+            if entry.authority {
+                continue;
+            }
+            has_entry = true;
+            matched |= recorded == fingerprint;
         }
     }
-    if has_entry {
+    if matched {
+        HOST_MATCH
+    } else if has_entry {
         HOST_MISMATCH
     } else {
         HOST_UNKNOWN
     }
 }
 
-/// 生成可写入 known_hosts 的信任行（非哈希、显式端口段）。
 pub fn trust_line(host: &str, port: u16, algorithm_name: &str, blob_b64: &str) -> String {
     format!("{} {} {}", host_spec(host, port), algorithm_name, blob_b64)
 }
@@ -121,83 +203,151 @@ pub fn trust_line(host: &str, port: u16, algorithm_name: &str, blob_b64: &str) -
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn init_cache(content: &str) -> (std::path::PathBuf, OnceLock<FpMap>) {
-        let path =
-            std::env::temp_dir().join(format!("termo-kh-{}-{:p}", std::process::id(), &content));
-        std::fs::write(&path, content).expect("write");
-        (path, OnceLock::new())
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    const BLOB: &str = "AAAAC3NzaC1lZDI1NTE5AAAAIJdD7y3aLq454yWBdwLWbieU1ebz9/cu7/QEXn9OIeZJ";
+    static SEQ: AtomicUsize = AtomicUsize::new(0);
+    fn check(real: &str, session: &str, host: &str, port: u16, fingerprint: &str) -> i32 {
+        let dir = std::env::temp_dir().join(format!(
+            "termo-known-{}-{}",
+            std::process::id(),
+            SEQ.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let a = dir.join("real");
+        let b = dir.join("session");
+        std::fs::write(&a, real).unwrap();
+        std::fs::write(&b, session).unwrap();
+        let result = check_status(
+            host,
+            port,
+            fingerprint,
+            a.to_str().unwrap(),
+            b.to_str().unwrap(),
+            &OnceLock::new(),
+            &OnceLock::new(),
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+        result
     }
-
     #[test]
-    fn match_unknown_mismatch() {
-        let blob = "AAAAC3NzaC1lZDI1NTE5AAAAIB6kM6vXc9ZpIs7CySPNo";
-        let (p1, c1) = init_cache(&format!("myhost ssh-ed25519 {blob}\n"));
-        let real_fp = blob_fingerprint(blob).expect("fp");
-        let fp_b = "SHA256:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+    fn saved_and_session_fingerprints_match() {
+        let fp = blob_fingerprint(BLOB).unwrap();
+        let line = format!("host,alias ssh-ed25519 {BLOB}\n");
+        assert_eq!(check(&line, "", "host", 22, &fp), HOST_MATCH);
+        assert_eq!(check("", &line, "alias", 22, &fp), HOST_MATCH);
         assert_eq!(
-            check_status(
-                "myhost",
-                22,
-                &real_fp,
-                p1.to_str().unwrap(),
-                "/nonexistent",
-                &c1,
-                &OnceLock::new()
+            check(&line, "", "host", 22, "SHA256:changed"),
+            HOST_MISMATCH
+        );
+        assert_eq!(check(&line, "", "new", 22, &fp), HOST_UNKNOWN);
+    }
+    #[test]
+    fn hashed_host_and_nonstandard_port() {
+        let spec = host_spec("2001:db8::1", 2222);
+        let salt = b"fixture-salt";
+        let mut mac = Hmac::<sha1::Sha1>::new_from_slice(salt).unwrap();
+        mac.update(spec.as_bytes());
+        let line = format!(
+            "|1|{}|{} ssh-ed25519 {BLOB}\n",
+            BASE64.encode(salt),
+            BASE64.encode(&mac.finalize().into_bytes())
+        );
+        assert_eq!(
+            check(
+                &line,
+                "",
+                "2001:db8::1",
+                2222,
+                &blob_fingerprint(BLOB).unwrap()
             ),
             HOST_MATCH
         );
         assert_eq!(
-            check_status(
-                "myhost",
-                22,
-                fp_b,
-                p1.to_str().unwrap(),
-                "/nonexistent",
-                &c1,
-                &OnceLock::new()
-            ),
+            check(&line, "", "2001:db8::1", 2222, "changed"),
             HOST_MISMATCH
+        );
+        assert_eq!(check(&line, "", "2001:db8::1", 22, "changed"), HOST_UNKNOWN);
+    }
+    #[test]
+    fn wildcard_negation_is_not_revocation() {
+        let line = format!("*.example.com,!excluded.example.com ssh-ed25519 {BLOB}\n");
+        let fp = blob_fingerprint(BLOB).unwrap();
+        assert_eq!(check(&line, "", "prod.example.com", 22, &fp), HOST_MATCH);
+        assert_eq!(
+            check(&line, "", "excluded.example.com", 22, &fp),
+            HOST_UNKNOWN
+        );
+    }
+    #[test]
+    fn revoked_wins_over_any_saved_or_session_match() {
+        let line = format!("host ssh-ed25519 {BLOB}\n");
+        let revoked = format!("@revoked host ssh-ed25519 {BLOB}\n");
+        let fp = blob_fingerprint(BLOB).unwrap();
+        assert_eq!(check(&line, &revoked, "host", 22, &fp), HOST_REVOKED);
+        assert_eq!(check(&(revoked + &line), "", "host", 22, &fp), HOST_REVOKED);
+    }
+    #[test]
+    fn malformed_record_and_unreadable_file_fail_closed() {
+        assert_eq!(
+            check("host ssh-ed25519 invalid\n", "", "host", 22, "fp"),
+            HOST_UNREADABLE
         );
         assert_eq!(
             check_status(
-                "other",
+                "host",
                 22,
-                &real_fp,
-                p1.to_str().unwrap(),
-                "/nonexistent",
-                &c1,
+                "fp",
+                "/",
+                "",
+                &OnceLock::new(),
+                &OnceLock::new()
+            ),
+            HOST_UNREADABLE
+        );
+    }
+    #[test]
+    fn certificate_authority_is_not_direct_host_trust() {
+        assert_eq!(
+            check(
+                &format!("@cert-authority host ssh-ed25519 {BLOB}\n"),
+                "",
+                "host",
+                22,
+                &blob_fingerprint(BLOB).unwrap()
+            ),
+            HOST_UNKNOWN
+        );
+    }
+    #[test]
+    fn each_handshake_reloads_trust_files() {
+        let path = std::env::temp_dir().join(format!("termo-reload-{}", std::process::id()));
+        std::fs::write(&path, format!("host ssh-ed25519 {BLOB}\n")).unwrap();
+        let fp = blob_fingerprint(BLOB).unwrap();
+        assert_eq!(
+            check_status(
+                "host",
+                22,
+                &fp,
+                path.to_str().unwrap(),
+                "",
+                &OnceLock::new(),
+                &OnceLock::new()
+            ),
+            HOST_MATCH
+        );
+        std::fs::write(&path, "").unwrap();
+        assert_eq!(
+            check_status(
+                "host",
+                22,
+                &fp,
+                path.to_str().unwrap(),
+                "",
+                &OnceLock::new(),
                 &OnceLock::new()
             ),
             HOST_UNKNOWN
         );
-        let _ = std::fs::remove_file(p1);
-    }
-
-    #[test]
-    fn port_22_uses_bare_host_spec() {
-        assert_eq!(host_spec("h", 22), "h");
-        assert_eq!(host_spec("h", 2222), "[h]:2222");
-    }
-
-    #[test]
-    fn unsupported_lines_are_skipped() {
-        assert!(parse_line("|1|abc= ssh-ed25519 AAAA").is_none());
-        assert!(parse_line("*.lan ssh-ed25519 AAAA").is_none());
-        assert!(parse_line("@cert-authority *.lan AAAA").is_none());
-        assert!(parse_line("").is_none());
-        assert!(parse_line("# comment").is_none());
-    }
-
-    #[test]
-    fn trust_line_uses_port_spec() {
-        assert_eq!(
-            trust_line("h", 22, "ssh-ed25519", "QQ=="),
-            "h ssh-ed25519 QQ=="
-        );
-        assert_eq!(
-            trust_line("h", 2222, "ssh-rsa", "QQ=="),
-            "[h]:2222 ssh-rsa QQ=="
-        );
+        std::fs::remove_file(path).unwrap();
     }
 }

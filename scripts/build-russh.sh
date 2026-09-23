@@ -11,7 +11,9 @@ mkdir -p "$OUT_DIR"
 if [ -x "$HOME/.cargo/bin/cargo" ]; then
     CARGO="$HOME/.cargo/bin/cargo"
     export PATH="$HOME/.cargo/bin:$PATH"
-    export RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-stable}"
+    # 1.95.0 已验证能从空缓存构建双架构库；当前 stable 1.97.1 在 macOS 上
+    # 生成无法加载的 proc-macro dylib（E0463）。调用方仍可显式覆盖工具链。
+    export RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.95.0}"
 else
     CARGO="$(command -v cargo)"
 fi

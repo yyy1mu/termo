@@ -61,9 +61,33 @@ struct TabBar: View {
     @ObservedObject private var theme = ThemeManager.shared
     @State private var frames: [Int: CGRect] = [:]   // 各标签 chip 在内容坐标系的位置，供“点击边缘标签露出相邻标签”
 
+    private var activeOverview: TabItem? {
+        tabs.tabs.first { $0.id == tabs.activeTabId && $0.kind == .overview }
+    }
+
     var body: some View {
         let active = tabs.activeTabId.flatMap { frames[$0] }
         HStack(alignment: .center, spacing: 6) {
+            if let activeOverview {
+                HStack(spacing: 7) {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 11)).foregroundStyle(Pal.mauve)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("主机工作台")
+                            .font(.system(size: 9, weight: .medium)).foregroundStyle(Pal.overlay)
+                        Text(activeOverview.title)
+                            .font(.system(size: 11, weight: .semibold)).foregroundStyle(Pal.text)
+                            .lineLimit(1).truncationMode(.middle)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                .frame(width: 190, height: 34)
+                .background(Pal.card, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Pal.border))
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(String(localized: "当前主机工作台：\(activeOverview.title)"))
+            }
             TabStrip(
                 newKey: tabs.tabs.count,
                 activeKey: tabs.activeTabId ?? 0,
@@ -152,6 +176,7 @@ struct TabChip: View {
                 }
                 .buttonStyle(.plain)
                 .opacity(active || hover ? 1 : 0)
+                .allowsHitTesting(active || hover)
                 .help(String(localized: "关闭标签"))
         }
         .padding(.leading, 11).padding(.trailing, 7).padding(.vertical, 7)

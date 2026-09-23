@@ -77,6 +77,7 @@ static int test_tcp_probe(const char *host, int port) {
 
 void termo_ssh_test(const char *host, int port, const char *user,
                     const char *password, const char *key_path, const char *key_passphrase,
+                    const char *real_known_hosts, const char *session_known_hosts,
                     TermoSSHStageCallback on_stage, void *userdata) {
     char msg[512];
     // stage 1/2：DNS + TCP（适配层自测，失败即止）
@@ -98,10 +99,10 @@ void termo_ssh_test(const char *host, int port, const char *user,
     char err[512];
     TermoRusshSession *s = termo_russh_session_open(
         host, port, user, password, key_path, key_passphrase,
-        NULL, NULL, NULL, 0, 20000, err, (int)sizeof(err));
+        real_known_hosts, session_known_hosts, NULL, 0, 20000, err, (int)sizeof(err));
     if (!s) {
         int stage = 3;   // 默认归为握手阶段失败
-        if (strncmp(err, "HOSTKEY_MISMATCH", 16) == 0) stage = 3;
+        if (strncmp(err, "HOSTKEY_", 8) == 0) stage = 3;
         else if (strstr(err, "认证") || strstr(err, "私钥") || strstr(err, "密码")) stage = 4;
         on_stage(userdata, stage, 0, err);
         return;

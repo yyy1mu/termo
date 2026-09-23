@@ -1,5 +1,13 @@
 import Foundation
 
+/// 主机存储已完成后，后续密钥保存失败；同步应用不是跨存储事务。
+struct SyncPartialApplyError: LocalizedError {
+    let underlyingError: Error
+    var errorDescription: String? {
+        String(localized: "同步尚未全部完成：主机配置与已保存密码已更新；密钥保存未完成，代码片段、端口转发和设置尚未应用。\(underlyingError.localizedDescription)")
+    }
+}
+
 /// 同步引擎：本地打包 → 双向合并 → 应用合并结果。
 /// 密码 / 私钥只在 Keychain 与内存之间流转；本引擎不写任何明文文件。
 @MainActor
@@ -7,22 +15,16 @@ enum SyncEngine {
 
     // MARK: - 打包
 
-    /// 汇总本机全部可同步数据。密码从内存中的模型与 Keychain 读取，只存在于返回结构里。
-    static func makePayload(model: AppModel) -> SyncPayload {
-        var hostPasswords: [String: String] = [:]
-        for host in model.hosts {
-            // 「每次询问」的密码是本会话内存值，不同步（与 HostStore.saveHosts 的落盘策略一致）。
-            if let ssh = host.ssh, ssh.authMethod != .ask, !ssh.password.isEmpty {
-                hostPasswords[host.id] = ssh.password
-            }
-        }
+    /// 密码只取已成功保存的钥匙串记录；读取失败中止打包，不能把失败伪装为没有密码。
+    static func makePayload(model: AppModel) throws -> SyncPayload {
+        let hostPasswords = try HostStore.savedPasswords(for: model.hosts)
         return SyncPayload(
             exportedAt: Date(),
             deviceName: SyncConfigStore.deviceName,
             hosts: model.hosts,
             hostPasswords: hostPasswords,
             keys: model.sshKeys,
-            privateKeys: KeyKeychain.loadAll(),
+            privateKeys: try KeyKeychain.loadAll(),
             snippets: model.snippets,
             forwards: model.forwards,
             settings: SyncedSettings.capture())
@@ -194,18 +196,24 @@ enum SyncEngine {
     // MARK: - 应用到本机
 
     /// 把合并后的负载写回本机各存储：密码回填内存后统一经 HostStore 落 Keychain，JSON 永不含密码。
-    static func apply(_ payload: SyncPayload, to model: AppModel) {
+    static func apply(_ payload: SyncPayload, to model: AppModel) throws {
         var hosts = payload.hosts
         for i in hosts.indices {
-            let password = payload.hostPasswords[hosts[i].id] ?? ""
+            let password = hosts[i].ssh?.authMethod == .ask ? "" : (payload.hostPasswords[hosts[i].id] ?? "")
             hosts[i].ssh?.password = password
         }
-        model.hosts = hosts
-        HostStore.saveHosts(hosts)
+        try HostStore.saveHosts(hosts, clearingPasswordsFor: Set(hosts.map(\.id))).get()
+        model.applyPersistedHosts(hosts)
 
+        do {
+            try KeyStore.save(payload.keys, updatingPrivateKeys: { $0 = payload.privateKeys },
+                beforePrivateKeysChange: { ids in
+                    for id in ids { try KeyMaterializer.invalidate(id) }
+                })
+        } catch {
+            throw SyncPartialApplyError(underlyingError: error)
+        }
         model.sshKeys = payload.keys
-        KeyKeychain.saveAll(payload.privateKeys)
-        KeyStore.save(payload.keys)
 
         model.snippets = payload.snippets
         SnippetStore.save(payload.snippets)

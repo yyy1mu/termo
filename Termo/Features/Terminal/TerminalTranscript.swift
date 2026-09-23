@@ -9,11 +9,17 @@ import Foundation
 final class TerminalTranscript {
     private static let maxLines = 1000
 
+    struct OutputCursor {
+        let line: Int
+        let pendingCount: Int
+    }
+
     private let lock = NSLock()
     private(set) var lines: [String] = []
     private var pending = ""     // 未成行的输出残段（跨 chunk 拼接）
     private var escCarry = ""    // 跨 chunk 的半截转义序列
     private var typed = ""       // 用户正在输入的行（回显重建，回车提交）
+    private var discardedLineCount = 0
 
     // MARK: 输出记录（泵线程）
 
@@ -73,7 +79,8 @@ final class TerminalTranscript {
         defer { lock.unlock() }
         var out: [String] = []
         var total = 0
-        for line in lines.reversed() {
+        let visibleLines = pending.isEmpty ? lines : lines + [pending]
+        for line in visibleLines.reversed() {
             total += line.count + 1
             if total > maxChars, !out.isEmpty { break }
             out.append(line)
@@ -84,29 +91,56 @@ final class TerminalTranscript {
     var isEmpty: Bool {
         lock.lock()
         defer { lock.unlock() }
-        return lines.isEmpty
+        return lines.isEmpty && pending.isEmpty
     }
 
     /// 当前行数（命令开始时记偏移用）。
     var lineCount: Int {
         lock.lock()
         defer { lock.unlock() }
-        return lines.count
+        return discardedLineCount + lines.count
     }
 
     /// 从偏移起到当前的行（切取某条命令的输出区间）。
     func lines(from offset: Int) -> [String] {
         lock.lock()
         defer { lock.unlock() }
-        guard offset < lines.count else { return [] }
-        return Array(lines[offset...])
+        let index = max(0, offset - discardedLineCount)
+        guard index < lines.count else { return [] }
+        return Array(lines[index...])
+    }
+
+    /// 命令开始时留一个游标；结果只取此后新增的内容，避免旧终端记录混入。
+    func outputCursor() -> OutputCursor {
+        lock.lock()
+        defer { lock.unlock() }
+        return OutputCursor(line: discardedLineCount + lines.count, pendingCount: pending.count)
+    }
+
+    func output(since cursor: OutputCursor, maxChars: Int = 4000) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        let index = max(0, cursor.line - discardedLineCount)
+        var captured = index < lines.count ? Array(lines[index...]) : []
+        if !pending.isEmpty { captured.append(pending) }
+        guard !captured.isEmpty else { return "" }
+        while let first = captured.first, first.hasPrefix("$ ") { captured.removeFirst() }
+        // 命令开始前没有换行的提示符不属于本次命令输出。
+        if cursor.pendingCount > 0, cursor.line >= discardedLineCount,
+           let first = captured.first, first.count >= cursor.pendingCount {
+            captured[0] = String(first.dropFirst(cursor.pendingCount))
+        }
+        let result = captured.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(result.suffix(maxChars))
     }
 
     // MARK: 私有
 
     private func trimLocked() {
         if lines.count > Self.maxLines {
-            lines.removeFirst(lines.count - Self.maxLines)
+            let removed = lines.count - Self.maxLines
+            lines.removeFirst(removed)
+            discardedLineCount += removed
         }
     }
 
@@ -151,7 +185,7 @@ enum CommandCompletionParser {
     }
 }
 
-/// Transcript 注册表（Multiton）：按终端标签持有，关标签回收（与 AIChatStore 同型）。
+/// Transcript 注册表（Multiton）：按终端标签持有，关标签即回收；AI 对话另按主机作用域保存。
 @MainActor
 final class TerminalTranscriptStore {
     static let shared = TerminalTranscriptStore()

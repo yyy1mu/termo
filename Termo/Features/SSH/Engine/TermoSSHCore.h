@@ -14,8 +14,7 @@ extern "C" {
 typedef struct TermoSSHSession TermoSSHSession;
 
 /// 连接 + 握手 + 认证，成功返回会话句柄，失败返回 NULL 并写 err。key_path 非空走公钥认证。
-/// real_known_hosts / session_known_hosts 非空时，在**握手后认证前**校验主机密钥：仅当明确与已知密钥
-/// **不匹配**（疑似 MITM）才拒绝（err 以 "HOSTKEY_MISMATCH" 开头）；未知主机/解析失败一律放行（保守，不误拒）。
+/// 认证前必须匹配已信任的主机密钥；未知、不匹配、撤销或读取失败均拒绝（HOSTKEY_*）。
 TermoSSHSession *termo_ssh_open(const char *host, int port,
                                 const char *user, const char *password,
                                 const char *key_path, const char *key_passphrase,
@@ -25,7 +24,7 @@ TermoSSHSession *termo_ssh_open(const char *host, int port,
 // ── 主机密钥扫描（握手即可得，无需认证；替代 ssh-keyscan + ssh-keygen）──────────
 /// 仅 TCP+握手就能拿到主机公钥与指纹，并对照 known_hosts 判定。供首次连接验证弹窗。
 typedef struct {
-    int status;          // 0=已知匹配 1=未知 2=不匹配(疑似 MITM) -1=连接/握手失败
+    int status;          // 0=已知匹配 1=未知 2=不匹配 3=读取/解析失败 4=撤销 5=不支持 -1=连接/握手失败
     char sha256[80];     // "SHA256:base64"
     char md5[64];        // "ab:cd:…"
     char line[1024];     // known_hosts 行（"<host|[host]:port> <keytype> <base64key>"），写入信任用
@@ -42,6 +41,7 @@ void termo_ssh_scan_hostkey(const char *host, int port,
 typedef void (*TermoSSHStageCallback)(void *userdata, int stage, int ok, const char *message);
 void termo_ssh_test(const char *host, int port, const char *user,
                     const char *password, const char *key_path, const char *key_passphrase,
+                    const char *real_known_hosts, const char *session_known_hosts,
                     TermoSSHStageCallback on_stage, void *userdata);
 
 /// 主机指纹（握手后即可取）。指向会话内部缓冲，勿 free。

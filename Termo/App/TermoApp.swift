@@ -59,6 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var aboutWindow: NSWindow?
     private var tray: TrayController?
     private weak var mainWindow: NSWindow?
+    private var editKeyMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 先对齐 AppKit 外观，使窗口首帧即正确明暗，杜绝冷启动露出系统默认浅色窗口底的白闪。
@@ -100,7 +101,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     ]
 
     private func installEditKeyFallback() {
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { ev in
+        guard editKeyMonitor == nil else { return }
+        editKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { ev in
             guard ev.modifierFlags.contains(.command),
                   ev.modifierFlags.intersection([.option, .control, .shift]).isEmpty,
                   let chars = ev.charactersIgnoringModifiers, chars.count == 1,
@@ -273,7 +275,7 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let autoPanelWidth = min(360, max(280, proxy.size.width - layout.sidebarWidth - 48 - 5 - 420))
+            let autoPanelWidth = min(360, max(280, proxy.size.width - layout.sidebarWidth - RightBar.width - 5 - 420))
             // 手动拖宽优先（拖柄写入 rightPanelManualWidth），对所有功能面板统一生效
             let panelWidth = min(560, max(260, layout.rightPanelManualWidth ?? autoPanelWidth))
             VStack(spacing: 0) {
@@ -283,7 +285,11 @@ struct ContentView: View {
                     Sidebar(model: model, tabs: model.tabsModel, layout: layout)
                     SidebarDivider(layout: layout, maxWidth: 360)
                         .zIndex(1)
-                    Workspace(model: model, tabs: model.tabsModel)
+                    VStack(spacing: 0) {
+                        Workspace(model: model, tabs: model.tabsModel)
+                        FileOperationShelf(model: model, tabs: model.tabsModel)
+                        FileTaskShelf(model: model, tabs: model.tabsModel)
+                    }
                     CompanionPanel(model: model, layout: layout, tabs: model.tabsModel,
                                    panelWidth: panelWidth)
                     RightBar(model: model, layout: layout)
@@ -293,7 +299,7 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Pal.base)
         .background(WindowConfigurator())
-        // 后台传输中控：守卫自动展开任务弹窗（原活动栏职责，随活动栏移除迁至此处挂载）。
+        // 后台传输需要用户决策时，展开工作区底部任务详情。
         .background {
             ForEach(model.transfers, id: \.id) { task in
                 UploadAskWatcher(task: task) { model.focusedTransferId = task.id }
@@ -401,20 +407,10 @@ struct ContentView: View {
         .onAppear { model.applyStartupIfNeeded() }
     }
 
-    /// 文件栏右键操作的弹窗叠层（合并为单个 overlay，避免 body 内 overlay 链过长导致编译器类型检查超时）。
+    /// 仅主机删除保留确认叠层；文件操作和后台任务详情都在工作区底部。
     @ViewBuilder
     private var fileOpOverlays: some View {
         ZStack {
-            if let ctx = model.pendingFileDelete {
-                ConfirmDialog(
-                    title: "删除「\(ctx.file.name)」？",
-                    message: ctx.file.isDir ? "该目录及其全部内容将被永久删除，不可恢复。" : "该文件将被永久删除，不可恢复。",
-                    confirmTitle: "删除", destructive: true,
-                    busy: model.fileDeleteBusy,
-                    onConfirm: { model.confirmFileDelete() },
-                    onCancel: { model.cancelFileDelete() }
-                ).transition(.opacity)
-            }
             if let h = model.pendingHostDelete {
                 ConfirmDialog(
                     title: "删除主机「\(h.name)」？",
@@ -424,79 +420,15 @@ struct ContentView: View {
                     onCancel: { model.cancelHostDelete() }
                 ).transition(.opacity)
             }
-            if let ctx = model.pendingBatchDelete {
-                ConfirmDialog(
-                    title: "删除 \(ctx.files.count) 个项目？",
-                    message: "选中的项目（含其中的目录及内容）将被永久删除，不可恢复。",
-                    confirmTitle: "删除", destructive: true,
-                    busy: model.batchDeleteBusy,
-                    onConfirm: { model.confirmBatchDelete() },
-                    onCancel: { model.cancelBatchDelete() }
-                ).transition(.opacity)
-            }
-            if let ctx = model.pendingFileRename {
-                RenameDialog(
-                    originalName: ctx.file.name,
-                    onConfirm: { model.confirmFileRename(newName: $0) },
-                    onCancel: { model.pendingFileRename = nil }
-                ).transition(.opacity)
-            }
-            if let ctx = model.pendingFileChmod {
-                ChmodDialog(
-                    fileName: ctx.file.name, initialMode: ctx.mode,
-                    onConfirm: { model.confirmFileChmod(mode: $0) },
-                    onCancel: { model.pendingFileChmod = nil }
-                ).transition(.opacity)
-            }
-            if let ctx = model.pendingFileCreate {
-                RenameDialog(
-                    originalName: "", title: ctx.isDir ? "新建文件夹" : "新建文件",
-                    onConfirm: { model.confirmFileCreate(name: $0) },
-                    onCancel: { model.pendingFileCreate = nil }
-                ).transition(.opacity)
-            }
-            if let info = model.pendingFileInfo {
-                ConfirmDialog(
-                    verbatimTitle: info.title, verbatimMessage: info.message,
-                    confirmTitle: "好的", showCancel: false,
-                    onConfirm: { model.pendingFileInfo = nil },
-                    onCancel: { model.pendingFileInfo = nil }
-                ).transition(.opacity)
-            }
-            if let id = model.focusedTransferId, let task = model.transfers.first(where: { $0.id == id }) {
-                UploadDialog(task: task,
-                             onHide: { model.focusedTransferId = nil },
-                             onClose: { model.removeTransfer(id) })
-                    .transition(.opacity)
-            }
-            if let task = model.extractTask, model.showExtractDialog {
-                ExtractDialog(task: task,
-                              onHide: { model.showExtractDialog = false },
-                              onClose: { model.extractTask = nil; model.showExtractDialog = false })
-                    .transition(.opacity)
-            }
         }
-        .animation(.easeOut(duration: 0.18), value: model.focusedTransferId)
-        .animation(.easeOut(duration: 0.18), value: model.extractTask?.id)
-        .animation(.easeOut(duration: 0.18), value: model.showExtractDialog)
-        .animation(.easeOut(duration: 0.15), value: model.pendingFileDelete?.id)
-        .animation(.easeOut(duration: 0.15), value: model.pendingBatchDelete?.id)
         .animation(.easeOut(duration: 0.15), value: model.pendingHostDelete?.id)
-        .animation(.easeOut(duration: 0.15), value: model.pendingFileRename?.id)
-        .animation(.easeOut(duration: 0.15), value: model.pendingFileChmod?.id)
-        .animation(.easeOut(duration: 0.15), value: model.pendingFileCreate?.id)
-        .animation(.easeOut(duration: 0.15), value: model.pendingFileInfo?.id)
-        // 无任何文件弹窗时整层不吃点击，杜绝 .transition 关闭后残留命中层卡住界面。
+        // 确认关闭后整层不吃点击，避免 transition 残留命中层。
         .allowsHitTesting(anyFileOverlayActive)
     }
 
-    /// 文件操作叠层里是否有弹窗正在展示（含展开的上传/下载对话框）。
+    /// 仅在主机删除确认显示时启用全窗点击层。
     private var anyFileOverlayActive: Bool {
-        model.pendingFileDelete != nil || model.pendingBatchDelete != nil || model.pendingHostDelete != nil ||
-        model.pendingFileRename != nil || model.pendingFileChmod != nil ||
-        model.pendingFileCreate != nil || model.pendingFileInfo != nil ||
-        model.focusedTransferId != nil ||
-        (model.extractTask != nil && model.showExtractDialog)
+        model.pendingHostDelete != nil
     }
 }
 
@@ -538,21 +470,45 @@ private struct ConnectionDialogs: ViewModifier {
                 ZStack {
                     if let h = model.pendingAskAuth {
                         AskPasswordDialog(host: h,
-                                          onConfirm: { model.submitAskAuth($0) },
+                                          errorText: model.askAuthError,
+                                          onConfirm: { model.submitAskAuth($0, remember: $1) },
                                           onCancel: { model.cancelAskAuth() })
+                            .id(h.id)
                             .transition(.opacity)
                     }
                 }
                 .animation(.easeOut(duration: 0.15), value: model.pendingAskAuth?.id)
                 .allowsHitTesting(model.pendingAskAuth != nil)
             }
+            .overlay(alignment: .bottomTrailing) {
+                if model.pendingAskAuth == nil, !model.showAddHost, model.editingHost == nil,
+                   let message = model.hostSaveError ?? model.hostCredentialNotice {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: model.hostSaveError == nil ? "checkmark.shield" : "exclamationmark.triangle")
+                            .foregroundStyle(model.hostSaveError == nil ? Pal.green : Pal.red)
+                        Text(message).font(.system(size: 12)).foregroundStyle(Pal.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button {
+                            model.hostCredentialNotice = nil
+                            model.hostSaveError = nil
+                        } label: { Image(systemName: "xmark").font(.system(size: 10)) }
+                        .buttonStyle(.plain).help("关闭提示")
+                    }
+                    .padding(14).frame(maxWidth: 390, alignment: .leading)
+                    .background(Pal.solidMantle, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Pal.border, lineWidth: 1))
+                    .padding(18)
+                }
+            }
             // 片段「插入/运行」选择弹窗（默认动作为「每次询问」时）
             .overlay {
                 ZStack {
                     if let s = model.pendingSnippetAction {
                         SnippetActionDialog(snippet: s,
+                            targetTitle: model.snippetTargetTabIdPublic().flatMap { id in model.tabs.first { $0.id == id }?.title },
                                             onChoose: { model.resolveSnippetAction(s, run: $0, remember: $1) },
                                             onCancel: { model.cancelSnippetAction() })
+                            .id(s.id)
                             .transition(.opacity)
                     }
                 }
@@ -564,8 +520,10 @@ private struct ConnectionDialogs: ViewModifier {
                 ZStack {
                     if let req = model.pendingSnippetRun {
                         SnippetRunDialog(request: req,
+                            targetTitle: model.snippetTargetTabIdPublic().flatMap { id in model.tabs.first { $0.id == id }?.title },
                                          onConfirm: { model.submitSnippetRun($0) },
                                          onCancel: { model.cancelSnippetRun() })
+                            .id(req.id)
                             .transition(.opacity)
                     }
                 }

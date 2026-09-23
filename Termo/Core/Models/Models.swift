@@ -254,21 +254,40 @@ struct DiskUsage: Identifiable {
     var percent: Double { totalKB > 0 ? Double(usedKB) / Double(totalKB) * 100 : 0 }
 }
 
-/// 单块 GPU 的实时状态（来自 nvidia-smi；显存以 MiB 计）。
-/// 数值字段均可选：vGPU/MIG/WSL 等环境 nvidia-smi 会输出 [N/A]/[Not Supported]，解析为 nil，UI 显示「—」而非假 0。
+/// 单块 GPU 的实时状态。NVIDIA 使用 nvidia-smi；AMD 使用内核 DRM sysfs；
+/// Intel 可识别设备，但没有统一可读的占用率来源时保留 nil。显存以 MiB 计。
 struct GPUInfo: Identifiable {
-    var id: Int { index }
+    var id: String { "\(vendor):\(index)" }
     let index: Int
+    let vendor: String
     let name: String
     let utilPercent: Double?
     let memUsedMB: Int64?
     let memTotalMB: Int64?
     let tempC: Int?
+    /// 指标来源；仅用于说明哪些值由驱动工具或内核提供。
+    var source: String = ""
     /// 显存占用比；任一值不可用（[N/A]）时为 nil，调用方据此跳过进度条。
     var memPercent: Double? {
         guard let used = memUsedMB, let total = memTotalMB, total > 0 else { return nil }
         return Double(used) / Double(total) * 100
     }
+}
+
+enum GPUCollectionStatus: String {
+    case available = "OK"
+    case noDevice = "NONE"
+    case toolMissing = "TOOL_MISSING"
+    case queryFailed = "QUERY_FAILED"
+    case deviceUnavailable = "DEVICE_UNAVAILABLE"
+}
+
+/// 单张网卡的速率。计数器首次出现、重置或回退时速率为 nil，避免瞬时尖峰。
+struct NetworkInterfaceUsage: Identifiable {
+    var id: String { name }
+    let name: String
+    let rxBytesPerSec: Double?
+    let txBytesPerSec: Double?
 }
 
 /// 一帧网速采样（字节/秒），用于网络波动折线图。
@@ -277,7 +296,7 @@ struct NetSample {
     let tx: Double
 }
 
-/// 主机实时监控的一帧采样（由 HostMonitor 流式解析 /proc 与 nvidia-smi 得到，不持久化）。
+/// 主机实时监控的一帧采样（由 HostMonitor 流式解析 Linux /proc、DRM sysfs 与 nvidia-smi 得到，不持久化）。
 /// 速率与占用类字段需相邻两帧差值，首帧为 nil；内存以 kB（1K 块）计。
 struct HostMetrics {
     var cpuPercent: Double? = nil      // 整机 CPU 占用，0–100
@@ -291,6 +310,8 @@ struct HostMetrics {
     var swapTotalKB: Int64 = 0
     var disks: [DiskUsage] = []
     var gpus: [GPUInfo] = []
+    var gpuStatus: GPUCollectionStatus = .noDevice
+    var interfaces: [NetworkInterfaceUsage] = []
     var netRxBytesPerSec: Double? = nil
     var netTxBytesPerSec: Double? = nil
     var uptimeSecs: Double = 0
@@ -323,4 +344,3 @@ struct Host: Identifiable, Codable {
         return addr.contains("@") ? String(addr.split(separator: "@").last ?? "") : addr
     }
 }
-

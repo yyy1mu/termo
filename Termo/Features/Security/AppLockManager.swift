@@ -1,32 +1,121 @@
 import AppKit
+import CryptoKit
 import Foundation
 import LocalAuthentication
-import CryptoKit
 import Security
 
-/// 启动锁：启用后 App 启动时显示锁定屏，需 **Touch ID 或 6 位锁定码** 解锁进入。
-/// 锁定码加盐 SHA-256 存 Keychain（service=com.termo.appLock），不设明文恢复——忘记只能删偏好重置。
-/// 与钥匙串 ACL 无关（那套机制已移除）；签名构建读 Keychain 本就免提示。
-final class AppLockManager: ObservableObject {
-    static let shared = AppLockManager()
+/// 新主密码用现有 PBKDF2 + AES-GCM 校验记录；保留旧版 salted SHA-256 锁定码验证。
+/// 记录仅验证输入，不保存或恢复明文主密码。
+enum AppPasswordRecord {
+    private static let marker = Data("termo-master-password-v1".utf8)
 
-    /// 当前是否处于锁定态（TermoApp 据此盖锁定屏）。
-    @Published private(set) var isLocked = false
-    /// 启动锁开关（设置 → 安全）。
-    @Published private(set) var isEnabled: Bool
+    static func isLegacy(_ record: String) -> Bool { !record.hasPrefix("master-v1:") }
 
-    private let d = UserDefaults.standard
-    private let service = "com.termo.appLock"
-    private let account = "pin"
-
-    private init() {
-        isEnabled = d.bool(forKey: "applock.enabled")
-        // 启动即锁：开关开着且锁定码存在才锁（二者缺一都不具备锁定意义）
-        if isEnabled, pinRecord() != nil { isLocked = true }
+    static func make(_ password: String) throws -> String {
+        guard password.count >= 8, !password.contains("\0"), !password.contains(where: \.isNewline) else {
+            throw AppPasswordError.invalidPassword
+        }
+        return "master-v1:" + (try SyncCrypto.encrypt(marker, password: password)).base64EncodedString()
     }
 
-    /// 是否已设置锁定码（未设码时开关不可用，先引导设码）。
-    var hasPin: Bool { pinRecord() != nil }
+    static func verify(_ password: String, record: String) -> Bool {
+        guard !password.contains("\0") else { return false }
+        if !isLegacy(record) {
+            guard let data = Data(base64Encoded: String(record.dropFirst("master-v1:".count))),
+                let plain = try? SyncCrypto.decrypt(data, password: password)
+            else { return false }
+            return plain == marker
+        }
+        let parts = record.split(separator: ":")
+        guard parts.count == 2 else { return false }
+        let hash = SHA256.hash(data: Data((String(parts[0]) + password).utf8))
+            .map { String(format: "%02x", $0) }.joined()
+        return hash == parts[1]
+    }
+}
+
+enum AppPasswordError: LocalizedError {
+    case invalidPassword, wrongCurrentPassword, sessionChanged, keychain(OSStatus), readKeychain(OSStatus)
+    var errorDescription: String? {
+        switch self {
+        case .invalidPassword: return String(localized: "主密码至少 8 个字符，可包含文字、数字和符号")
+        case .wrongCurrentPassword: return String(localized: "当前密码不正确")
+        case .sessionChanged: return String(localized: "应用已锁定，请解锁后重试")
+        case .keychain(let status): return String(localized: "无法保存主密码，原密码未更改（\(status)）")
+        case .readKeychain(let status): return String(localized: "无法读取主密码校验记录，请允许 Termo 访问系统钥匙串后重试（\(status)）")
+        }
+    }
+}
+
+/// 应用锁与同步共用主密码。明文只在解锁会话内保存，锁定即清除；Touch ID 不恢复主密码。
+final class AppLockManager: ObservableObject {
+    static let shared = AppLockManager()
+    @Published private(set) var isLocked = false
+    @Published private(set) var isEnabled: Bool
+    @Published private(set) var masterPassword: String?
+    @Published private(set) var credentialError: String?
+
+    struct CredentialStore {
+        var read: () throws -> String?
+        var write: (String) throws -> Void
+
+        static let keychain = CredentialStore(
+            read: {
+                var query = keychainQuery
+                query[kSecReturnData as String] = true
+                query[kSecMatchLimit as String] = kSecMatchLimitOne
+                var item: AnyObject?
+                let status = SecItemCopyMatching(query as CFDictionary, &item)
+                if status == errSecItemNotFound { return nil }
+                guard status == errSecSuccess else { throw AppPasswordError.readKeychain(status) }
+                guard let data = item as? Data, let record = String(data: data, encoding: .utf8) else {
+                    throw AppPasswordError.readKeychain(errSecDecode)
+                }
+                return record
+            },
+            write: { record in
+                let data = Data(record.utf8)
+                var status = SecItemUpdate(
+                    keychainQuery as CFDictionary,
+                    [kSecValueData as String: data] as CFDictionary)
+                if status == errSecItemNotFound {
+                    var query = keychainQuery
+                    query[kSecValueData as String] = data
+                    query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+                    status = SecItemAdd(query as CFDictionary, nil)
+                }
+                guard status == errSecSuccess else { throw AppPasswordError.keychain(status) }
+            })
+
+        // 沿用旧 service/account；写入失败时保留原记录。
+        private static var keychainQuery: [String: Any] {
+            [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: "com.termo.appLock", kSecAttrAccount as String: "pin",
+            ]
+        }
+    }
+
+    private let d: UserDefaults
+    private let credentials: CredentialStore
+    // 仅缓存密码校验记录；界面、空闲计时和 hasPin 不再触发系统授权。
+    private var cachedRecord: String?
+    private var recordReadFailed = false
+    private(set) var sessionGeneration = 0
+
+    init(defaults: UserDefaults = .standard, credentials: CredentialStore = .keychain) {
+        d = defaults
+        self.credentials = credentials
+        isEnabled = defaults.bool(forKey: "applock.enabled")
+        do { cachedRecord = try credentials.read() }
+        catch { recordReadFailed = true; credentialError = error.localizedDescription }
+        // 钥匙串读取被拒绝时保持锁定，不能把失败当作未设置密码。
+        isLocked = isEnabled && (cachedRecord != nil || recordReadFailed)
+    }
+
+    var hasPin: Bool { cachedRecord != nil || recordReadFailed }
+    var usesLegacyPin: Bool { cachedRecord.map(AppPasswordRecord.isLegacy) ?? false }
+    var hasMasterPassword: Bool { hasPin && !usesLegacyPin }
 
     func setEnabled(_ on: Bool) {
         isEnabled = on
@@ -34,35 +123,47 @@ final class AppLockManager: ObservableObject {
         if !on { isLocked = false }
     }
 
-    /// 设置/覆盖锁定码（6 位数字；调用方负责校验两次输入一致）。
-    func setPin(_ pin: String) {
-        var saltBytes = [UInt8](repeating: 0, count: 16)
-        _ = SecRandomCopyBytes(kSecRandomDefault, saltBytes.count, &saltBytes)
-        let salt = saltBytes.map { String(format: "%02x", $0) }.joined()
-        let rec = salt + ":" + sha(salt + pin)
-        let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(base as CFDictionary)
-        var q = base
-        q[kSecValueData as String] = rec.data(using: .utf8) as Any
-        q[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(q as CFDictionary, nil)
+    @MainActor
+    func setMasterPassword(_ password: String, currentPassword: String) async throws {
+        let generation = sessionGeneration
+        guard !isLocked else { throw AppPasswordError.sessionChanged }
+        if let record = try authenticationRecord() {
+            let valid = await Task.detached { AppPasswordRecord.verify(currentPassword, record: record) }
+                .value
+            guard valid else { throw AppPasswordError.wrongCurrentPassword }
+        }
+        let record = try await Task.detached { try AppPasswordRecord.make(password) }.value
+        guard generation == sessionGeneration, !isLocked else { throw AppPasswordError.sessionChanged }
+        try credentials.write(record)
+        cachedRecord = record
+        recordReadFailed = false
+        credentialError = nil
+        sessionGeneration += 1
+        masterPassword = password
     }
 
-    func verifyPin(_ pin: String) -> Bool {
-        guard let rec = pinRecord() else { return false }
-        let parts = rec.split(separator: ":")
-        guard parts.count == 2 else { return false }
-        return sha(String(parts[0]) + pin) == parts[1]
+    /// 密码解锁与同步授权走同一校验；旧锁定码只解锁，不用作新的备份密钥。
+    @MainActor
+    func verifyPassword(_ password: String) async -> Bool {
+        let generation = sessionGeneration
+        let record: String
+        do {
+            guard let stored = try authenticationRecord() else { return false }
+            record = stored
+        } catch {
+            credentialError = error.localizedDescription
+            return false
+        }
+        let valid = await Task.detached { AppPasswordRecord.verify(password, record: record) }.value
+        guard generation == sessionGeneration else { return false }
+        if valid && !AppPasswordRecord.isLegacy(record) { masterPassword = password }
+        return valid
     }
 
     /// 解锁（锁定屏/触摸成功后调用）。
     func unlock() {
         isLocked = false
-        lastActivity = Date()   // 解锁后重新计空闲
+        lastActivity = Date()  // 解锁后重新计空闲
     }
 
     // MARK: - 立即锁定 / 空闲自动锁
@@ -104,6 +205,8 @@ final class AppLockManager: ObservableObject {
     func lock() {
         guard isEnabled, hasPin, !isLocked else { return }
         lastActivity = Date()
+        sessionGeneration += 1
+        masterPassword = nil
         isLocked = true
     }
 
@@ -111,14 +214,16 @@ final class AppLockManager: ObservableObject {
     @MainActor
     func unlockWithBiometrics() async -> Bool {
         let ctx = LAContext()
-        guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) else { return false }
+        guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) else {
+            return false
+        }
         do {
             return try await ctx.evaluatePolicy(
                 .deviceOwnerAuthenticationWithBiometrics,
                 localizedReason: "解锁 Termo"
             )
         } catch {
-            return false   // 用户取消/失败 → 走锁定码输入
+            return false  // 用户取消/失败 → 走锁定码输入
         }
     }
 
@@ -127,22 +232,13 @@ final class AppLockManager: ObservableObject {
         LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
     }
 
-    private func pinRecord() -> String? {
-        let q: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var out: AnyObject?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
-              let data = out as? Data,
-              let s = String(data: data, encoding: .utf8) else { return nil }
-        return s
-    }
-
-    private func sha(_ s: String) -> String {
-        SHA256.hash(data: Data(s.utf8)).map { String(format: "%02x", $0) }.joined()
+    /// 初次读取失败后仅在用户明确验证/改密时重试，不在 UI 刷新和定时器里重试。
+    private func authenticationRecord() throws -> String? {
+        if recordReadFailed {
+            cachedRecord = try credentials.read()
+            recordReadFailed = false
+            credentialError = nil
+        }
+        return cachedRecord
     }
 }

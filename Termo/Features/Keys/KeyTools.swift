@@ -3,6 +3,24 @@ import Foundation
 /// 把密钥库（钥匙串）里的私钥落成 ssh 可用的工作文件（0600，等同 ~/.ssh/id_* 的安全姿态）。
 /// 幂等：文件已存在则直接复用，避免每次连接重写。删除密钥时清理对应文件。
 enum KeyMaterializer {
+    enum CacheError: LocalizedError {
+        case invalidKeyID
+        case cleanup(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidKeyID:
+                return String(localized: "密钥工作文件名称无效，无法安全清理旧私钥")
+            case .cleanup(let detail):
+                return String(localized: "旧私钥工作文件未能清理，新私钥尚未保存：\(detail)")
+            }
+        }
+    }
+
+    private static func validKeyID(_ id: String) -> Bool {
+        id != "." && id != ".." && id.range(of: "^[A-Za-z0-9._-]{1,128}$", options: .regularExpression) != nil
+    }
+
     private static var dir: URL {
         let base = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -14,6 +32,7 @@ enum KeyMaterializer {
 
     /// 返回该密钥 id 的工作私钥文件路径；钥匙串无此私钥则返回 nil。
     static func path(forKeyId id: String) -> String? {
+        guard validKeyID(id) else { return nil }
         let url = dir.appendingPathComponent(id)
         if !FileManager.default.fileExists(atPath: url.path) {
             guard let pem = KeyKeychain.privateKey(id) else { return nil }
@@ -25,8 +44,14 @@ enum KeyMaterializer {
         return url.path
     }
 
-    static func remove(_ id: String) {
-        try? FileManager.default.removeItem(at: dir.appendingPathComponent(id))
+    /// 私钥变更前失效旧工作文件；失败时阻止新私钥入库，避免下一次连接继续使用旧文件。
+    static func invalidate(_ id: String) throws {
+        guard validKeyID(id) else { throw CacheError.invalidKeyID }
+        let url = dir.appendingPathComponent(id)
+        if FileManager.default.fileExists(atPath: url.path) {
+            do { try FileManager.default.removeItem(at: url) }
+            catch { throw CacheError.cleanup(error.localizedDescription) }
+        }
     }
 }
 
@@ -49,6 +74,23 @@ enum KeyTools {
     struct Generated { let publicKey: String; let privateKey: String; let fingerprint: String }
     struct Imported { let publicKey: String; let fingerprint: String; let type: SSHKeyType; let comment: String; let hasPassphrase: Bool }
 
+    /// 文件选择可同时带同名 .pub；沙盒只保证用户明确选中的文件可读。
+    static func selectedImportFiles(_ urls: [URL]) throws -> (privateKey: URL, publicKey: URL?) {
+        let privateKeys = urls.filter { !$0.lastPathComponent.hasSuffix(".pub") }
+        let publicKeys = urls.filter { $0.lastPathComponent.hasSuffix(".pub") }
+        guard privateKeys.count == 1, publicKeys.count <= 1,
+              urls.count == privateKeys.count + publicKeys.count else {
+            throw KeyError.importFail(String(localized: "请选择一份私钥；加密私钥可再选同名 .pub 公钥"))
+        }
+        let key = privateKeys[0]
+        if let publicKey = publicKeys.first,
+           (publicKey.lastPathComponent != key.lastPathComponent + ".pub"
+                || publicKey.deletingLastPathComponent() != key.deletingLastPathComponent()) {
+            throw KeyError.importFail(String(localized: "公钥文件需与私钥同名，并以 .pub 结尾"))
+        }
+        return (key, publicKeys.first)
+    }
+
     /// 生成密钥对（进程内）。passphrase 为空串即无口令。
     static func generate(type: SSHKeyType, comment: String, passphrase: String) throws -> Generated {
         var priv = [CChar](repeating: 0, count: 1 << 15)
@@ -66,10 +108,16 @@ enum KeyTools {
 
     /// 从私钥文件导入：派生公钥、指纹、类型、是否加密。
     /// 公钥来源优先级：同名 .pub（含注释，即便私钥加密也可读）→ 从私钥派生（OpenSSH 公钥明文 / PEM 未加密）。
-    static func importInfo(privatePath: String) throws -> Imported {
+    static func importInfo(privatePath: String, publicKeyURL: URL? = nil) throws -> Imported {
         var pubLine = ""
         let siblingPub = privatePath + ".pub"
-        if let s = try? String(contentsOfFile: siblingPub, encoding: .utf8) {
+        if let publicKeyURL {
+            pubLine = try String(contentsOf: publicKeyURL, encoding: .utf8)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !pubLine.isEmpty else {
+                throw KeyError.importFail(String(localized: "所选 .pub 公钥文件为空"))
+            }
+        } else if let s = try? String(contentsOfFile: siblingPub, encoding: .utf8) {
             pubLine = s.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
@@ -78,6 +126,14 @@ enum KeyTools {
         var cEnc: Int32 = 0
         let rc = termo_key_pubkey_from_private(privatePath, "", &outPub, Int32(outPub.count), &cType, &cEnc)
         let encrypted = rc == 1 || cEnc != 0    // rc=1：PEM 加密无法派生；cEnc：OpenSSH 加密（公钥仍可派生）
+
+        if rc == 0, !pubLine.isEmpty {
+            let supplied = pubLine.split(separator: " ").prefix(2)
+            let derived = String(cString: outPub).split(separator: " ").prefix(2)
+            guard supplied.count == 2, supplied.elementsEqual(derived) else {
+                throw KeyError.importFail(String(localized: "所选 .pub 公钥与私钥不匹配"))
+            }
+        }
 
         if pubLine.isEmpty {
             guard rc == 0 else {
@@ -90,7 +146,10 @@ enum KeyTools {
         guard !pubLine.isEmpty else { throw KeyError.importFail(String(localized: "无法读取公钥")) }
 
         var fp = [CChar](repeating: 0, count: 256)
-        let fingerprint = termo_key_fingerprint(pubLine, &fp, 256) == 0 ? String(cString: fp) : ""
+        guard termo_key_fingerprint(pubLine, &fp, 256) == 0 else {
+            throw KeyError.importFail(String(localized: "所选 .pub 公钥格式无效"))
+        }
+        let fingerprint = String(cString: fp)
 
         let type: SSHKeyType = pubLine.hasPrefix("ssh-rsa") ? .rsa
             : (pubLine.hasPrefix("ssh-ed25519") ? .ed25519 : (cType == 1 ? .rsa : .ed25519))

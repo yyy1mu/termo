@@ -5,7 +5,7 @@
 //  约定（与 libssh2 版一致）：
 //  - 返回 int 的 SFTP 函数：0=成功；>0 且 <0xF000 = SFTP 状态码；≥0xF000 = 传输/内部错误
 //  - 字符串缓冲超长截断且 NUL 结尾（exec2 的 out/errout 为二进制安全，按 *out_len 取用）
-//  - known_hosts 校验：仅明确不匹配拒绝（err 以 HOSTKEY_MISMATCH 开头），未知/解析失败放行
+//  - known_hosts 校验：仅明确匹配才允许认证；未知/变更/撤销/读取失败均拒绝（HOSTKEY_*）
 #ifndef TERMO_RUSSH_CORE_H
 #define TERMO_RUSSH_CORE_H
 
@@ -32,7 +32,7 @@ int termo_russh_probe(const char *host, int port, const char *user,
                       char *fingerprint_out, int fingerprint_cap, int *exit_code_out,
                       int timeout_ms, char *err, int errlen);
 
-/// 连接+握手+认证。known_hosts 两参数非空时认证前校验（仅明确不匹配拒绝）。
+/// 连接+握手+认证。认证前必须匹配 known_hosts；不传信任路径也不能跳过校验。
 TermoRusshSession *termo_russh_session_open(const char *host, int port,
                                             const char *user, const char *password,
                                             const char *key_path, const char *key_passphrase,
@@ -67,7 +67,7 @@ int termo_russh_exec_stream(TermoRusshSession *s, const char *command,
 
 /// 主机密钥扫描结果（与 libssh2 版 TermoHostKeyScan 字段一一对应）。
 typedef struct {
-    int status;          // 0=已知匹配 1=未知 2=不匹配(MITM) -1=失败
+    int status;          // 0=匹配 1=未知 2=不匹配 3=读取/解析失败 4=撤销 5=不支持 -1=握手失败
     char sha256[80];     // "SHA256:base64"
     char md5[64];        // "ab:cd:…"
     char line[1024];     // known_hosts 信任行

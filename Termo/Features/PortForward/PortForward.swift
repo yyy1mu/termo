@@ -101,8 +101,8 @@ final class ForwardProcessRegistry: @unchecked Sendable {
     }
 }
 
-/// 单台主机的端口转发运行态管理：每条已启动的规则对应一个 `ssh -N` 子进程。
-/// 复用现有 SSH 凭证与 askpass，服务器零安装；进程退出即视为转发失败/断开。
+/// 单台主机的端口转发运行态管理：每条已启动的规则独占一个 SSH 引擎会话。
+/// 复用现有 SSH 凭证；连接断开后按用户的启停意愿重连。
 @MainActor
 final class ForwardManager: ObservableObject {
     enum RuleStatus: Equatable {
@@ -120,6 +120,8 @@ final class ForwardManager: ObservableObject {
     private var forwards: [UUID: OpaquePointer] = [:]        // TermoSSHForward*
     private var boxes: [UUID: UnsafeMutableRawPointer] = [:] // on_state 回调载体（StateBox 经 Unmanaged）
     private var regIds: [UUID: Int] = [:]                    // 退出登记表句柄
+    // 停止、重启、切换网络都会淘汰旧尝试，避免迟到回调覆盖当前规则的状态或连接。
+    private var connectionAttempts: [UUID: UUID] = [:]
 
     // 看门狗状态：intended = 用户期望保持运行的规则；startedRules 留存其配置以便自动重启；
     // failCount 驱动退避；restartWork 记录已排程的重启（去重，避免叠加）。
@@ -143,6 +145,22 @@ final class ForwardManager: ObservableObject {
     init(ssh: SSHConnection) { self.ssh = ssh }
 
     func status(_ id: UUID) -> RuleStatus { statuses[id] ?? .stopped }
+
+    /// 包含断线退避与等待网络：只要仍计划运行，就必须允许用户停止。
+    func isEnabled(_ id: UUID) -> Bool { intended.contains(id) || status(id).isRunning }
+
+    var hasStoppedFailure: Bool {
+        statuses.contains { id, status in
+            if case .failed = status { return !isEnabled(id) }
+            return false
+        }
+    }
+
+    func clearStoppedFailures() {
+        for id in Array(statuses.keys) where !isEnabled(id) {
+            if case .failed = status(id) { stop(id) }
+        }
+    }
 
     /// 是否有「致命失败」的隧道（端口占用/认证失败/转发被拒等，已撤销自动重试）。供托盘红灯。
     /// 只算不再重试的 —— 排除掉线后正在退避重连的瞬时 .failed，避免红灯频闪。
@@ -168,8 +186,13 @@ final class ForwardManager: ObservableObject {
     /// 拉起一条隧道（start 与自动重启共用；不改 intended/退避）：后台建 dedicated 会话 + 开 C 层转发。
     private func launch(_ rule: ForwardRule) {
         guard forwards[rule.id] == nil, sessions[rule.id] == nil else { return }
+        let attempt = UUID()
+        connectionAttempts[rule.id] = attempt
         guard NetworkMonitor.shared.isOnline else { statuses[rule.id] = .failed(String(localized: "等待网络")); return }
-        guard !ssh.host.isEmpty else { statuses[rule.id] = .failed("主机未配置"); return }
+        guard !ssh.host.isEmpty else {
+            onFailure(rule.id, attempt: attempt, reason: "主机未配置")
+            return
+        }
 
         statuses[rule.id] = .starting
         let conn = ssh
@@ -185,16 +208,16 @@ final class ForwardManager: ObservableObject {
                                                  password: a.password, keyPath: a.keyPath, keyPassphrase: a.keyPassphrase)
             } catch {
                 let msg = (error as? SSHSession.SSHError)?.message ?? String(localized: "连接失败")
-                Task { @MainActor in self?.onFailure(id, reason: msg) }
+                Task { @MainActor in self?.onFailure(id, attempt: attempt, reason: msg) }
                 return
             }
             guard let raw = session.rawHandle else {
                 session.close()
-                Task { @MainActor in self?.onFailure(id, reason: String(localized: "连接失败")) }
+                Task { @MainActor in self?.onFailure(id, attempt: attempt, reason: String(localized: "连接失败")) }
                 return
             }
             let box = Unmanaged.passRetained(StateBox { msg in
-                Task { @MainActor in self?.onDropped(id, reason: msg) }
+                Task { @MainActor in self?.onDropped(id, attempt: attempt, reason: msg) }
             }).toOpaque()
             var err = [CChar](repeating: 0, count: 256)
             guard let fwd = termo_ssh_forward_open(raw, kind, bind, Int32(lport), dhost, Int32(dport),
@@ -206,16 +229,16 @@ final class ForwardManager: ObservableObject {
                 Unmanaged<StateBox>.fromOpaque(box).release()
                 session.close()
                 let reason = String(cString: err)
-                Task { @MainActor in self?.onFailure(id, reason: reason) }
+                Task { @MainActor in self?.onFailure(id, attempt: attempt, reason: reason) }
                 return
             }
-            Task { @MainActor in self?.onEstablished(id, session: session, forward: fwd, box: box) }
+            Task { @MainActor in self?.onEstablished(id, attempt: attempt, session: session, forward: fwd, box: box) }
         }
     }
 
     /// 后台建立成功：登记并标记 active（若期间已被 stop，则就地拆掉）。
-    private func onEstablished(_ id: UUID, session: SSHSession, forward: OpaquePointer, box: UnsafeMutableRawPointer) {
-        guard intended.contains(id) else {
+    private func onEstablished(_ id: UUID, attempt: UUID, session: SSHSession, forward: OpaquePointer, box: UnsafeMutableRawPointer) {
+        guard intended.contains(id), connectionAttempts[id] == attempt else {
             termo_ssh_forward_close(forward); session.close()
             Unmanaged<StateBox>.fromOpaque(box).release()
             return
@@ -231,9 +254,10 @@ final class ForwardManager: ObservableObject {
     }
 
     /// 建立失败（连接/认证/监听）：标记失败；致命则不重试，瞬时则退避重启。
-    private func onFailure(_ id: UUID, reason: String) {
+    private func onFailure(_ id: UUID, attempt: UUID, reason: String) {
+        guard intended.contains(id), connectionAttempts[id] == attempt else { return }
+        connectionAttempts[id] = nil
         statuses[id] = .failed(reason)
-        guard intended.contains(id) else { return }
         if Self.fatalSubstrings.contains(where: { reason.contains($0) }) {
             intended.remove(id); failCount[id] = nil
             restartWork[id]?.cancel(); restartWork[id] = nil
@@ -243,8 +267,8 @@ final class ForwardManager: ObservableObject {
     }
 
     /// 运行中异步断开（C 层 on_state 回调）：拆除并按瞬时失败重启。
-    private func onDropped(_ id: UUID, reason: String) {
-        guard sessions[id] != nil else { return }   // 已被 stop/teardown → 忽略
+    private func onDropped(_ id: UUID, attempt: UUID, reason: String) {
+        guard connectionAttempts[id] == attempt, sessions[id] != nil else { return }
         teardown(id)
         statuses[id] = .failed(reason.isEmpty ? String(localized: "连接已断开") : reason)
         guard intended.contains(id) else { return }
@@ -253,6 +277,7 @@ final class ForwardManager: ObservableObject {
 
     /// 关闭转发 + 会话并清理登记，但不改 intended/退避（供 stop 与网络重连复用）。
     private func teardown(_ id: UUID) {
+        connectionAttempts[id] = nil
         if let regId = regIds[id] { ForwardProcessRegistry.shared.unregister(regId); regIds[id] = nil }
         if let fwd = forwards[id] { termo_ssh_forward_close(fwd); forwards[id] = nil }   // 停 pump（join）后无更多回调
         if let box = boxes[id] { Unmanaged<StateBox>.fromOpaque(box).release(); boxes[id] = nil }

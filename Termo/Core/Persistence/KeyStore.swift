@@ -1,16 +1,12 @@
 import Foundation
 import Security
 
-/// 密钥元数据的 JSON 持久化（~/Library/Application Support/termo/keys.json）。私钥不在此（见 KeyKeychain）。
+/// 密钥元数据的 JSON 持久化。私钥仅交给系统钥匙串，不写入此文件。
 enum KeyStore {
-    private static var dir: URL {
-        let base = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("termo", isDirectory: true)
-        try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-        return base
+    private static var url: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("termo/keys.json")
     }
-    private static var url: URL { dir.appendingPathComponent("keys.json") }
 
     static func load() -> [SSHKey] {
         guard let data = try? Data(contentsOf: url),
@@ -18,54 +14,82 @@ enum KeyStore {
         return keys
     }
 
-    static func save(_ keys: [SSHKey]) {
-        if let data = try? JSONEncoder().encode(keys) {
-            try? data.write(to: url, options: .atomic)
+    static func save(_ keys: [SSHKey], at destination: URL? = nil) throws {
+        let destination = destination ?? url
+        let data = try JSONEncoder().encode(keys)
+        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: destination, options: .atomic)
+    }
+
+    /// 两处存储都成功后，调用方才发布新列表；JSON 失败时恢复先前的私钥快照。
+    static func save(_ keys: [SSHKey], updatingPrivateKeys update: (inout [String: String]) -> Void,
+                     at destination: URL? = nil, credentials: KeyKeychain.Storage = .live,
+                     beforePrivateKeysChange: ([String]) throws -> Void = { _ in }) throws {
+        let original = try KeyKeychain.loadAll(using: credentials)
+        var updated = original
+        update(&updated)
+        let changedIDs = Set(original.keys).union(updated.keys)
+            .filter { original[$0] != updated[$0] }.sorted()
+        try beforePrivateKeysChange(changedIDs)
+        try KeyKeychain.saveAll(updated, using: credentials)
+        do {
+            try save(keys, at: destination)
+        } catch {
+            let saveError = error
+            do { try KeyKeychain.saveAll(original, using: credentials) }
+            catch { throw RollbackError(saveError: saveError, rollbackError: error) }
+            throw saveError
+        }
+    }
+
+    private struct RollbackError: LocalizedError {
+        let saveError: Error
+        let rollbackError: Error
+        var errorDescription: String? {
+            String(localized: "密钥列表未能保存：\(saveError.localizedDescription)；恢复原私钥记录也失败：\(rollbackError.localizedDescription)。请检查存储权限后重试。")
         }
     }
 }
 
-/// 私钥本体的 Keychain 存取——私钥只进系统钥匙串，绝不写入磁盘 JSON。
-/// 全部私钥合并为「单条」条目（id → PEM），读取一次即拿到全部，把授权弹窗降到一次（对齐 HostKeychain 做法）。
+/// 全部私钥合并为一个条目。读取失败不能当作空库；保存失败不能先删除旧数据。
 enum KeyKeychain {
+    typealias Storage = HostKeychain.Storage
     private static let service = "com.termo.sshPrivateKeys"
     private static let account = "all"
 
-    static func loadAll() -> [String: String] {
-        let q: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var out: AnyObject?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
-              let data = out as? Data,
-              let map = try? JSONDecoder().decode([String: String].self, from: data) else { return [:] }
+    static func loadAll(using storage: Storage = .live) throws -> [String: String] {
+        let (status, data) = storage.read(service, account)
+        if status == errSecItemNotFound { return [:] }
+        guard status == errSecSuccess else { throw HostKeychain.AccessError(operation: "读取私钥", status: status) }
+        guard let data, let map = try? JSONDecoder().decode([String: String].self, from: data) else {
+            throw HostKeychain.AccessError(operation: "读取私钥", status: errSecDecode)
+        }
         return map
     }
 
-    static func saveAll(_ map: [String: String]) {
-        let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(base as CFDictionary)
-        guard !map.isEmpty, let data = try? JSONEncoder().encode(map) else { return }
-        var q = base
-        q[kSecValueData as String] = data
-        SecItemAdd(q as CFDictionary, nil)
+    static func saveAll(_ map: [String: String], using storage: Storage = .live) throws {
+        let data = try JSONEncoder().encode(map)
+        let status = storage.update(service, account, data)
+        if status == errSecItemNotFound {
+            let added = storage.add(service, account, data)
+            guard added == errSecSuccess else { throw HostKeychain.AccessError(operation: "保存私钥到", status: added) }
+        } else if status != errSecSuccess {
+            throw HostKeychain.AccessError(operation: "保存私钥到", status: status)
+        }
     }
 
-    static func privateKey(_ id: String) -> String? { loadAll()[id] }
+    /// 连接入口仍以 nil 表示私钥不可用，写入和同步入口使用 throwing API。
+    static func privateKey(_ id: String) -> String? { try? loadAll()[id] }
 
-    static func set(_ id: String, _ pem: String) {
-        var m = loadAll(); m[id] = pem; saveAll(m)
+    static func set(_ id: String, _ pem: String, using storage: Storage = .live) throws {
+        var map = try loadAll(using: storage)
+        map[id] = pem
+        try saveAll(map, using: storage)
     }
 
-    static func remove(_ id: String) {
-        var m = loadAll(); m.removeValue(forKey: id); saveAll(m)
+    static func remove(_ id: String, using storage: Storage = .live) throws {
+        var map = try loadAll(using: storage)
+        map.removeValue(forKey: id)
+        try saveAll(map, using: storage)
     }
 }

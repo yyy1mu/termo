@@ -48,7 +48,11 @@ final class HostMonitor: ObservableObject {
 
     @Published private(set) var metrics: HostMetrics?
     @Published private(set) var phase: Phase = .connecting
+    @Published private(set) var errorMessage: String?
+    @Published private(set) var trustBlocked = false
+    @Published private(set) var verifiedFingerprint: String?
     @Published private(set) var netHistory: [NetSample] = []   // 最近若干帧网速，供波动折线图
+    @Published private(set) var netHistoryByInterface: [String: [NetSample]] = [:]
     @Published private(set) var netTick = 0                    // 每追加一帧自增，驱动折线整条左滑一格
     private static let netHistoryCap = 42                       // 与折线窗口（visible+2）一致，填满后无需补齐
 
@@ -64,8 +68,7 @@ final class HostMonitor: ObservableObject {
 
     // 上一帧原始计数器，用于算差值
     private var prevCpu: [String: (idle: Double, total: Double)] = [:]   // 键为 cpu / cpu0 / cpu1…
-    private var prevRx: Double?
-    private var prevTx: Double?
+    private var prevNet: [String: (rx: UInt64, tx: UInt64)] = [:]
     private var prevUptime: Double?
 
     // 采样间隔，需与远端 sleep 一致；作为网速 Δt 的兜底（实际优先用 uptime 差更准）
@@ -75,22 +78,82 @@ final class HostMonitor: ObservableObject {
     var sampleInterval: Double { Double(Self.interval) }
 
     /// 远端内联采样脚本：无 /proc 立即报 NOPROC 退出；否则每 interval 秒输出一帧，以 === 分隔。
-    /// CPU 输出整机与每核（cpu / cpuN）；网络累计排除回环 lo 并把网卡名冒号换空格再取字段，避免高流量字节数
-    /// 与冒号粘连错位；磁盘只列真实块设备（/dev/ 开头）的各挂载点；有 nvidia-smi 时每块 GPU 一行（| 分隔，
-    /// 容纳含空格/逗号的型号名）。内存单位 kB、磁盘 1K 块、显存 MiB。
+    /// CPU 输出整机与每核；网络逐网卡输出原始 UInt64 字节计数，排除 lo；磁盘只列真实块设备。
+    /// NVIDIA 由 nvidia-smi 采样，AMD/Intel 由 DRM sysfs 识别；没有可靠指标时输出空字段。
+    /// 内存单位 kB、磁盘 1K 块、显存 MiB。
     private static let script = """
     [ -r /proc/stat ] || { echo NOPROC; exit 0; }
-    command -v nvidia-smi >/dev/null 2>&1 && HASGPU=1 || HASGPU=0
+    NVIDIA_SMI=$(command -v nvidia-smi 2>/dev/null)
+    if [ -z "$NVIDIA_SMI" ]; then
+      for candidate in /usr/bin/nvidia-smi /usr/local/bin/nvidia-smi /usr/local/nvidia/bin/nvidia-smi /opt/nvidia/bin/nvidia-smi; do
+        [ -x "$candidate" ] && { NVIDIA_SMI=$candidate; break; }
+      done
+    fi
+    NVIDIA_DEVICE=0
+    for gpu in /proc/driver/nvidia/gpus/*/information; do
+      [ -r "$gpu" ] && NVIDIA_DEVICE=1
+    done
+    PCI_GPU=0
+    if command -v lspci >/dev/null 2>&1; then
+      pci_vendors=$(lspci -Dn 2>/dev/null | awk '$2 ~ /^03/ {split($3, id, ":"); if (id[1] ~ /^(10de|1002|8086)$/) print id[1]}')
+      [ -n "$pci_vendors" ] && PCI_GPU=1
+      case "$pci_vendors" in *10de*) NVIDIA_DEVICE=1;; esac
+    fi
     while :; do
       awk '/^cpu[0-9]* /{print "CPU "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9}' /proc/stat
       awk '/^(MemTotal|MemAvailable|SwapTotal|SwapFree):/{gsub(/:/,"",$1); print "MEM "$1" "$2}' /proc/meminfo
-      awk 'NR>2{sub(/:/," "); if($1!="lo" && NF>=10){r+=$2; t+=$10}} END{print "NET "r" "t}' /proc/net/dev
+      awk 'NR>2 {name=$0; sub(/:[^:]*$/, "", name); gsub(/^[[:space:]]+|[[:space:]]+$/, "", name); data=$0; sub(/^.*:/, "", data); sub(/^[[:space:]]+/, "", data); n=split(data, v, /[[:space:]]+/); if(name!="lo" && n>=9 && v[1] ~ /^[0-9]+$/ && v[9] ~ /^[0-9]+$/) print "NET "name" "v[1]" "v[9]}' /proc/net/dev
       echo "UP $(cut -d" " -f1 /proc/uptime)"
       echo "LOAD $(cut -d" " -f1-3 /proc/loadavg)"
       df -kP 2>/dev/null | awk 'NR>1 && index($1,"/dev/")==1{print "DISK "$6" "$3" "$2}'
-      # name 放查询列最后：nvidia-smi 对含逗号的型号名会加引号，awk 的正则 FS 不认引号；
-      # 故从行尾固定取数字列、剩余段重组为 name（并去引号），避免字段整体错位。
-      [ "$HASGPU" = 1 ] && nvidia-smi --query-gpu=index,utilization.gpu,memory.used,memory.total,temperature.gpu,name --format=csv,noheader,nounits 2>/dev/null | awk -F", *" '{name=$6; for(i=7;i<=NF;i++) name=name", "$i; gsub(/"/,"",name); print "GPU "$1"|"name"|"$2"|"$3"|"$4"|"$5}'
+      # name 放查询列最后：对含逗号的型号名重组剩余字段。
+      nvidia_rows=
+      nvidia_failed=0
+      if [ -n "$NVIDIA_SMI" ]; then
+        nvidia_raw=$("$NVIDIA_SMI" --query-gpu=index,utilization.gpu,memory.used,memory.total,temperature.gpu,name --format=csv,noheader,nounits 2>/dev/null) || nvidia_failed=1
+        nvidia_rows=$(printf '%s\\n' "$nvidia_raw" | awk -F", *" 'NF>=6 && $1 ~ /^[0-9]+$/ {name=$6; for(i=7;i<=NF;i++) name=name", "$i; gsub(/"/,"",name); print "GPU NVIDIA|"$1"|"name"|"$2"|"$3"|"$4"|"$5"|nvidia-smi"}')
+      fi
+      [ -n "$nvidia_rows" ] && printf '%s\\n' "$nvidia_rows"
+      drm_found=0
+      for card in /sys/class/drm/card[0-9]*; do
+        [ -r "$card/device/vendor" ] || continue
+        vendor=$(cat "$card/device/vendor" 2>/dev/null)
+        case "$vendor" in
+          0x10de) NVIDIA_DEVICE=1; [ -n "$nvidia_rows" ] && continue; vendor=NVIDIA; fallback=GPU ;;
+          0x1002) vendor=AMD; fallback=Radeon ;;
+          0x8086) vendor=Intel; fallback=Graphics ;;
+          *) continue ;;
+        esac
+        drm_found=1
+        index=${card##*/}; index=${index#card}
+        name=$(cat "$card/device/product_name" 2>/dev/null)
+        [ -n "$name" ] || name="$fallback card$index"
+        name=$(printf '%s' "$name" | tr '|' ' ')
+        util=$(cat "$card/device/gpu_busy_percent" 2>/dev/null)
+        used=$(cat "$card/device/mem_info_vram_used" 2>/dev/null)
+        total=$(cat "$card/device/mem_info_vram_total" 2>/dev/null)
+        case "$used" in ''|*[!0-9]*) used=;; *) used=$((used / 1048576));; esac
+        case "$total" in ''|*[!0-9]*) total=;; *) total=$((total / 1048576));; esac
+        temp=
+        for sensor in "$card"/device/hwmon/hwmon*/temp1_input; do
+          [ -r "$sensor" ] || continue
+          milli=$(cat "$sensor" 2>/dev/null)
+          case "$milli" in ''|*[!0-9]*) ;; *) temp=$((milli / 1000));; esac
+          break
+        done
+        printf 'GPU %s|%s|%s|%s|%s|%s|%s|DRM sysfs\\n' "$vendor" "$index" "$name" "$util" "$used" "$total" "$temp"
+      done
+      if [ "$NVIDIA_DEVICE" = 1 ] && [ -z "$nvidia_rows" ]; then
+        [ -z "$NVIDIA_SMI" ] && echo 'GPU_STATUS TOOL_MISSING' || echo 'GPU_STATUS QUERY_FAILED'
+      elif [ -n "$nvidia_rows" ] || [ "$drm_found" = 1 ]; then
+        echo 'GPU_STATUS OK'
+      elif [ "$nvidia_failed" = 1 ]; then
+        echo 'GPU_STATUS QUERY_FAILED'
+      elif [ "$PCI_GPU" = 1 ] || [ ! -d /sys/class/drm ]; then
+        echo 'GPU_STATUS DEVICE_UNAVAILABLE'
+      else
+        echo 'GPU_STATUS NONE'
+      fi
       echo "==="
       sleep __INTERVAL__
     done
@@ -111,10 +174,16 @@ final class HostMonitor: ObservableObject {
     /// 用最新连接信息刷新（如「每次询问」先输错密码、缓存的监控仍持旧密码，改对后需更新）。
     /// 关键字段变化时若正在运行则立即用新信息重连，避免缓存的监控一直用旧/错密码连接失败。
     func updateConnection(_ s: SSHConnection) {
+        let targetChanged = s.host != ssh.host || s.port != ssh.port
         let changed = s.password != ssh.password || s.host != ssh.host
             || s.port != ssh.port || s.user != ssh.user || s.keyId != ssh.keyId || s.keyPath != ssh.keyPath
+            || s.authMethod != ssh.authMethod
         guard changed else { return }
         ssh = s
+        if targetChanged {
+            metrics = nil; netHistory = []; netHistoryByInterface = [:]; verifiedFingerprint = nil
+            trustBlocked = false; errorMessage = nil
+        }
         guard running else { return }
         restartWork?.cancel(); restartWork = nil
         teardownProcess()
@@ -122,8 +191,9 @@ final class HostMonitor: ObservableObject {
         launch()
     }
 
-    func start() {
+    func start(allowTrustRetry: Bool = false) {
         guard !running else { return }
+        guard !trustBlocked || allowTrustRetry else { return }
         guard !ssh.host.isEmpty else { phase = .unsupported; return }
         running = true
         phase = .connecting
@@ -157,23 +227,34 @@ final class HostMonitor: ObservableObject {
         // 离线时不发起连接，等网络恢复由 handleNetworkChange 触发重连，避免离线期间空转重试。
         guard NetworkMonitor.shared.isOnline else { phase = .error; return }
         let cmd = Self.script.replacingOccurrences(of: "__INTERVAL__", with: String(Self.interval))
-        // 认证参数（独立连接，不复用 master；探测脚本 accept-new，与原行为一致）
+        errorMessage = nil
+        trustBlocked = false
+        // 独立连接也必须在认证前匹配已信任的主机指纹。
         let isKey = ssh.authMethod == .key
         let keyPath: String? = isKey
             ? (ssh.keyId.isEmpty ? (ssh.keyPath.isEmpty ? nil : ssh.keyPath) : KeyMaterializer.path(forKeyId: ssh.keyId))
             : nil
+        if isKey && keyPath == nil {
+            running = false
+            phase = .error
+            errorMessage = String(localized: "无法读取登录私钥，请检查钥匙串授权或主机的密钥设置。")
+            return
+        }
         let password: String? = isKey ? nil : ssh.password
         let keyPass: String? = isKey ? ssh.password : nil
         let (h, p, u) = (ssh.host, ssh.port, ssh.user)
 
-        prevCpu.removeAll(); prevRx = nil; prevTx = nil; prevUptime = nil
+        prevCpu.removeAll(); prevNet.removeAll(); prevUptime = nil
         buffer.removeAll()
         launchGen &+= 1
         let gen = launchGen
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            guard let session = try? SSHSession.connect(host: h, port: p, user: u,
-                                                        password: password, keyPath: keyPath, keyPassphrase: keyPass) else {
-                Task { @MainActor in self?.streamEnded(gen: gen) }   // 连接失败 → 重连
+            let session: SSHSession
+            do {
+                session = try SSHSession.connect(host: h, port: p, user: u,
+                    password: password, keyPath: keyPath, keyPassphrase: keyPass)
+            } catch {
+                Task { @MainActor in self?.connectionFailed(error, gen: gen) }
                 return
             }
             Task { @MainActor in self?.adoptSession(session, gen: gen) }
@@ -187,7 +268,22 @@ final class HostMonitor: ObservableObject {
 
     /// 后台线程连上后回主线程认领会话；若此次 launch 已被取代/停止则就地取消。
     private func adoptSession(_ s: SSHSession, gen: Int) {
-        if gen == launchGen { session = s } else { s.cancel() }
+        if gen == launchGen {
+            session = s
+            verifiedFingerprint = s.fingerprintSHA256
+        } else { s.cancel() }
+    }
+
+    private func connectionFailed(_ error: Error, gen: Int) {
+        guard gen == launchGen, running else { return }
+        phase = .error
+        errorMessage = error.localizedDescription
+        trustBlocked = (error as? SSHSession.SSHError)?.isHostKeyFailure == true
+        if trustBlocked {
+            // 未知/变更指纹需要明确确认；网络恢复不能自动绕过或反复重试。
+            running = false
+            restartWork?.cancel(); restartWork = nil
+        } else { scheduleRestart() }
     }
 
     /// 流结束（EOF/错误/连接失败）。仅当前代际有效；我方未停止则延迟重连。
@@ -222,7 +318,7 @@ final class HostMonitor: ObservableObject {
         }
     }
 
-    private func parse(_ frame: String) {
+    func parse(_ frame: String) {
         if frame.contains("NOPROC") {
             phase = .unsupported
             running = false            // 远端无 /proc，已 exit，不再重连
@@ -234,7 +330,7 @@ final class HostMonitor: ObservableObject {
         var swapFree: Int64 = 0
         var curCpu: [String: (idle: Double, total: Double)] = [:]
         var cores: [(idx: Int, pct: Double)] = []
-        var curRx: Double?, curTx: Double?
+        var curNet: [String: (rx: UInt64, tx: UInt64)] = [:]
 
         for raw in frame.split(separator: "\n") {
             let p = raw.split(separator: " ").map(String.init)
@@ -265,7 +361,9 @@ final class HostMonitor: ObservableObject {
                     }
                 }
             case "NET":
-                if p.count >= 3, let rx = Double(p[1]), let tx = Double(p[2]) { curRx = rx; curTx = tx }
+                if p.count >= 4, let rx = UInt64(p[2]), let tx = UInt64(p[3]) {
+                    curNet[p[1]] = (rx, tx)
+                }
             case "UP":
                 if p.count >= 2, let up = Double(p[1]) { m.uptimeSecs = up }
             case "LOAD":
@@ -281,19 +379,23 @@ final class HostMonitor: ObservableObject {
                     m.disks.append(DiskUsage(mount: mount, usedKB: u, totalKB: t))
                 }
             case "GPU":
-                // GPU i|name|util|memUsedMB|memTotalMB|temp；型号名含空格，按 | 重组解析。
-                // vGPU/MIG/WSL 上 nvidia-smi 会输出 [N/A]/[Not Supported]：Double/Int64 转换失败即存 nil，
-                // 由 UI 显示「—」，不折叠成 0 冒充真实数据。
+                // GPU vendor|index|name|util|memUsedMB|memTotalMB|temp。
+                // 缺失或不支持的指标保留 nil，不能显示成 0。
                 let f = p.dropFirst().joined(separator: " ")
                     .split(separator: "|", omittingEmptySubsequences: false)
                     .map { $0.trimmingCharacters(in: .whitespaces) }
-                if f.count >= 6, let idx = Int(f[0]) {
+                if f.count >= 7, ["NVIDIA", "AMD", "Intel"].contains(f[0]), let idx = Int(f[1]) {
                     m.gpus.append(GPUInfo(
-                        index: idx, name: f[1],
-                        utilPercent: Double(f[2]),
-                        memUsedMB: Int64(f[3]),
-                        memTotalMB: Int64(f[4]),
-                        tempC: Int(f[5])))
+                        index: idx, vendor: f[0], name: f[2],
+                        utilPercent: Double(f[3]).flatMap { (0...100).contains($0) ? $0 : nil },
+                        memUsedMB: Int64(f[4]),
+                        memTotalMB: Int64(f[5]),
+                        tempC: Int(f[6]),
+                        source: f.count > 7 ? f[7] : ""))
+                }
+            case "GPU_STATUS":
+                if p.count >= 2, let status = GPUCollectionStatus(rawValue: p[1]) {
+                    m.gpuStatus = status
                 }
             default:
                 break
@@ -303,14 +405,35 @@ final class HostMonitor: ObservableObject {
         m.memUsedKB = max(0, m.memTotalKB - memAvail)
         m.swapUsedKB = max(0, m.swapTotalKB - swapFree)
         m.perCore = cores.sorted { $0.idx < $1.idx }.map { $0.pct }
-        m.gpus.sort { $0.index < $1.index }
+        m.gpus.sort { $0.vendor == $1.vendor ? $0.index < $1.index : $0.vendor < $1.vendor }
         prevCpu = curCpu
 
-        // 网速：字节差 / Δt（优先 uptime 差，兜底用采样间隔）
+        // 每张网卡分别做差，新增、消失或计数器回退不影响其余网卡。
+        // UInt64 先做差再转 Double，避免累计字节数超过 2^53 后丢失小增量。
+        if let prevUptime, m.uptimeSecs < prevUptime { prevNet.removeAll() }
         let dt = (prevUptime.map { m.uptimeSecs - $0 }).flatMap { $0 > 0 ? $0 : nil } ?? Double(Self.interval)
-        if let rx = curRx, let prx = prevRx, rx >= prx { m.netRxBytesPerSec = (rx - prx) / dt }
-        if let tx = curTx, let ptx = prevTx, tx >= ptx { m.netTxBytesPerSec = (tx - ptx) / dt }
-        prevRx = curRx; prevTx = curTx
+        var totalRx = 0.0, totalTx = 0.0
+        var sawRx = false, sawTx = false
+        var nextHistories: [String: [NetSample]] = [:]
+        for name in curNet.keys.sorted() {
+            guard let counters = curNet[name] else { continue }
+            let previous = prevNet[name]
+            let rx = previous.flatMap { counters.rx >= $0.rx ? Double(counters.rx - $0.rx) / dt : nil }
+            let tx = previous.flatMap { counters.tx >= $0.tx ? Double(counters.tx - $0.tx) / dt : nil }
+            m.interfaces.append(NetworkInterfaceUsage(name: name, rxBytesPerSec: rx, txBytesPerSec: tx))
+            if let rx { totalRx += rx; sawRx = true }
+            if let tx { totalTx += tx; sawTx = true }
+            var samples = netHistoryByInterface[name] ?? []
+            if let rx, let tx {
+                samples.append(NetSample(rx: rx, tx: tx))
+                if samples.count > Self.netHistoryCap { samples.removeFirst(samples.count - Self.netHistoryCap) }
+            }
+            nextHistories[name] = samples
+        }
+        m.netRxBytesPerSec = sawRx ? totalRx : nil
+        m.netTxBytesPerSec = sawTx ? totalTx : nil
+        prevNet = curNet
+        netHistoryByInterface = nextHistories
         prevUptime = m.uptimeSecs
 
         if let rx = m.netRxBytesPerSec, let tx = m.netTxBytesPerSec {

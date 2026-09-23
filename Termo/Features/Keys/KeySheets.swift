@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 生成新密钥弹窗。
+/// 生成新密钥；失败保留表单，成功才关闭。
 struct GenerateKeyView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var theme = ThemeManager.shared
@@ -10,76 +10,100 @@ struct GenerateKeyView: View {
     @State private var type: SSHKeyType = .ed25519
     @State private var comment = ""
     @State private var passphrase = ""
+    @State private var generationError: String?
+    @State private var isGenerating = false
+    @State private var generationTask: Task<Void, Never>?
+
+    private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("生成密钥").font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.text)
-                Spacer()
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.overlay)
-                }
-                .buttonStyle(.plain).pointerCursor()
-            }
-            .padding(.horizontal, 18).padding(.vertical, 14)
-            Divider().overlay(Pal.fill(0.06))
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    labeled("名称") { ThemedTextField(placeholder: "我的密钥", text: $name) }
-                    labeled(String(localized: "类型")) {
-                        ThemedDropdown(options: SSHKeyType.allCases.map { (value: $0, label: $0.label) },
-                                       selection: $type)
+            KeySheetHeader(title: "生成 SSH 密钥", subtitle: "创建一对用于服务器登录的公钥和私钥", symbol: "key.fill")
+            Divider().overlay(Pal.border)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        KeyFormField(title: "密钥名称", hint: "必填 · 用于在 Termo 中识别这把密钥") {
+                            ThemedTextField(placeholder: "例如：工作服务器", text: $name, autofocus: true)
+                                .accessibilityLabel("密钥名称，必填")
+                        }
+                        KeyFormField(title: "密钥类型", hint: "Ed25519 适用于多数服务器；旧服务器可选 RSA 4096。") {
+                            ThemedDropdown(options: SSHKeyType.allCases.map { (value: $0, verbatim: $0.label) }, selection: $type)
+                                .accessibilityLabel("密钥类型")
+                        }
+                        KeyFormField(title: "公钥注释", hint: "可选 · 会写入公钥尾部，可填写邮箱或设备名称") {
+                            ThemedTextField(placeholder: "例如：work@macbook", text: $comment)
+                                .accessibilityLabel("公钥注释，可选")
+                        }
+                        KeyFormField(title: "私钥口令", hint: "可选 · 用于加密这把私钥，与应用锁定密码无关。请妥善保管。") {
+                            ThemedSecureField(placeholder: "留空则不设置口令", text: $passphrase)
+                                .accessibilityLabel("私钥口令，可选")
+                        }
+                        KeySheetNote(symbol: "lock.shield", text: "私钥保存在系统钥匙串中。生成后可复制公钥，或部署到服务器。")
+                        if let generationError {
+                            KeySheetNotice(success: false, title: "未能生成密钥", detail: generationError)
+                                .id("generation-error")
+                        }
                     }
-                    labeled("注释") { ThemedTextField(placeholder: "user@host（可选，写入公钥尾部）", text: $comment) }
-                    labeled(String(localized: "口令")) { ThemedSecureField(placeholder: "（可选，给私钥加密）", text: $passphrase) }
-                    Text("私钥安全存入系统钥匙串，绝不落盘明文；公钥可随时复制到服务器 authorized_keys。")
-                        .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                    .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+                .disabled(isGenerating)
+                .onChange(of: generationError) {
+                    if generationError != nil { proxy.scrollTo("generation-error", anchor: .top) }
+                }
             }
-
-            Divider().overlay(Pal.fill(0.06))
-            HStack {
+            KeySheetFooter {
+                if isGenerating {
+                    ProgressView().controlSize(.small)
+                    Text("正在生成密钥…")
+                        .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                }
                 Spacer()
-                Button { dismiss() } label: {
-                    Text("取消").font(.system(size: 13)).foregroundStyle(Pal.subtext)
-                        .padding(.horizontal, 16).padding(.vertical, 7)
-                        .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 8))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).pointerCursor()
-                Button {
-                    model.generateKey(name: name.trimmingCharacters(in: .whitespaces),
-                                      type: type, comment: comment, passphrase: passphrase)
+                Button("取消") {
+                    generationTask?.cancel()
                     dismiss()
-                } label: {
-                    Text("生成").font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
-                        .padding(.horizontal, 16).padding(.vertical, 7)
-                        .background(Pal.mauve, in: RoundedRectangle(cornerRadius: 8))
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain).pointerCursor()
-                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-                .opacity(name.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+                    .buttonStyle(KeySheetButtonStyle())
+                    .keyboardShortcut(.cancelAction)
+                Button("生成密钥", action: generate)
+                    .buttonStyle(KeySheetButtonStyle(primary: true))
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(trimmedName.isEmpty || isGenerating)
+                    .help("生成密钥（⌘↩）")
             }
-            .padding(.horizontal, 18).padding(.vertical, 12)
         }
-        .frame(width: 460, height: 420)
+        .frame(minWidth: 340, idealWidth: 480, maxWidth: 560, minHeight: 360, idealHeight: 580, maxHeight: 680)
         .background(Pal.solidBase)
         .preferredColorScheme(theme.isDark ? .dark : .light)
+        .onDisappear { generationTask?.cancel() }
     }
 
-    @ViewBuilder
-    private func labeled<Content: View>(_ label: String, @ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.system(size: 12)).foregroundStyle(Pal.subtext)
-            content()
+    private func generate() {
+        guard !trimmedName.isEmpty, !isGenerating else { return }
+        let name = trimmedName
+        let chosenType = type
+        let chosenComment = comment
+        let chosenPassphrase = passphrase
+        generationError = nil
+        isGenerating = true
+        generationTask = Task {
+            let saved = await model.generateKey(
+                name: name, type: chosenType, comment: chosenComment, passphrase: chosenPassphrase)
+            guard !Task.isCancelled else { return }
+            isGenerating = false
+            generationTask = nil
+            if saved {
+                dismiss()
+            } else {
+                generationError = model.keyOpError ?? String(localized: "未能保存密钥，请重试。")
+                model.keyOpError = nil
+            }
         }
     }
 }
 
-/// 密钥详情弹窗：查看类型/指纹/创建时间，复制公钥，删除。
+/// 仅展示密钥元数据与公钥，私钥内容不进入详情界面。
 struct KeyDetailView: View {
     @ObservedObject var model: AppModel
     let key: SSHKey
@@ -87,104 +111,119 @@ struct KeyDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var copied = false
     @State private var showDeploy = false
+    @State private var confirmDelete = false
+    @State private var deletionError: String?
+    @State private var copyResetTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "key.fill").font(.system(size: 14)).foregroundStyle(Pal.mauve)
-                Text(key.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.text).lineLimit(1)
-                Spacer()
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.overlay)
-                }
-                .buttonStyle(.plain).pointerCursor()
-            }
-            .padding(.horizontal, 18).padding(.vertical, 14)
-            Divider().overlay(Pal.fill(0.06))
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    info(String(localized: "类型"), key.type.label)
-                    info(String(localized: "指纹"), key.fingerprint.isEmpty ? "—" : key.fingerprint)
-                    info(String(localized: "口令保护"), key.hasPassphrase ? String(localized: "已加密") : String(localized: "无"))
-                    info(String(localized: "创建于"), Self.dateFormatter.string(from: key.createdAt))
-                    if !key.comment.isEmpty { info(String(localized: "注释"), key.comment) }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("公钥").font(.system(size: 12)).foregroundStyle(Pal.subtext)
-                            Spacer()
-                            Button { showDeploy = true } label: {
-                                Label("部署到服务器", systemImage: "arrow.up.to.line")
-                                    .font(.system(size: 11)).foregroundStyle(Pal.mauve)
-                            }
-                            .buttonStyle(.plain).pointerCursor()
-                            Button {
-                                model.copyPublicKey(key); copied = true
-                            } label: {
-                                Label(copied ? "已复制" : "复制", systemImage: copied ? "checkmark" : "doc.on.doc")
-                                    .font(.system(size: 11)).foregroundStyle(Pal.mauve)
-                            }
-                            .buttonStyle(.plain).pointerCursor()
-                        }
-                        Text(key.publicKey)
-                            .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.text)
-                            .textSelection(.enabled)
+            KeySheetHeader(title: "密钥详情", subtitle: "核对身份信息，复制或部署公钥", symbol: "key.fill")
+            Divider().overlay(Pal.border)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(key.name)
+                            .font(.system(size: 18, weight: .semibold)).foregroundStyle(Pal.textBright)
+                            .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(10)
-                            .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
+                        VStack(alignment: .leading, spacing: 14) {
+                            info("密钥类型", key.type.label)
+                            info("私钥口令", key.hasPassphrase ? String(localized: "已设置") : String(localized: "未设置"))
+                            info("创建时间", key.createdAt.formatted(date: .abbreviated, time: .shortened))
+                            if !key.comment.isEmpty { info("公钥注释", key.comment) }
+                        }
+                        KeyFormField(title: "指纹", hint: "用于核对密钥身份") {
+                            Text(key.fingerprint.isEmpty ? String(localized: "暂无指纹") : key.fingerprint)
+                                .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.text)
+                                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("公钥").font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.text)
+                                Spacer()
+                                Button(action: copyPublicKey) {
+                                    Label(copied ? "已复制" : "复制公钥", systemImage: copied ? "checkmark" : "doc.on.doc")
+                                }
+                                .font(.system(size: 11)).buttonStyle(.plain).foregroundStyle(Pal.mauve)
+                                .pointerCursor().disabled(key.publicKey.isEmpty)
+                                .accessibilityLabel(copied ? "公钥已复制" : "复制完整公钥")
+                            }
+                            Text(key.publicKey.isEmpty ? String(localized: "暂无可用公钥") : key.publicKey)
+                                .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.text)
+                                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
+                            Text("将完整公钥添加到服务器的 ~/.ssh/authorized_keys，即可授权对应私钥登录。")
+                                .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if let deletionError {
+                            KeySheetNotice(success: false, title: "未能删除密钥", detail: deletionError)
+                                .id("deletion-error")
+                        }
                     }
+                    .padding(20).frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+                .onChange(of: deletionError) {
+                    if deletionError != nil { proxy.scrollTo("deletion-error", anchor: .top) }
+                }
             }
-
-            Divider().overlay(Pal.fill(0.06))
-            HStack {
-                Button {
-                    model.deleteKey(key); dismiss()
-                } label: {
-                    Text("删除").font(.system(size: 13, weight: .medium)).foregroundStyle(Pal.red)
-                        .padding(.horizontal, 16).padding(.vertical, 7)
-                        .background(Pal.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-                        .contentShape(Rectangle())
+            KeySheetFooter {
+                Button { confirmDelete = true } label: {
+                    Image(systemName: "trash").frame(width: 20)
                 }
-                .buttonStyle(.plain).pointerCursor()
-                Spacer()
-                Button { dismiss() } label: {
-                    Text("关闭").font(.system(size: 13)).foregroundStyle(Pal.subtext)
-                        .padding(.horizontal, 16).padding(.vertical, 7)
-                        .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 8))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).pointerCursor()
+                .buttonStyle(KeySheetButtonStyle(destructive: true))
+                .help("删除密钥…").accessibilityLabel("删除密钥，需要确认")
+                Spacer(minLength: 4)
+                Button("关闭") { dismiss() }
+                    .buttonStyle(KeySheetButtonStyle()).keyboardShortcut(.cancelAction)
+                Button("部署公钥…") { showDeploy = true }
+                    .buttonStyle(KeySheetButtonStyle(primary: true))
+                    .disabled(key.publicKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .padding(.horizontal, 18).padding(.vertical, 12)
         }
-        .frame(width: 480, height: 440)
+        .frame(minWidth: 340, idealWidth: 500, maxWidth: 620, minHeight: 360, idealHeight: 580, maxHeight: 700)
         .background(Pal.solidBase)
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .sheet(isPresented: $showDeploy) { KeyDeploySheet(model: model, key: key) }
+        .alert("删除这把密钥？", isPresented: $confirmDelete) {
+            Button("取消", role: .cancel) { }
+            Button("删除密钥", role: .destructive) {
+                if model.deleteKey(key) { dismiss() }
+                else {
+                    deletionError = model.keyOpError ?? String(localized: "密钥未能删除，请重试。")
+                    model.keyOpError = nil
+                }
+            }
+        } message: {
+            Text("将从此设备的密钥库删除“\(key.name)”及其私钥。使用它的主机需要重新选择登录凭据，服务器上的公钥不会被移除。此操作无法撤销。")
+        }
+        .onDisappear { copyResetTask?.cancel() }
     }
 
-    private func info(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .top) {
-            Text(label).font(.system(size: 12)).foregroundStyle(Pal.subtext).frame(width: 64, alignment: .leading)
-            Text(value).font(.system(size: 12)).foregroundStyle(Pal.text)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
+    private func copyPublicKey() {
+        model.copyPublicKey(key)
+        copied = true
+        copyResetTask?.cancel()
+        copyResetTask = Task { @MainActor in
+            do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            copied = false
         }
     }
 
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd HH:mm"
-        return f
-    }()
+    private func info(_ label: LocalizedStringKey, _ value: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Text(label).font(.system(size: 12)).foregroundStyle(Pal.subtext).frame(width: 64, alignment: .leading)
+            Text(value).font(.system(size: 12)).foregroundStyle(Pal.text)
+                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
 }
 
-
-/// 公钥部署到指定服务器：用该主机已保存的凭据连接，把公钥幂等追加到 ~/.ssh/authorized_keys
-/// （grep -qxF 去重，重复部署不产生多余行）；可选同时设为该主机的登录密钥（写 ssh.keyId）。
+/// 使用目标主机已保存的凭据部署公钥；执行期间固定目标与选项。
 struct KeyDeploySheet: View {
     @ObservedObject var model: AppModel
     let key: SSHKey
@@ -193,113 +232,234 @@ struct KeyDeploySheet: View {
     @State private var hostId = ""
     @State private var setAsLoginKey = true
     @State private var busy = false
-    @State private var result: (ok: Bool, text: String)? = nil
+    @State private var result: (ok: Bool, text: String)?
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
-                Image(systemName: "arrow.up.to.line").font(.system(size: 13)).foregroundStyle(Pal.mauve)
-                Text("部署公钥到服务器").font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.text)
-                Spacer()
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("公钥").font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                Text(key.publicKey)
-                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(Pal.text)
-                    .lineLimit(2).truncationMode(.middle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .background(Pal.crust, in: RoundedRectangle(cornerRadius: 7))
-                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Pal.border, lineWidth: 1))
-            }
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text("目标主机（使用该主机已保存的凭据连接）").font(.system(size: 12)).foregroundStyle(Pal.text)
-                if model.hosts.isEmpty {
-                    Text("暂无主机，请先在主机列表添加").font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                } else {
-                    Picker("", selection: $hostId) {
-                        ForEach(model.hosts) { h in
-                            Text("\(h.name) · \(h.ipOrHost)").tag(h.id).font(.system(size: 12))
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 260, alignment: .leading)
-                }
-            }
-
-            HStack(spacing: 6) {
-                ThemedToggle(isOn: $setAsLoginKey)
-                Text("部署后设为该主机的登录密钥").font(.system(size: 12)).foregroundStyle(Pal.text)
-            }
-
-            if let r = result {
-                Text(r.text)
-                    .font(.system(size: 11)).foregroundStyle(r.ok ? Pal.green : Pal.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            HStack {
-                Spacer()
-                Button { dismiss() } label: {
-                    Text("取消").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
-                        .padding(.horizontal, 14).padding(.vertical, 7)
-                        .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 7))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).pointerCursor()
-
-                Button(action: deploy) {
-                    HStack(spacing: 5) {
-                        if busy { ProgressView().controlSize(.mini) }
-                        Text(busy ? "部署中…" : "部署").font(.system(size: 12, weight: .medium))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16).padding(.vertical, 7)
-                    .background(Pal.mauve, in: RoundedRectangle(cornerRadius: 7))
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).pointerCursor()
-                .disabled(busy || hostId.isEmpty)
-            }
-        }
-        .padding(18)
-        .frame(width: 440)
-        .background(Pal.solidBase, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Pal.border, lineWidth: 1))
-        .preferredColorScheme(theme.isDark ? .dark : .light)
-        .onAppear { hostId = model.hosts.first?.id ?? "" }
+    private var eligibleHosts: [Host] { model.hosts.filter { $0.ssh != nil } }
+    private var selectedHost: Host? { eligibleHosts.first { $0.id == hostId } }
+    private var canDeploy: Bool {
+        !busy && selectedHost != nil && !key.publicKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && result?.ok != true
     }
 
-    /// 幂等部署命令：建目录/权限 → 去重追加；公钥单引号包裹（防御性转义 '）
+    var body: some View {
+        VStack(spacing: 0) {
+            KeySheetHeader(title: "部署公钥", subtitle: "将公钥添加到所选主机，授权密钥登录", symbol: "arrow.up.to.line")
+            Divider().overlay(Pal.border)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text(key.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Pal.text)
+                            Text(key.type.label).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                            Text(key.fingerprint.isEmpty ? String(localized: "暂无指纹") : key.fingerprint)
+                                .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
+                                .textSelection(.enabled)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12).background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
+
+                        KeyFormField(title: "目标主机", hint: "必选 · 使用该主机已保存的 SSH 登录凭据连接") {
+                            if eligibleHosts.isEmpty {
+                                KeySheetNote(symbol: "server.rack", text: "暂无可用的 SSH 主机，请先添加并配置主机连接。")
+                            } else {
+                                ThemedDropdown(options: [(value: "", verbatim: String(localized: "选择目标主机"))] + eligibleHosts.map {
+                                    (value: $0.id, verbatim: "\($0.name) · \($0.ipOrHost)")
+                                }, selection: $hostId)
+                                .disabled(busy).accessibilityLabel("部署目标主机")
+                                if let host = selectedHost, let ssh = host.ssh {
+                                    Text("\(host.name)\n\(ssh.user)@\(host.ipOrHost):\(ssh.port)")
+                                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
+                                        .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+
+                        Toggle(isOn: $setAsLoginKey) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("设为该主机的登录密钥").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
+                                Text("仅在部署成功后更新主机配置，下一次连接生效。")
+                                    .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .toggleStyle(.checkbox).tint(Pal.mauve).disabled(busy || eligibleHosts.isEmpty)
+                        if setAsLoginKey && key.hasPassphrase {
+                            KeySheetNote(symbol: "lock", text: "这把私钥设有口令。部署后请在主机的连接设置中填写私钥口令，再连接验证。")
+                        }
+                        KeySheetNote(symbol: "info.circle", text: "仅添加公钥，不上传私钥。服务器现有的授权公钥会保留；部署后仍需实际连接验证登录。")
+                        if let result {
+                            KeySheetNotice(success: result.ok, title: result.ok ? "公钥已部署" : "部署未完成", detail: result.text)
+                                .id("deploy-result")
+                        }
+                    }
+                    .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .onChange(of: result?.text) {
+                    if result != nil { proxy.scrollTo("deploy-result", anchor: .top) }
+                }
+            }
+            if busy {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.mini)
+                    Text("正在连接并部署，请等待结果…").font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                    Spacer()
+                }
+                .padding(.horizontal, 20).padding(.vertical, 10)
+            }
+            KeySheetFooter {
+                Spacer()
+                Button(result?.ok == true ? "完成" : "关闭") { dismiss() }
+                    .buttonStyle(KeySheetButtonStyle())
+                    .keyboardShortcut(.cancelAction).disabled(busy)
+                    .help(busy ? "部署完成后可关闭" : "关闭部署窗口")
+                Button(result?.ok == true ? "已部署" : result == nil ? "部署公钥" : "重试部署", action: deploy)
+                    .buttonStyle(KeySheetButtonStyle(primary: true)).disabled(!canDeploy)
+            }
+        }
+        .frame(minWidth: 340, idealWidth: 480, maxWidth: 600, minHeight: 360, idealHeight: 570, maxHeight: 700)
+        .background(Pal.solidBase)
+        .preferredColorScheme(theme.isDark ? .dark : .light)
+        .interactiveDismissDisabled(busy)
+        .onAppear {
+            if let currentHostId = model.workspaceContext.hostId, eligibleHosts.contains(where: { $0.id == currentHostId }) {
+                hostId = currentHostId
+            }
+        }
+        .onChange(of: hostId) { if !busy { result = nil } }
+        .onChange(of: setAsLoginKey) { if !busy { result = nil } }
+    }
+
+    /// 建目录与权限成功后才执行去重追加；公钥内容作为单引号参数。
     private var deployCommand: String {
         let pk = key.publicKey.replacingOccurrences(of: "'", with: "'\\''")
         return "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && " +
-            "chmod 600 ~/.ssh/authorized_keys && grep -qxF '\(pk)' ~/.ssh/authorized_keys 2>/dev/null " +
-            "|| printf '%s\\n' '\(pk)' >> ~/.ssh/authorized_keys"
+            "chmod 600 ~/.ssh/authorized_keys && (grep -qxF '\(pk)' ~/.ssh/authorized_keys 2>/dev/null " +
+            "|| printf '%s\\n' '\(pk)' >> ~/.ssh/authorized_keys)"
     }
 
     private func deploy() {
-        guard let host = model.hosts.first(where: { $0.id == hostId }) else { return }
+        guard canDeploy, let host = selectedHost, let ssh = host.ssh else { return }
         busy = true
         result = nil
-        let ssh = host.ssh ?? SSHConnection()
         let cmd = deployCommand
         let setKey = setAsLoginKey
         Task {
-            let r = await RemoteFS(ssh).run(cmd, timeout: 30)
+            let response = await RemoteFS(ssh).run(cmd, timeout: 30)
             await MainActor.run {
                 busy = false
-                if r.code == 0 {
-                    if setKey { model.associateKey(key.id, hostId: host.id) }
-                    result = (true, String(localized: "已部署到 \(host.name)，该主机现可用此密钥登录"))
+                if response.code == 0 {
+                    if setKey && !model.associateKey(key.id, hostId: host.id) {
+                        let error = model.keyOpError ?? String(localized: "登录密钥配置未能保存。")
+                        model.keyOpError = nil
+                        result = (false, String(localized: "公钥已添加到 \(host.name)，但本机登录配置未保存：\(error)"))
+                        return
+                    }
+                    let detail = setKey
+                        ? String(localized: "已添加到 \(host.name) 的 authorized_keys，并设为该主机的登录密钥。")
+                        : String(localized: "已添加到 \(host.name) 的 authorized_keys，登录配置未更改。")
+                    result = (true, detail + (setKey && key.hasPassphrase ? String(localized: "\n请在该主机的连接设置中填写私钥口令后再连接。") : ""))
                 } else {
-                    let err = String(decoding: r.stderr, as: UTF8.self)
-                    let out = String(decoding: r.data, as: UTF8.self)
-                    result = (false, "失败（exit \(r.code)）：\(err.isEmpty ? out : err)")
+                    let err = String(decoding: response.stderr, as: UTF8.self)
+                    let out = String(decoding: response.data, as: UTF8.self)
+                    let detail = (err.isEmpty ? out : err).trimmingCharacters(in: .whitespacesAndNewlines)
+                    result = (false, String(localized: "目标：\(host.name)\n退出状态：\(response.code)\n\(detail.isEmpty ? String(localized: "服务器未返回错误说明，请检查连接凭据和远端权限。") : detail)"))
                 }
             }
         }
+    }
+}
+
+private struct KeySheetHeader: View {
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+    let symbol: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 18)).foregroundStyle(Pal.mauve)
+                .frame(width: 38, height: 38)
+                .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title).font(.system(size: 17, weight: .semibold)).foregroundStyle(Pal.textBright)
+                Text(subtitle).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(20)
+    }
+}
+
+private struct KeyFormField<Content: View>: View {
+    let title: LocalizedStringKey
+    let hint: LocalizedStringKey
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.text)
+            content
+            Text(hint).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct KeySheetNote: View {
+    let symbol: String
+    let text: LocalizedStringKey
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: symbol).font(.system(size: 12)).foregroundStyle(Pal.overlay)
+            Text(text).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct KeySheetNotice: View {
+    let success: Bool
+    let title: LocalizedStringKey
+    let detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Label(title, systemImage: success ? "checkmark.circle.fill" : "exclamationmark.circle")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(success ? Pal.green : Pal.red)
+            Text(detail).font(.system(size: 11)).foregroundStyle(Pal.text)
+                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background((success ? Pal.green : Pal.red).opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct KeySheetFooter<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider().overlay(Pal.border)
+            HStack(spacing: 8) { content }.padding(.horizontal, 20).padding(.vertical, 14)
+        }
+    }
+}
+
+private struct KeySheetButtonStyle: ButtonStyle {
+    var primary = false
+    var destructive = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(primary ? Color.white : destructive ? Pal.red : Pal.text)
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .background(primary ? Pal.mauve : destructive ? Pal.red.opacity(0.08) : Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 8))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.45)
+            .contentShape(Rectangle()).pointerCursor(isEnabled)
     }
 }

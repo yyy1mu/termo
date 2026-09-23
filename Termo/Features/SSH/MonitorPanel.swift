@@ -1,306 +1,577 @@
 import SwiftUI
 
-/// 主机概览的实时监控面板（macOS 原生风格）：CPU 每核热力方块、内存、GPU 卡片阵列、多磁盘、网络与运行时长。
-/// 数据来自 [[HostMonitor]] 的流式采样；分区按数据自适应，无 GPU 时隐藏该区，核多则热力方块自动换行。
+/// 同一套采样数据，两种展示密度：主机工作台突出可读性，伴随面板采用紧凑布局。
 struct MonitorPanel: View {
-    @ObservedObject var monitor: HostMonitor
-    @ObservedObject private var theme = ThemeManager.shared
-    @ObservedObject private var settings = AppSettings.shared
+    enum Presentation { case overview, companion }
 
-    // Apple 系统强调色：蓝（磁盘/上行）、绿（CPU/下行）、紫（GPU/交换）。
-    private static let blue = Color(hex: 0x007AFF)
-    private static let green = Color(hex: 0x28CD41)
-    private static let purple = Color(hex: 0xAF52DE)
+    @ObservedObject var monitor: HostMonitor
+    var presentation: Presentation = .companion
+    var onVerifyHost: (() -> Void)? = nil
+    @ObservedObject private var theme = ThemeManager.shared
+    @State private var showsPerCore = false
+    @State private var selectedInterface = ""  // 空值为全部网卡
+
+    private var overview: Bool { presentation == .overview }
+    private var gap: CGFloat { overview ? 14 : 10 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
-                Text("监控").font(.system(size: 12)).foregroundStyle(Pal.overlay)
-                Circle().fill(monitor.phase == .live ? Self.green : Pal.overlay).frame(width: 6, height: 6)
+        VStack(alignment: .leading, spacing: gap) {
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    monitorStatus
+                    Spacer(minLength: 12)
+                    if let m = monitor.metrics { uptime(m) }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    monitorStatus
+                    if let m = monitor.metrics { uptime(m) }
+                }
             }
-            content
+            if let message = monitor.errorMessage {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(message, systemImage: monitor.trustBlocked ? "exclamationmark.shield" : "exclamationmark.triangle")
+                        .font(.system(size: 11)).foregroundStyle(Pal.yellow)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if monitor.trustBlocked, let onVerifyHost {
+                        Button("核对主机指纹", action: onVerifyHost)
+                            .buttonStyle(.bordered).tint(Pal.mauve)
+                    }
+                }
+                .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                .background(Pal.yellow.opacity(0.08), in: RoundedRectangle(cornerRadius: 9))
+            }
+            if monitor.phase == .live, let fingerprint = monitor.verifiedFingerprint {
+                DisclosureGroup {
+                    Text(fingerprint).font(.system(size: 10, design: .monospaced))
+                        .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                } label: {
+                    Label("主机指纹已核对", systemImage: "checkmark.shield")
+                }
+                .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+            }
+            if let m = monitor.metrics {
+                if monitor.phase != .live {
+                    Label("显示上次采样，数据尚未更新。", systemImage: "clock.arrow.circlepath")
+                        .font(.system(size: 11)).foregroundStyle(Pal.yellow)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                computeSection(m)
+                gpuSection(m)
+                if overview && !m.disks.isEmpty {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .top, spacing: gap) {
+                            diskSection(m.disks).frame(minWidth: 280)
+                            networkSection(m).frame(minWidth: 300)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        VStack(spacing: gap) {
+                            diskSection(m.disks)
+                            networkSection(m)
+                        }
+                    }
+                } else {
+                    diskSection(m.disks)
+                    networkSection(m)
+                }
+            } else if monitor.errorMessage == nil {
+                emptyState
+            }
+        }
+        .onChange(of: ObjectIdentifier(monitor)) { _, _ in selectedInterface = "" }
+    }
+
+    private var monitorStatus: some View {
+        HStack(spacing: 7) {
+            if overview {
+                Text("资源监控").font(.system(size: 13, weight: .semibold)).foregroundStyle(Pal.text)
+            }
+            Circle().fill(monitor.phase == .live ? Pal.green : Pal.yellow).frame(width: 5, height: 5)
+            Text(statusText).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var statusText: String {
+        switch monitor.phase {
+        case .live: return String(localized: "实时采集中")
+        case .connecting:
+            return monitor.metrics == nil ? String(localized: "连接中") : String(localized: "重连中 · 上次数据")
+        case .error:
+            return monitor.trustBlocked ? String(localized: "主机验证未通过") : String(localized: "连接中断")
+        case .unsupported: return String(localized: "暂不支持")
+        }
+    }
+
+    private func uptime(_ m: HostMetrics) -> some View {
+        Label(uptimeText(m.uptimeSecs), systemImage: "clock")
+            .font(.system(size: 10)).monospacedDigit().foregroundStyle(Pal.subtext)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var emptyState: some View {
+        card {
+            HStack(spacing: 10) {
+                if monitor.phase == .unsupported {
+                    Image(systemName: "waveform.path.ecg").foregroundStyle(Pal.overlay)
+                } else if monitor.phase == .error {
+                    Image(systemName: "wifi.slash").foregroundStyle(Pal.yellow)
+                } else {
+                    ProgressView().controlSize(.small)
+                }
+                Text(
+                    monitor.phase == .unsupported
+                        ? "该系统暂不支持实时监控"
+                        : monitor.phase == .error
+                            ? "暂时无法获取监控数据，网络恢复后会自动重试。"
+                            : "正在获取 CPU、内存与网络数据…"
+                )
+                .font(.system(size: 12)).foregroundStyle(Pal.subtext)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 12)
         }
     }
 
     @ViewBuilder
-    private var content: some View {
-        if let m = monitor.metrics {
-            computeSection(m)
-            if !m.gpus.isEmpty { gpuSection(m.gpus) }
-            if !m.disks.isEmpty { diskSection(m.disks) }
-            networkSection(m)
-        } else if monitor.phase == .unsupported {
-            Text("该系统暂不支持实时监控")
-                .font(.system(size: 13)).foregroundStyle(Pal.overlay).padding(.vertical, 6)
-        } else {
-            HStack(spacing: 7) {
-                ProgressView().controlSize(.small)
-                Text(monitor.phase == .error ? "监控连接中断，正在重试…" : "正在建立监控…")
-                    .font(.system(size: 12)).foregroundStyle(Pal.overlay)
-            }
-            .padding(.vertical, 6)
-        }
-    }
-
-    // MARK: 各区
-
-    /// 处理器与内存合并单卡：CPU/内存/交换同规格圆环并排（消除两卡高矮不一与空白），
-    /// 每核热力图横贯卡内全宽，负载值右对齐。
     private func computeSection(_ m: HostMetrics) -> some View {
-        section("cpu", String(localized: "处理器与内存")) {
-            card {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 20) {
-                        ringCell(name: "CPU", percent: m.cpuPercent ?? 0,
-                                 detail: m.perCore.isEmpty ? "—" : "\(m.perCore.count) 核",
-                                 color: Self.green)
-                        ringCell(name: String(localized: "内存"),
-                                 percent: m.memTotalKB > 0 ? m.memPercent : 0,
-                                 detail: "\(human(m.memUsedKB))/\(human(m.memTotalKB))",
-                                 color: Self.blue)
-                        if m.hasSwap {
-                            ringCell(name: String(localized: "交换"), percent: m.swapPercent,
-                                     detail: "\(human(m.swapUsedKB))/\(human(m.swapTotalKB))",
-                                     color: Self.purple)
-                        }
-                        Spacer(minLength: 0)
-                        plainNum(String(format: String(localized: "负载 %.2f / %.2f / %.2f"),
-                                        m.load1, m.load5, m.load15),
-                                 size: 10, design: .monospaced, color: Pal.overlay)
-                            .lineLimit(1)
+        if !overview {
+            compactComputeSection(m)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: gap) {
+                    cpuCard(m).frame(minWidth: 175)
+                    memoryCard(m).frame(minWidth: 190)
+                    loadCard(m).frame(minWidth: 170)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                VStack(spacing: gap) {
+                    HStack(alignment: .top, spacing: gap) {
+                        cpuCard(m).frame(minWidth: 175)
+                        memoryCard(m).frame(minWidth: 190)
                     }
-                    if m.perCore.isEmpty {
-                        Text("采样中…").font(.system(size: 10)).foregroundStyle(Pal.overlay)
-                    } else {
-                        heatmap(m.perCore)
-                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    loadCard(m)
+                }
+                VStack(spacing: gap) {
+                    cpuCard(m)
+                    memoryCard(m)
+                    loadCard(m)
                 }
             }
         }
     }
 
-    /// 每核占用热力方块：原生方块视图网格，按可用宽度自动换行（每格 10pt、间距 3pt）、自动定高。
-    /// 矢量图层、无位图绘制层开销；热力图随采样帧更新颜色，无持续动画。
-    private func heatmap(_ cores: [Double]) -> some View {
-        let cell: CGFloat = 8, gap: CGFloat = 2
-        return LazyVGrid(columns: [GridItem(.adaptive(minimum: cell, maximum: cell), spacing: gap)],
-                         alignment: .leading, spacing: gap) {
-            ForEach(Array(cores.enumerated()), id: \.offset) { _, load in
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(heatColor(load))
-                    .frame(width: cell, height: cell)
+    private func compactComputeSection(_ m: HostMetrics) -> some View {
+        card {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 18) {
+                    VStack(spacing: 8) {
+                        Label("CPU", systemImage: "cpu")
+                            .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.subtext)
+                        ring(m.cpuPercent, color: Pal.green, size: 72)
+                    }
+                    .frame(maxWidth: .infinity)
+                    VStack(spacing: 8) {
+                        Label("内存", systemImage: "memorychip")
+                            .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.subtext)
+                        ring(m.memTotalKB > 0 ? m.memPercent : nil, color: Pal.mauve, size: 72)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                detailText(
+                    m.memTotalKB > 0
+                        ? String(localized: "内存已用 \(human(m.memUsedKB)) / \(human(m.memTotalKB))")
+                        : String(localized: "内存容量暂不可用"))
+                if m.hasSwap {
+                    detailText(String(localized: "交换 \(Int(m.swapPercent))% · \(human(m.swapUsedKB)) / \(human(m.swapTotalKB))"))
+                }
+                if !m.perCore.isEmpty {
+                    Button {
+                        showsPerCore.toggle()
+                    } label: {
+                        HStack {
+                            Text("每核使用率")
+                            Spacer()
+                            Text("\(m.perCore.count) 核").monospacedDigit()
+                            Image(systemName: showsPerCore ? "chevron.up" : "chevron.down")
+                        }
+                        .font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.subtext)
+                        .padding(.vertical, 5).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain).pointerCursor()
+                    .accessibilityLabel("每核使用率")
+                    .accessibilityValue(showsPerCore ? "已展开" : "已收起")
+                    if showsPerCore { coreGrid(m.perCore) }
+                } else if m.cpuPercent == nil {
+                    detailText(String(localized: "CPU 使用率需要两次采样，正在等待。"))
+                }
+                Divider().overlay(Pal.border)
+                cardTitle("chart.bar.xaxis", "系统负载")
+                loadValues(m)
             }
         }
     }
 
-    /// 负载 → 冷暖色：HSB 色相从绿（0.33）过渡到红（0）。
-    /// 用 t² 曲线让低/中负载维持沉静绿、暖色集中到高负载，减少中段一片黄绿/橄榄色的浑浊感。
-    /// 浅色模式降亮提饱和，得到更深的色，在浅底卡片上保持对比。
-    private func heatColor(_ load: Double) -> Color {
-        let t = min(1, max(0, load / 100))
-        let warm = t * t
-        let hue = 0.33 * (1 - warm)
-        // 降明度 + 降饱和，得到柔和的雾面色，避免深色模式下高亮绿刺眼。
-        return theme.isDark
-            ? Color(hue: hue, saturation: 0.58, brightness: 0.76)
-            : Color(hue: hue, saturation: 0.78, brightness: 0.66)
+    private func coreGrid(_ cores: [Double]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 43), spacing: 6)], spacing: 6) {
+            ForEach(cores.indices, id: \.self) { core in
+                VStack(spacing: 3) {
+                    Text("\(Int(cores[core]))%")
+                        .font(.system(size: 11, weight: .medium)).monospacedDigit().foregroundStyle(Pal.text)
+                    Text("#\(core + 1)").font(.system(size: 10)).foregroundStyle(Pal.subtext)
+                }
+                .frame(maxWidth: .infinity).padding(.vertical, 5)
+                .background((cores[core] >= 90 ? Pal.red : Pal.green).opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(String(localized: "核心 \(core + 1)：\(Int(cores[core]))%"))
+            }
+        }
+    }
+
+    private func loadValues(_ m: HostMetrics) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                loadValue(m.load1, period: "1 分钟")
+                loadValue(m.load5, period: "5 分钟")
+                loadValue(m.load15, period: "15 分钟")
+            }
+            VStack(spacing: 8) {
+                loadLine(m.load1, period: "1 分钟")
+                loadLine(m.load5, period: "5 分钟")
+                loadLine(m.load15, period: "15 分钟")
+            }
+        }
+    }
+
+    private func loadLine(_ value: Double, period: LocalizedStringKey) -> some View {
+        HStack {
+            Text(period).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+            Spacer(minLength: 8)
+            Text(value, format: .number.precision(.fractionLength(2)))
+                .font(.system(size: 18, weight: .medium, design: .rounded))
+                .monospacedDigit().foregroundStyle(Pal.textBright)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
+    private func cpuCard(_ m: HostMetrics) -> some View {
+        card {
+            VStack(alignment: .leading, spacing: 10) {
+                cardTitle(
+                    "cpu", "CPU", detail: m.perCore.isEmpty ? "" : String(localized: "\(m.perCore.count) 核"))
+                ring(m.cpuPercent, color: Pal.green, size: overview ? 88 : 64)
+                if !m.perCore.isEmpty {
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("每核").font(.system(size: 10)).foregroundStyle(Pal.subtext)
+                        LazyVGrid(
+                            columns: [GridItem(.adaptive(minimum: 7, maximum: 7), spacing: 3)],
+                            alignment: .leading, spacing: 3
+                        ) {
+                            // CPU 索引就是该主机采样中稳定的核编号。
+                            ForEach(m.perCore.indices, id: \.self) { core in
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(Pal.green.opacity(0.2 + min(100, max(0, m.perCore[core])) / 125))
+                                    .frame(width: 7, height: 7)
+                                    .help(String(localized: "核心 \(core + 1)：\(Int(m.perCore[core]))%"))
+                            }
+                        }
+                        .padding(.top, 3)
+                    }
+                } else {
+                    detailText(String(localized: "等待下一次采样"))
+                }
+            }
+        }
+    }
+
+    private func memoryCard(_ m: HostMetrics) -> some View {
+        card {
+            VStack(alignment: .leading, spacing: 10) {
+                cardTitle("memorychip", "内存")
+                ring(m.memTotalKB > 0 ? m.memPercent : nil, color: Pal.mauve, size: overview ? 88 : 64)
+                detailText(
+                    m.memTotalKB > 0
+                        ? String(localized: "已用 \(human(m.memUsedKB)) / \(human(m.memTotalKB))") : "—")
+                if m.hasSwap {
+                    detailText(
+                        String(
+                            localized:
+                                "交换 \(Int(m.swapPercent))% · \(human(m.swapUsedKB)) / \(human(m.swapTotalKB))"
+                        ))
+                }
+            }
+        }
+    }
+
+    private func loadCard(_ m: HostMetrics) -> some View {
+        card {
+            VStack(alignment: .leading, spacing: 10) {
+                cardTitle("chart.bar.xaxis", "系统负载")
+                loadValues(m)
+                detailText(
+                    m.perCore.isEmpty
+                        ? String(localized: "运行与等待中的任务数")
+                        : String(localized: "\(m.perCore.count) 核 · 持续高于核数需关注"))
+            }
+        }
+    }
+
+    private func loadValue(_ value: Double, period: LocalizedStringKey) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(value, format: .number.precision(.fractionLength(2)))
+                .font(.system(size: overview ? 23 : 19, weight: .medium, design: .rounded))
+                .monospacedDigit().foregroundStyle(Pal.textBright)
+                .fixedSize(horizontal: true, vertical: false)
+            Text(period).font(.system(size: 10)).foregroundStyle(Pal.subtext)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func diskSection(_ disks: [DiskUsage]) -> some View {
-        section("internaldrive", String(localized: "存储卷")) {
-            card {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 68), spacing: 8)],
-                          alignment: .leading, spacing: 8) {
-                    ForEach(disks) { d in
-                        ringCell(name: d.mount, percent: d.percent,
-                                 detail: "\(human(d.usedKB))/\(human(d.totalKB))", color: Self.blue)
+        card {
+            VStack(alignment: .leading, spacing: 14) {
+                cardTitle("internaldrive", "存储卷", detail: String(localized: "\(disks.count) 个挂载点"))
+                if disks.isEmpty {
+                    detailText(String(localized: "未检测到可监控的存储卷"))
+                } else {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 18, alignment: .top)], alignment: .leading, spacing: 18) {
+                        ForEach(disks) { disk in
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text(disk.mount).font(.system(size: 12, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(Pal.text).textSelection(.enabled)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                HStack(spacing: 12) {
+                                    ring(disk.totalKB > 0 ? disk.percent : nil, color: Pal.mauve, size: 52)
+                                        .fixedSize()
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        detailText(disk.totalKB > 0 ? String(localized: "已用 \(human(disk.usedKB))") : String(localized: "已用 —"))
+                                        detailText(disk.totalKB > 0 ? String(localized: "总计 \(human(disk.totalKB))") : String(localized: "总计 —"))
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
                     }
                 }
             }
         }
     }
 
-    private func gpuSection(_ gpus: [GPUInfo]) -> some View {
-        section("bolt", String(localized: "图形处理器 (\(gpus.count))")) {
-            card {
-                // 每卡一行：多 GPU 服务器（8 卡等）一屏可展示，不再是大卡片阵列
-                VStack(spacing: 5) {
-                    ForEach(gpus) { g in gpuRow(g) }
+    private func gpuSection(_ m: HostMetrics) -> some View {
+        card {
+            VStack(alignment: .leading, spacing: 12) {
+                cardTitle("display", "GPU", detail: m.gpus.isEmpty ? String(localized: "未取得指标") : String(localized: "\(m.gpus.count) 张"))
+                if m.gpus.isEmpty {
+                    Label(gpuStatusText(m.gpuStatus), systemImage: "info.circle")
+                        .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    if m.gpuStatus != .available {
+                        detailText(gpuStatusText(m.gpuStatus))
+                    }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: overview ? 260 : 190), spacing: 10)], spacing: 10) {
+                        ForEach(m.gpus) { gpu in gpuMetrics(gpu) }
+                    }
                 }
             }
         }
     }
 
-    /// 单行 GPU：型号(截断) + 利用率/点阵 + 迷你条 + 温度 + 显存。
-    private func gpuRow(_ g: GPUInfo) -> some View {
-        HStack(spacing: 8) {
-            Text(g.name).font(.system(size: 9, weight: .medium)).foregroundStyle(Pal.subtext)
-                .lineLimit(1).truncationMode(.tail)
-                .padding(.horizontal, 5).padding(.vertical, 1)
-                .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 3))
-                .frame(width: 92, alignment: .leading)
-            // 利用率不可用（[N/A]，如 vGPU/MIG/WSL）显示「—」，不用 0% 冒充。
-            if let util = g.utilPercent {
-                num("\(Int(util))%", size: 11, weight: .bold, color: Pal.textBright)
-                    .frame(width: 34, alignment: .leading)
-                gpuDots(util)
-            } else {
-                num("—", size: 11, weight: .bold, color: Pal.textBright)
-                    .frame(width: 34, alignment: .leading)
+    private func gpuMetrics(_ gpu: GPUInfo) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(gpu.vendor) \(gpu.index) · \(gpu.name)")
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.text)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top, spacing: 6) {
+                VStack(spacing: 3) {
+                    ring(gpu.utilPercent, color: Pal.mauve, size: overview ? 76 : 62)
+                    detailText(String(localized: "GPU 使用率"))
+                }
+                VStack(spacing: 3) {
+                    ring(gpu.memPercent, color: Pal.yellow, size: overview ? 76 : 62)
+                    detailText(String(localized: "显存占用"))
+                }
             }
-            Spacer(minLength: 4)
-            num(g.tempC.map { "\($0)°" } ?? "—", size: 10, weight: .bold, color: Self.purple)
-                .frame(width: 32, alignment: .trailing)
-            plainNum(vramText(g), size: 9, design: .monospaced, color: Pal.overlay)
-                .frame(width: 96, alignment: .trailing)
-                .lineLimit(1)
-        }
-        .frame(height: 18)
-    }
-
-    /// 显存明细：已用/总量任一不可用（[N/A]）则该侧显示「—」。
-    private func vramText(_ g: GPUInfo) -> String {
-        let used = g.memUsedMB.map { gib($0) } ?? "—"
-        let total = g.memTotalMB.map { gib($0) } ?? "—"
-        return "\(used) / \(total) GiB"
-    }
-
-    /// GPU 迷你点阵：5×2 共 10 颗点，按利用率点亮前 N 颗（紫），其余灰。
-    private func gpuDots(_ util: Double) -> some View {
-        let lit = Int((min(100, max(0, util)) / 10).rounded())
-        return LazyVGrid(columns: Array(repeating: GridItem(.fixed(3), spacing: 2), count: 5), spacing: 2) {
-            ForEach(0..<10, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(i < lit ? Self.purple : Pal.fill(0.16))
-                    .frame(width: 3, height: 3)
+            detailText(gpuMemoryText(gpu))
+            if gpu.utilPercent == nil {
+                detailText(gpu.vendor == "Intel"
+                    ? String(localized: "此驱动未提供可读取的 GPU 使用率")
+                    : String(localized: "驱动未返回 GPU 使用率"))
+            }
+            HStack(spacing: 8) {
+                if let temp = gpu.tempC { detailText(String(localized: "温度 \(temp) °C")) }
+                if !gpu.source.isEmpty { detailText(gpu.source) }
             }
         }
-        .frame(width: 19)
-        .animation(.easeOut(duration: 0.3), value: lit)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(10)
+        .background(Pal.fill(0.035), in: RoundedRectangle(cornerRadius: 9))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func gpuStatusText(_ status: GPUCollectionStatus) -> String {
+        switch status {
+        case .available: return String(localized: "已连接 GPU 指标源")
+        case .noDevice: return String(localized: "远端未检测到可读取的 GPU；请检查驱动和设备是否对 SSH 用户可见。")
+        case .toolMissing: return String(localized: "检测到 NVIDIA 设备，但远端未找到 nvidia-smi。请检查驱动工具安装。")
+        case .queryFailed: return String(localized: "GPU 查询失败；请在该主机终端运行 nvidia-smi 检查驱动状态和权限。")
+        case .deviceUnavailable: return String(localized: "远端没有可读取的 DRM 设备目录；容器或权限设置可能隐藏了 GPU。")
+        }
+    }
+
+    private func gpuMemoryText(_ gpu: GPUInfo) -> String {
+        if let used = gpu.memUsedMB, let total = gpu.memTotalMB, total > 0 {
+            return String(localized: "显存 \(human(used * 1024)) / \(human(total * 1024))")
+        }
+        return gpu.vendor == "Intel" ? String(localized: "共享显存指标不可用") : String(localized: "显存指标不可用")
     }
 
     private func networkSection(_ m: HostMetrics) -> some View {
-        section("network", String(localized: "网络")) {
-            VStack(spacing: 6) {
-                card {
-                    GeometryReader { geo in
-                        // 上下行整体定宽（数字定宽防抖），图表占其余弹性宽度——故图表宽度不随速率文字变化而抖动，
-                        // 且窄卡片时由图表先收缩。卡片过窄时上下行改纵向堆叠，避免速率数据溢出卡片右缘。
-                        let stacked = geo.size.width < 300
-                        HStack(spacing: 12) {
-                            NetSparkline(samples: monitor.netHistory, tick: monitor.netTick,
-                                         interval: monitor.sampleInterval, down: Self.green, up: Self.blue)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: geo.size.height)
-                            netStats(m, stacked: stacked).fixedSize()
-                        }
-                        .clipped()
+        let selected = m.interfaces.first { $0.name == selectedInterface }
+        let rx = selected == nil ? m.netRxBytesPerSec : selected?.rxBytesPerSec
+        let tx = selected == nil ? m.netTxBytesPerSec : selected?.txBytesPerSec
+        let history = selected.map { monitor.netHistoryByInterface[$0.name] ?? [] } ?? monitor.netHistory
+        return card {
+            VStack(alignment: .leading, spacing: 12) {
+                cardTitle("network", "网络吞吐", detail: String(localized: "\(m.interfaces.count) 张网卡"))
+                if m.interfaces.count > 1 {
+                    ThemedDropdown(
+                        options: [(value: "", verbatim: String(localized: "全部网卡"))]
+                            + m.interfaces.map { (value: $0.name, verbatim: $0.name) },
+                        selection: $selectedInterface
+                    )
+                    .accessibilityLabel("查看网卡速率")
+                    if selected == nil {
+                        detailText(String(localized: "各网卡速率相加；如有桥接或虚拟网卡，流量可能重复。"))
                     }
-                    .frame(height: 28)
+                } else if let only = m.interfaces.first {
+                    detailText(only.name)
+                } else {
+                    detailText(String(localized: "未检测到可读取的非回环网卡"))
                 }
-                // 运行时长脱离卡片，居中置于网络卡片下方。
-                Text(uptimeText(m.uptimeSecs))
-                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(Pal.overlay)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 16) {
+                        networkRate("接收", symbol: "arrow.down", value: rx, color: Pal.green)
+                        networkRate("发送", symbol: "arrow.up", value: tx, color: Pal.yellow)
+                    }
+                    VStack(spacing: 10) {
+                        networkRateLine("接收", symbol: "arrow.down", value: rx, color: Pal.green)
+                        networkRateLine("发送", symbol: "arrow.up", value: tx, color: Pal.yellow)
+                    }
+                }
+                VStack(spacing: 5) {
+                    if history.count > 1 {
+                        HStack {
+                            Text(rate(history.suffix(40).flatMap { [$0.rx, $0.tx] }.max()))
+                            Spacer()
+                        }
+                        .font(.system(size: 11)).monospacedDigit().foregroundStyle(Pal.overlay)
+                    }
+                    NetSparkline(samples: history, down: Pal.green, up: Pal.yellow)
+                        .frame(height: overview ? 68 : 36)
+                    if history.count > 1 {
+                        HStack {
+                            Text("最近 \(Int(Double(min(history.count, 40) - 1) * monitor.sampleInterval)) 秒")
+                            Spacer()
+                            Text(monitor.phase == .live ? "现在" : "最后采样")
+                        }
+                        .font(.system(size: 11)).foregroundStyle(Pal.overlay)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("网络收发速率历史")
+            }
+        }
+        .onChange(of: m.interfaces.map(\.name)) { _, names in
+            if !selectedInterface.isEmpty && !names.contains(selectedInterface) { selectedInterface = "" }
+        }
+    }
+
+    private func networkRate(
+        _ label: LocalizedStringKey, symbol: String, value: Double?, color: Color
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(label, systemImage: symbol).font(.system(size: 10)).foregroundStyle(color)
+            Text(rate(value)).font(.system(size: overview ? 19 : 15, weight: .medium, design: .rounded))
+                .monospacedDigit().foregroundStyle(Pal.textBright)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func networkRateLine(
+        _ label: LocalizedStringKey, symbol: String, value: Double?, color: Color
+    ) -> some View {
+        HStack(spacing: 8) {
+            Label(label, systemImage: symbol).font(.system(size: 11)).foregroundStyle(color)
+            Spacer(minLength: 4)
+            Text(rate(value)).font(.system(size: 15, weight: .medium, design: .rounded))
+                .monospacedDigit().foregroundStyle(Pal.textBright)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
+    private func cardTitle(_ icon: String, _ title: LocalizedStringKey, detail: String = "") -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Label(title, systemImage: icon).font(.system(size: 11, weight: .medium)).foregroundStyle(
+                Pal.subtext)
+            Spacer(minLength: 4)
+            if !detail.isEmpty {
+                Text(detail).font(.system(size: 10)).foregroundStyle(Pal.overlay)
             }
         }
     }
 
-    /// 上下行速率：宽卡片横排、窄卡片纵向堆叠（配合 .fixedSize 整体定宽，杜绝溢出与图表抖动）。
-    @ViewBuilder
-    private func netStats(_ m: HostMetrics, stacked: Bool) -> some View {
-        let down = netStat("arrow.down", rate(m.netRxBytesPerSec), Self.green)
-        let up = netStat("arrow.up", rate(m.netTxBytesPerSec), Self.blue)
-        if stacked {
-            VStack(alignment: .leading, spacing: 3) { down; up }
-        } else {
-            HStack(spacing: 14) { down; up }
-        }
-    }
-
-    private func netStat(_ icon: String, _ value: String, _ color: Color) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon).font(.system(size: 11, weight: .bold)).foregroundStyle(color)
-            // 定宽防止速率位数变化时整体宽度跳动（进而带动弹性图表抖动）。
-            num(value, size: 11, weight: .semibold, color: Pal.text)
-                .frame(width: 66, alignment: .leading)
-        }
-    }
-
-    // MARK: 通用组件
-
-    /// 带小节标题（SF 图标 + 静音文字）的区块。
-    private func section<C: View>(_ icon: String, _ title: String, @ViewBuilder _ content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 6) {
-                Image(systemName: icon).font(.system(size: 9, weight: .semibold))
-                Text(title).font(.system(size: 10, weight: .semibold))
+    private func ring(_ value: Double?, color: Color, size: CGFloat) -> some View {
+        let tint = (value ?? 0) >= 90 ? Pal.red : color
+        return ZStack {
+            Circle().stroke(Pal.fill(0.09), lineWidth: size > 70 ? 7 : 5)
+            if let value {
+                Circle().trim(from: 0, to: min(100, max(0, value)) / 100)
+                    .stroke(tint, style: StrokeStyle(lineWidth: size > 70 ? 7 : 5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
             }
-            .foregroundStyle(Pal.overlay)
-            content()
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text(value.map { String(format: "%.0f", $0) } ?? "—")
+                    .font(.system(size: size * 0.29, weight: .semibold, design: .rounded))
+                    .monospacedDigit().foregroundStyle(Pal.textBright)
+                if value != nil {
+                    Text("%").font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                }
+            }
         }
+        .frame(width: size, height: size).padding(4)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(value.map { String(localized: "使用率 \(Int($0))%") } ?? String(localized: "暂无数据"))
     }
 
-    /// macOS 材质卡片。
+    private func meter(_ value: Double?, color: Color) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Pal.fill(0.09))
+                Capsule().fill((value ?? 0) >= 90 ? Pal.red : color)
+                    .frame(width: geo.size.width * CGFloat(min(100, max(0, value ?? 0))) / 100)
+            }
+        }
+        .frame(height: 5)
+        .accessibilityHidden(true)
+    }
+
+    private func detailText(_ text: String) -> some View {
+        Text(text).font(.system(size: 11)).monospacedDigit().foregroundStyle(Pal.subtext)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     private func card<C: View>(@ViewBuilder _ content: () -> C) -> some View {
         content()
-            .padding(9)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Pal.fill(0.045), in: RoundedRectangle(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Pal.fill(0.09), lineWidth: 0.5))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(overview ? 16 : 12)
+            .background(Pal.card, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Pal.border, lineWidth: 1))
     }
 
-    /// 圆环占用格：环形进度（% 居中）+ 名称 + 用量明细；≥90% 转红。内存/交换/磁盘共用。
-    private func ringCell(name: String, percent: Double, detail: String, color: Color) -> some View {
-        let critical = percent >= 90
-        let pct = min(100, max(0, percent))
-        return VStack(spacing: 3) {
-            ZStack {
-                Circle().stroke(Pal.fill(0.10), lineWidth: 4.5)
-                Circle()
-                    .trim(from: 0, to: CGFloat(pct) / 100)
-                    .stroke(critical ? Pal.red : color,
-                            style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeOut(duration: 0.45), value: pct)
-                Text("\(Int(pct))")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(critical ? Pal.red : Pal.text)
-            }
-            .frame(width: 40, height: 40)
-            Text(name).font(.system(size: 9, weight: .medium)).foregroundStyle(Pal.text)
-                .lineLimit(1).truncationMode(.middle)
-            Text(detail).font(.system(size: 8, design: .monospaced)).foregroundStyle(Pal.overlay)
-                .lineLimit(1)
-        }
-        .frame(width: 72)
-    }
-
-    /// 跳动数字：数值变化时数字像里程表般上滚顶替（contentTransition.numericText），等宽防宽度抖动。
-    /// 动画键取显示字符串本身，确保恰在内容变化时触发。
-    private func num(_ s: String, size: CGFloat, weight: Font.Weight = .regular,
-                     design: Font.Design = .rounded, color: Color) -> some View {
-        Text(s)
-            .font(.system(size: size, weight: weight, design: design))
-            .foregroundStyle(color)
-            .monospacedDigit()
-            .contentTransition(.numericText())
-            .animation(.spring(response: 0.3, dampingFraction: 0.85), value: s)
-    }
-
-    /// 次要数字：等宽对齐但不做滚动动画，省去 numericText 的逐字形开销（多个慢变数一起滚很费 CPU）。
-    private func plainNum(_ s: String, size: CGFloat, weight: Font.Weight = .regular,
-                          design: Font.Design = .rounded, color: Color) -> some View {
-        Text(s)
-            .font(.system(size: size, weight: weight, design: design))
-            .foregroundStyle(color)
-            .monospacedDigit()
-    }
-
-    // MARK: 格式化
-
-    /// kB（1K 块）按 1000 进制格式化，与概览规格行的单位风格一致。
     private func human(_ kb: Int64) -> String {
         let f = ByteCountFormatter()
         f.allowedUnits = [.useKB, .useMB, .useGB, .useTB]
@@ -308,95 +579,65 @@ struct MonitorPanel: View {
         return f.string(fromByteCount: kb * 1024)
     }
 
-    /// 显存 MiB → GiB（1 位小数），与 nvidia-smi 习惯一致。
-    private func gib(_ mb: Int64) -> String { String(format: "%.1f", Double(mb) / 1024) }
-
     private func rate(_ bps: Double?) -> String {
-        guard let bps else { return "—" }
-        let f = ByteCountFormatter()
-        f.allowedUnits = [.useKB, .useMB, .useGB]
-        f.countStyle = .decimal
-        return f.string(fromByteCount: Int64(bps)) + "/s"
+        guard let bps, bps.isFinite else { return "—" }
+        let units = ["B/s", "KB/s", "MB/s", "GB/s", "TB/s"]
+        var value = max(0, bps)
+        var unit = 0
+        while value >= 1000 && unit < units.count - 1 {
+            value /= 1000
+            unit += 1
+        }
+        return value.formatted(.number.precision(.fractionLength(0...1))) + " " + units[unit]
     }
 
     private func uptimeText(_ secs: Double) -> String {
-        let s = Int(secs)
-        let d = s / 86400, h = (s % 86400) / 3600, m = (s % 3600) / 60
-        if d > 0 { return String(localized: "运行 \(d)天 \(h)时 \(m)分") }
-        if h > 0 { return String(localized: "运行 \(h)时 \(m)分") }
-        return String(localized: "运行 \(m) 分")
+        let s = Int(max(0, secs))
+        let days = s / 86400, hours = (s % 86400) / 3600, minutes = (s % 3600) / 60
+        if days > 0 { return String(localized: "已运行 \(days) 天 \(hours) 小时") }
+        return String(localized: "已运行 \(hours) 小时 \(minutes) 分钟")
     }
 }
 
-/// 网络波动折线图：下行（绿）、上行（蓝）两条平滑曲线，传送带式匀速左滑。
-/// 两条曲线各用原生 Shape（矢量图层）描边 + TimelineView 限制重绘帧率，取代 Canvas 的位图绘制层（更省内存）。
-/// 滚动每 1~2 秒才左移约一格、速度极慢，20fps 肉眼丝滑。滚动相位 = 距上一帧采样的时间 / 采样间隔，时间驱动、平滑。
+/// 按实际收到的样本绘图，不用首值补满历史；采样更新才重绘，不持续刷新静止曲线。
 private struct NetSparkline: View {
     let samples: [NetSample]
-    let tick: Int
-    let interval: Double
     let down: Color
     let up: Color
-    @State private var lastTick: Date = .distantPast
-
-    private static let visible = 40
-    private static let fps = 20.0
-    private static let stroke = StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
 
     var body: some View {
-        // rx/tx/maxV 只随数据帧变化，TimelineView 重绘时复用（不每帧重算）。
-        let maxV = max(1, samples.flatMap { [$0.rx, $0.tx] }.max() ?? 1)
-        let rx = win(samples.map(\.rx), maxV)
-        let tx = win(samples.map(\.tx), maxV)
-        TimelineView(.animation(minimumInterval: 1.0 / Self.fps)) { tl in
-            let phase = phase(at: tl.date)
-            ZStack {
-                NetCurve(values: rx, phase: phase, visible: Self.visible).stroke(down.opacity(0.9), style: Self.stroke)
-                NetCurve(values: tx, phase: phase, visible: Self.visible).stroke(up.opacity(0.9), style: Self.stroke)
+        let visible = Array(samples.suffix(40))
+        let ceiling = max(1, visible.flatMap { [$0.rx, $0.tx] }.max() ?? 1)
+        ZStack {
+            VStack {
+                Rectangle().fill(Pal.border).frame(height: 1)
+                Spacer()
+                Rectangle().fill(Pal.border).frame(height: 1)
+                Spacer()
+                Rectangle().fill(Pal.border).frame(height: 1)
             }
-            .clipped()   // Shape 不像 Canvas 自动裁，需裁掉两侧的屏外点
+            if visible.count > 1 {
+                NetCurve(values: visible.map { $0.rx / ceiling }).stroke(down, lineWidth: 1.5)
+                NetCurve(values: visible.map { $0.tx / ceiling }).stroke(up, lineWidth: 1.5)
+            } else {
+                Text("等待网络采样…").font(.system(size: 11)).foregroundStyle(Pal.overlay)
+            }
         }
-        .onChange(of: tick) { _ in lastTick = Date() }
-    }
-
-    /// 滚动相位 0..1：距上一帧采样过去的比例；尚无采样时停在 1（静止到位）。
-    private func phase(at now: Date) -> CGFloat {
-        guard lastTick != .distantPast else { return 1 }
-        return CGFloat(min(1, max(0, now.timeIntervalSince(lastTick) / interval)))
-    }
-
-    /// 取最近 visible+2 个样本（两侧各留一个屏幕外点）、归一化到 0..1；不足时前端用首值补齐，保证点数恒定、平移无缝。
-    private func win(_ raw: [Double], _ maxV: Double) -> [Double] {
-        let n = Self.visible + 2
-        let norm = raw.map { min(1, max(0, $0 / maxV)) }
-        if norm.count >= n { return Array(norm.suffix(n)) }
-        return Array(repeating: norm.first ?? 0, count: n - norm.count) + norm
+        .clipped()
     }
 }
 
-/// 一条 Catmull-Rom 平滑折线（已归一化的点，count = visible+2）。
-/// 第 i 点画在 x=(i-phase)*step，随 phase 0→1 整条左移一格；两侧各留一个屏外点，接缝 [0,width] 连续、左右缘不弹动。
 private struct NetCurve: Shape {
     let values: [Double]
-    let phase: CGFloat
-    let visible: Int
 
     func path(in rect: CGRect) -> Path {
         guard values.count > 1 else { return Path() }
-        let step = rect.width / CGFloat(visible)
-        let pts = values.enumerated().map { i, y in
-            CGPoint(x: (CGFloat(i) - phase) * step, y: rect.height * (1 - CGFloat(min(1, max(0, y)))))
-        }
         var path = Path()
-        path.move(to: pts[0])
-        for i in 0..<pts.count - 1 {
-            let p0 = i > 0 ? pts[i - 1] : pts[i]
-            let p1 = pts[i]
-            let p2 = pts[i + 1]
-            let p3 = i + 2 < pts.count ? pts[i + 2] : p2
-            let c1 = CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6)
-            let c2 = CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6)
-            path.addCurve(to: p2, control1: c1, control2: c2)
+        for (index, value) in values.enumerated() {
+            let point = CGPoint(
+                x: rect.width * CGFloat(index) / CGFloat(values.count - 1),
+                y: rect.height * (1 - CGFloat(min(1, max(0, value)))))
+            if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
         }
         return path
     }

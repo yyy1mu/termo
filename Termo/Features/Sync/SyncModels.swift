@@ -141,9 +141,21 @@ struct SyncConflict: Identifiable {
                     label: String(localized: "用户名"),
                     local: l.ssh?.user ?? "", remote: r.ssh?.user ?? ""),
                 Field(
+                    label: String(localized: "认证方式"),
+                    local: l.ssh?.authMethod.label ?? "", remote: r.ssh?.authMethod.label ?? ""),
+                Field(
+                    label: String(localized: "密钥来源"),
+                    local: keySource(l.ssh), remote: keySource(r.ssh)),
+                Field(
                     label: String(localized: "分组"),
                     local: groupLabel(l.group), remote: groupLabel(r.group)),
                 Field(label: String(localized: "备注"), local: l.notes, remote: r.notes),
+                Field(
+                    label: String(localized: "默认目录"),
+                    local: l.ssh?.defaultPath ?? "", remote: r.ssh?.defaultPath ?? ""),
+                Field(
+                    label: String(localized: "连接后命令"),
+                    local: l.ssh?.initialCommand ?? "", remote: r.ssh?.initialCommand ?? ""),
                 Field(
                     label: String(localized: "密码"),
                     local: secretLabel(lp, inconsistent: pwInconsistent),
@@ -169,7 +181,7 @@ struct SyncConflict: Identifiable {
                 Field(label: String(localized: "名称"), local: l.name, remote: r.name),
                 Field(
                     label: String(localized: "分组"), local: groupLabel(l.group), remote: groupLabel(r.group)),
-                Field(label: String(localized: "内容"), local: l.preview, remote: r.preview),
+                Field(label: String(localized: "内容"), local: l.content, remote: r.content),
                 Field(
                     label: String(localized: "更新时间"),
                     local: Self.dateLabel(l.updatedAt), remote: Self.dateLabel(r.updatedAt)),
@@ -203,6 +215,12 @@ struct SyncConflict: Identifiable {
 
     private func groupLabel(_ group: String) -> String {
         group.isEmpty ? String(localized: "未分组") : group
+    }
+
+    private func keySource(_ connection: SSHConnection?) -> String {
+        guard let connection, connection.authMethod == .key else { return "" }
+        if !connection.keyId.isEmpty { return String(localized: "密钥库（\(connection.keyId)）") }
+        return connection.keyPath
     }
 
     private func secretLabel(_ value: String?, inconsistent: Bool = false) -> String {

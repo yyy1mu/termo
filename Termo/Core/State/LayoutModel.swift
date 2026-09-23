@@ -26,6 +26,21 @@ enum RightPanel: String, CaseIterable, Hashable {
     // 声明顺序即右侧栏按钮顺序：高频核心功能（监控/文件/tmux/转发/片段）在前，主机巡检工具在后。
     case monitor, ai, sftp, tmux, forward, snippets, services, processes, network, docker
 
+    var shortTitle: String {
+        switch self {
+        case .monitor: return String(localized: "监控")
+        case .ai: return String(localized: "助手")
+        case .sftp: return String(localized: "文件")
+        case .tmux: return "tmux"
+        case .forward: return String(localized: "转发")
+        case .snippets: return String(localized: "片段")
+        case .services: return String(localized: "服务")
+        case .processes: return String(localized: "进程")
+        case .network: return String(localized: "网络")
+        case .docker: return "Docker"
+        }
+    }
+
     var symbol: String {
         switch self {
         case .sftp: return "folder"

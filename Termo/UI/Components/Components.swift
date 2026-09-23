@@ -93,27 +93,30 @@ struct SegmentedControl<T: Hashable>: View {
         HStack(spacing: 2) {
             ForEach(options, id: \.value) { opt in
                 let selected = selection == opt.value
-                opt.label
-                    .font(.system(size: 12, weight: selected ? .semibold : .regular))
-                    .foregroundStyle(selected ? Pal.text : Pal.subtext)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)   // 长文案（如英文）缩放保持单行，不换行撑高
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity)
-                    .background {
-                        if selected {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(theme.isDark ? Pal.fill(0.14) : Color.white)
-                                .shadow(color: .black.opacity(theme.isDark ? 0.25 : 0.12), radius: 1.5, y: 1)
-                                .matchedGeometryEffect(id: "seg", in: ns)
+                Button {
+                    withAnimation(.easeOut(duration: 0.18)) { selection = opt.value }
+                } label: {
+                    opt.label
+                        .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                        .foregroundStyle(selected ? Pal.text : Pal.subtext)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)   // 长文案（如英文）缩放保持单行，不换行撑高
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity)
+                        .background {
+                            if selected {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(theme.isDark ? Pal.fill(0.14) : Color.white)
+                                    .shadow(color: .black.opacity(theme.isDark ? 0.25 : 0.12), radius: 1.5, y: 1)
+                                    .matchedGeometryEffect(id: "seg", in: ns)
+                            }
                         }
-                    }
-                    .contentShape(Rectangle())
-                    .pointerCursor()
-                    .onTapGesture {
-                        withAnimation(.easeOut(duration: 0.18)) { selection = opt.value }
-                    }
+                        .contentShape(Rectangle())
+                        .pointerCursor()
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
         .padding(3)
@@ -183,6 +186,7 @@ struct ThemedTextField: View {
 struct ThemedTextEditor: View {
     let placeholder: LocalizedStringKey
     @Binding var text: String
+    var height: CGFloat = 80
     @FocusState private var focused: Bool
     @ObservedObject private var theme = ThemeManager.shared
 
@@ -205,7 +209,7 @@ struct ThemedTextEditor: View {
                 .padding(.horizontal, 9)
                 .padding(.vertical, 6)
         }
-        .frame(height: 80)
+        .frame(height: height)
         .background(theme.isDark ? Pal.fill(0.05) : Color.white, in: RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)

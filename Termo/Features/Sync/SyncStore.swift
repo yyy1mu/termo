@@ -36,11 +36,25 @@ enum SyncConfigStore {
 }
 
 /// WebDAV 登录密码的 Keychain 存取——密码只进系统钥匙串，绝不写入磁盘明文。
+enum SyncCredentialError: LocalizedError {
+    case read(OSStatus)
+    case write(OSStatus)
+
+    var errorDescription: String? {
+        switch self {
+        case .read(let status):
+            return String(localized: "无法读取已保存的 WebDAV 密码（钥匙串错误 \(status)）。请重试读取或重新填写。")
+        case .write(let status):
+            return String(localized: "WebDAV 密码未能写入系统钥匙串（错误 \(status)），连接配置未保存。")
+        }
+    }
+}
+
 enum SyncKeychain {
     private static let service = "com.termo.webdavPassword"
     private static let account = "default"
 
-    static func loadPassword() -> String {
+    static func loadPassword() throws -> String {
         let q: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -49,30 +63,39 @@ enum SyncKeychain {
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
         var out: AnyObject?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
-            let data = out as? Data,
-            let s = String(data: data, encoding: .utf8)
-        else { return "" }
+        let status = SecItemCopyMatching(q as CFDictionary, &out)
+        if status == errSecItemNotFound { return "" }
+        guard status == errSecSuccess else { throw SyncCredentialError.read(status) }
+        guard let data = out as? Data, let s = String(data: data, encoding: .utf8) else {
+            throw SyncCredentialError.read(errSecDecode)
+        }
         return s
     }
 
-    static func savePassword(_ password: String) {
+    static func savePassword(_ password: String) throws {
         let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-        guard !password.isEmpty, let data = password.data(using: .utf8) else {
-            SecItemDelete(base as CFDictionary)
+        guard !password.isEmpty else {
+            let status = SecItemDelete(base as CFDictionary)
+            guard status == errSecSuccess || status == errSecItemNotFound else {
+                throw SyncCredentialError.write(status)
+            }
             return
         }
+        let data = Data(password.utf8)
         let updateStatus = SecItemUpdate(
             base as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         if updateStatus == errSecItemNotFound {
             var add = base
             add[kSecValueData as String] = data
             add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            SecItemAdd(add as CFDictionary, nil)
+            let addStatus = SecItemAdd(add as CFDictionary, nil)
+            guard addStatus == errSecSuccess else { throw SyncCredentialError.write(addStatus) }
+        } else if updateStatus != errSecSuccess {
+            throw SyncCredentialError.write(updateStatus)
         }
     }
 }

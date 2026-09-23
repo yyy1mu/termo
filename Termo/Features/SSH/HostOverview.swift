@@ -4,275 +4,210 @@ struct HostOverview: View {
     let host: Host
     @ObservedObject var model: AppModel
     @ObservedObject private var theme = ThemeManager.shared
+    @State private var showDetails = false
+    @State private var showMasterSetup = false
+    @ObservedObject private var lock = AppLockManager.shared
 
     var body: some View {
-        // 紧凑重排：正常窗口一页放完；窗口过小时 ScrollView 兜底
-        // （整体缩放方案会让小字小到不可读——已废弃）。
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("主机工作台")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .tracking(1.4)
-                            .foregroundStyle(Pal.mauve)
-                        // 名称/状态/地址/延迟并一行：省一整行高度
-                        HStack(spacing: 10) {
-                            Text(liveHost.name)
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(Pal.textBright)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-                            statusBadge
-                            HStack(spacing: 5) {
-                                Image(systemName: "network")
-                                Text("\(liveHost.ipOrHost):\(liveHost.ssh?.port ?? 22)")
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                    .privacyBlur(model.privacyMode)
-                                if liveHost.status == .online, let ms = liveHost.latencyMs {
-                                    Text("·")
-                                    Text("\(ms) ms").foregroundStyle(LatencyLevel(ms: ms).color)
-                                }
-                            }
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(Pal.subtext)
-                        }
-                    }
-                    Spacer(minLength: 0)
-                    overviewLogo
-                }
-                .padding(.bottom, 2)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    sectionHeading("快速操作", detail: "连接、传输与维护")
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 8)], spacing: 8) {
-                        actionTile("terminal", "终端", detail: "打开交互会话", primary: true) {
-                            model.openHostTerminal(liveHost)
-                        }
-                        .contextMenu { Button("新建终端") { model.openHostTerminal(liveHost, forceNew: true) } }
-                        actionTile("folder", "文件", detail: "在右侧面板浏览 SFTP") {
-                            model.openCompanionFiles()
-                        }
-                        actionTile("arrow.left.arrow.right", "端口转发", detail: "管理隧道",
-                                   badge: model.hasRunningForward(hostId: host.id)) {
-                            model.openForwardPanel(liveHost)
-                        }
-                        actionTile("square.and.pencil", "编辑", detail: "修改连接配置") {
-                            model.beginEditHost(liveHost)
-                        }
-                    }
-                }
-
-                if let s = liveHost.specs, !s.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        sectionHeading("设备信息", detail: "从远端主机读取")
-                        // 无磁贴：一张卡片内轻量键值对（灰标签+值），信息密度更高
-                        infoCard {
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 10)],
-                                      alignment: .leading, spacing: 7) {
-                                if !s.os.isEmpty { specPair(String(localized: "系统"), s.os) }
-                                if !s.cores.isEmpty { specPair(String(localized: "核心"), "\(s.cores) 核") }
-                                if !s.memory.isEmpty { specPair(String(localized: "内存"), s.memory) }
-                                if !s.disk.isEmpty { specPair(String(localized: "磁盘"), s.disk) }
-                                if !s.vram.isEmpty { specPair(String(localized: "显存"), s.vram) }
-                                if !s.gpu.isEmpty { specPair(String(localized: "显卡"), s.gpu) }
-                            }
-                        }
-                    }
-                } else if model.probingHosts.contains(liveHost.id) {
-                    infoCard {
-                        HStack(spacing: 8) {
-                            ProgressView().controlSize(.small)
-                            Text("正在获取系统信息…").font(.system(size: 12)).foregroundStyle(Pal.overlay)
-                        }
-                    }
-                }
-
+            VStack(alignment: .leading, spacing: 16) {
+                header
+                actions
+                deviceDetails
                 if !liveHost.notes.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        sectionHeading("主机备注", detail: nil)
-                        infoCard {
-                            Text(liveHost.notes)
-                                .font(.system(size: 11)).foregroundStyle(Pal.subtext)
-                                .textSelection(.enabled)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                }
-
-                if liveHost.ssh != nil {
-                    if needsAuth {
-                        monitorAuthPlaceholder
-                    } else {
-                        MonitorPanel(monitor: model.hostMonitor(for: liveHost))
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("主机备注", systemImage: "text.alignleft")
+                            .font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.subtext)
+                        Text(liveHost.notes).font(.system(size: 12)).foregroundStyle(Pal.text)
+                            .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
-            .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 18)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: 760, alignment: .leading)
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        // 监控只在概览可见时跑：切到此 tab 开始采集，切走（视图移出）几秒后自动停流，保持轻量。
+        .sheet(isPresented: $showMasterSetup) { AppLockSetupSheet() }
         .onAppear {
             model.probeHostIfNeeded(liveHost)
-            model.overviewAppeared(liveHost)
         }
-        // 「每次询问」主机：取得本会话密码后（needsAuth 由 true→false），开始采集。
-        .onChange(of: needsAuth) { stillNeeds in
+        .onChange(of: needsAuth) { _, stillNeeds in
             if !stillNeeds {
                 model.probeHostIfNeeded(liveHost)
-                model.overviewAppeared(liveHost)
             }
         }
-        .onDisappear { model.overviewDisappeared(host.id) }
     }
 
-    /// 概览头部大号发行版 Logo（46pt，品牌色底 + 白字形；未识别回退服务器符号）。
-    private var overviewLogo: some View {
-        let osStr = liveHost.specs?.os ?? liveHost.os
-        return ZStack {
-            if let name = OSLogo.fontName, let logo = OSLogo.info(for: osStr) {
-                RoundedRectangle(cornerRadius: 11)
-                    .fill(logo.color)
-                    .overlay(Text(logo.glyph).font(.custom(name, size: 20)).foregroundStyle(.white))
-            } else {
-                RoundedRectangle(cornerRadius: 11)
-                    .fill(Pal.mauve.opacity(0.14))
-                    .overlay(Image(systemName: "server.rack")
-                        .font(.system(size: 17)).foregroundStyle(Pal.mauve))
-            }
-        }
-        .frame(width: 40, height: 40)
-    }
-
-    private func sectionHeading(_ title: LocalizedStringKey, detail: LocalizedStringKey?) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.textBright)
-            if let detail {
-                Text(detail).font(.system(size: 11)).foregroundStyle(Pal.overlay)
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    /// 信息卡片容器：统一卡片底/描边/圆角/内边距（设计系统基准件）。
-    private func infoCard(@ViewBuilder _ content: () -> some View) -> some View {
-        content()
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Pal.card, in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Pal.border, lineWidth: 1))
-    }
-
-    /// 设备信息键值对：灰标签 + 值，无盒无框。
-    private func specPair(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 7) {
-            Text(label).font(.system(size: 10)).foregroundStyle(Pal.overlay)
-                .frame(width: 34, alignment: .leading)
-            Text(value).font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }
-    }
-
-    /// 实时主机：host 是 Workspace 传入的快照，输密码等变化要从 model 取最新值（HostOverview 已 @ObservedObject model）。
-    private var liveHost: Host { model.host(host.id) ?? host }
-
-    /// 「每次询问」且本会话尚未输入密码：监控无法采集，显示占位而非无限「正在建立监控…」。
-    private var needsAuth: Bool {
-        liveHost.ssh?.authMethod == .ask && (liveHost.ssh?.password ?? "").isEmpty
-    }
-
-    private var monitorAuthPlaceholder: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Text("监控").font(.system(size: 12)).foregroundStyle(Pal.overlay)
-                Circle().fill(Pal.overlay).frame(width: 6, height: 6)
-            }
-            HStack(spacing: 12) {
-                Image(systemName: "lock.circle").font(.system(size: 24)).foregroundStyle(Pal.overlay)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("连接后开始监控").font(.system(size: 13)).foregroundStyle(Pal.subtext)
-                    Text("该主机为「每次询问」，输入密码连接成功后，将在本次运行内采集监控数据。")
-                        .font(.system(size: 11)).foregroundStyle(Pal.overlay)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 8)
-                Button { model.verifyConnect(host) } label: {
-                    Text("连接").font(.system(size: 12)).foregroundStyle(Pal.mauve)
-                        .padding(.horizontal, 14).padding(.vertical, 6)
-                        .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).pointerCursor()
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 9))
-        }
-    }
-
-    private var statusBadge: some View {
-        let (label, fg, bg): (String, Color, Color) = {
-            switch liveHost.status {
-            case .online: return (String(localized: "在线"), Pal.green, Pal.green.opacity(0.15))
-            case .offline: return (String(localized: "离线"), Pal.overlay, Pal.overlay.opacity(0.15))
-            case .unknown: return (String(localized: "未知"), Pal.yellow, Pal.yellow.opacity(0.15))
-            }
-        }()
-        return Text(label).font(.system(size: 11)).foregroundStyle(fg)
-            .padding(.horizontal, 9).padding(.vertical, 3)
-            .background(bg, in: RoundedRectangle(cornerRadius: 6))
-    }
-
-
-    /// 操作区采用同等大小的入口，终端是明确的主操作，其他功能保持可扫描。
-    private func actionTile(_ symbol: String, _ label: LocalizedStringKey, detail: LocalizedStringKey,
-                            primary: Bool = false, loading: Bool = false, badge: Bool = false,
-                            _ act: @escaping () -> Void) -> some View {
-        Button(action: act) {
-            VStack(alignment: .leading, spacing: 9) {
-                HStack {
-                    if loading {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: symbol)
-                            .font(.system(size: 16, weight: .medium))
+    private var header: some View {
+        HStack(alignment: .top, spacing: 14) {
+            overviewLogo
+            VStack(alignment: .leading, spacing: 7) {
+                Text("主机工作台").font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Pal.mauve)
+                Text(liveHost.name)
+                    .font(.system(size: 20, weight: .semibold)).foregroundStyle(Pal.textBright)
+                    .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                Text(connectionLabel)
+                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
+                    .textSelection(.enabled).privacyBlur(model.privacyMode)
+                    .fixedSize(horizontal: false, vertical: true)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        statusBadge; systemLabel
                     }
-                    Spacer()
-                    if badge {
-                        Circle().fill(Pal.green).frame(width: 7, height: 7)
-                    } else {
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .opacity(0.65)
+                    VStack(alignment: .leading, spacing: 7) {
+                        statusBadge; systemLabel
                     }
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(label).font(.system(size: 12, weight: .semibold))
-                    Text(detail).font(.system(size: 10)).opacity(0.78)
-                        .lineLimit(1)
-                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                if lock.hasPin { lock.setEnabled(true); lock.lock() } else { showMasterSetup = true }
+            } label: {
+                Image(systemName: "lock").font(.system(size: 14))
+                    .foregroundStyle(Pal.subtext).frame(width: 32, height: 32)
+                    .background(Pal.card, in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain).pointerCursor()
+            .help(String(localized: "锁定工作台 · 主密码与同步共用"))
+            .accessibilityLabel("锁定工作台")
+        }
+    }
+
+    private var connectionLabel: String {
+        let user = liveHost.ssh?.user ?? ""
+        let address = liveHost.ipOrHost.contains(":") ? "[\(liveHost.ipOrHost)]" : liveHost.ipOrHost
+        return "\(user.isEmpty ? "" : user + "@")\(address):\(liveHost.ssh?.port ?? liveHost.port)"
+    }
+
+    private var systemLabel: some View {
+        let detectedOS = liveHost.specs?.os ?? ""
+        return Text(detectedOS.isEmpty ? liveHost.os : detectedOS)
+            .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var actions: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { actionButtons }
+                .frame(minWidth: 480, maxWidth: 680)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                actionButtons
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        action("terminal", "打开终端", primary: true) { model.openHostTerminal(liveHost) }
+            .contextMenu { Button("新建终端") { model.openHostTerminal(liveHost, forceNew: true) } }
+        action("folder", "浏览文件") { model.openCompanionFiles() }
+        action("arrow.left.arrow.right", "端口转发", badge: model.hasRunningForward(hostId: host.id)) {
+            model.openForwardPanel(liveHost)
+        }
+        action("slider.horizontal.3", "编辑主机") { model.beginEditHost(liveHost) }
+    }
+
+    private func action(
+        _ icon: String, _ title: LocalizedStringKey, primary: Bool = false,
+        badge: Bool = false, perform: @escaping () -> Void
+    ) -> some View {
+        Button(action: perform) {
+            HStack(spacing: 7) {
+                Image(systemName: icon).font(.system(size: 12))
+                Text(title).font(.system(size: 12, weight: .medium))
+                if badge { Circle().fill(Pal.green).frame(width: 5, height: 5) }
             }
             .foregroundStyle(primary ? Color.white : Pal.text)
-            .padding(.horizontal, 12).padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 72)
-            .background(
-                primary ? Pal.mauve : Pal.card,
-                in: RoundedRectangle(cornerRadius: 12)
-            )
+            .frame(maxWidth: .infinity).padding(.vertical, 10)
+            .background(primary ? Pal.mauve : Pal.card, in: RoundedRectangle(cornerRadius: 8))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(primary ? Color.clear : Pal.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8).stroke(primary ? Color.clear : Pal.border, lineWidth: 1)
             )
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .disabled(loading)
-        .pointerCursor()
+        .buttonStyle(.plain).pointerCursor()
     }
 
+    @ViewBuilder
+    private var deviceDetails: some View {
+        if let specs = liveHost.specs, !specs.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Rectangle().fill(Pal.border).frame(height: 1)
+                DisclosureGroup(isExpanded: $showDetails) {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 210), spacing: 16)],
+                        alignment: .leading, spacing: 12
+                    ) {
+                        if !specs.os.isEmpty { specPair("系统", specs.os) }
+                        if !specs.cores.isEmpty { specPair("处理器", String(localized: "\(specs.cores) 核")) }
+                        if !specs.memory.isEmpty { specPair("总内存", specs.memory) }
+                        if !specs.disk.isEmpty { specPair("磁盘快照", specs.disk) }
+                        if !specs.gpu.isEmpty { specPair("显卡", specs.gpu) }
+                        if !specs.vram.isEmpty { specPair("显存", specs.vram) }
+                    }
+                    .padding(.top, 12)
+                } label: {
+                    Text("设备详情").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.subtext)
+                }
+                .tint(Pal.overlay)
+            }
+        } else if model.probingHosts.contains(liveHost.id) {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("正在获取设备信息…").font(.system(size: 11)).foregroundStyle(Pal.subtext)
+            }
+        }
+    }
 
+    private func specPair(_ label: LocalizedStringKey, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.system(size: 10)).foregroundStyle(Pal.overlay)
+            Text(value).font(.system(size: 12)).foregroundStyle(Pal.text)
+                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var overviewLogo: some View {
+        let os = liveHost.specs?.os ?? liveHost.os
+        return ZStack {
+            if let font = OSLogo.fontName, let logo = OSLogo.info(for: os) {
+                RoundedRectangle(cornerRadius: 12).fill(logo.color)
+                    .overlay(Text(logo.glyph).font(.custom(font, size: 24)).foregroundStyle(.white))
+            } else {
+                RoundedRectangle(cornerRadius: 12).fill(Pal.mauve.opacity(0.12))
+                    .overlay(
+                        Image(systemName: "server.rack").font(.system(size: 22)).foregroundStyle(Pal.mauve))
+            }
+        }
+        .frame(width: 48, height: 48)
+        .accessibilityHidden(true)
+    }
+
+    private var liveHost: Host { model.host(host.id) ?? host }
+    private var needsAuth: Bool { liveHost.ssh?.authMethod == .ask && (liveHost.ssh?.password ?? "").isEmpty }
+
+    private var statusBadge: some View {
+        let color: Color =
+            liveHost.status == .online ? Pal.green : (liveHost.status == .offline ? Pal.red : Pal.overlay)
+        let title: String =
+            switch liveHost.status {
+            case .online: String(localized: "主机可达")
+            case .offline: String(localized: "主机不可达")
+            case .unknown: String(localized: "尚未检测")
+            }
+        return HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 5, height: 5)
+            Text(title)
+            if liveHost.status == .online, let ms = liveHost.latencyMs {
+                Text("· \(ms) ms").monospacedDigit()
+            }
+        }
+        .font(.system(size: 10, weight: .medium)).foregroundStyle(color)
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(color.opacity(0.10), in: Capsule())
+        .fixedSize(horizontal: true, vertical: false)
+        .help(String(localized: "网络连通性检测，不代表 SSH 已认证连接"))
+    }
 }
