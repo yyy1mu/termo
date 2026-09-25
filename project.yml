@@ -81,9 +81,9 @@ targets:
         # 仅对含 Rust 预构建脚本的 macOS target 关闭，其他 target 仍使用默认设置。
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         # SSH 引擎 C 接口经桥接头暴露给 Swift（Engine 目录在搜索路径中）。
-        SWIFT_OBJC_BRIDGING_HEADER: Mac/Bridge/Termo-Bridging-Header.h
+        SWIFT_OBJC_BRIDGING_HEADER: Mac/Config/TermoMac-Bridging-Header.h
         HEADER_SEARCH_PATHS:
-          - $(SRCROOT)/Mac/Features/SSH/Engine                           # TermoSSHCore.h / TermoRusshCore.h
+          - $(SRCROOT)/TermoSSH/include                           # TermoSSHCore.h / TermoRusshCore.h
           - $(SRCROOT)/Mac/Features/Terminal                             # TermoTextTranscoder.h
         LIBRARY_SEARCH_PATHS:
           - $(SRCROOT)/build/russh/universal   # libtermo_ssh.a（russh 通用静态库，见 scripts/build-russh.sh）
@@ -94,7 +94,7 @@ targets:
         PRODUCT_NAME: Termo
         PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        CODE_SIGN_ENTITLEMENTS: Mac/Termo.entitlements
+        CODE_SIGN_ENTITLEMENTS: Mac/Config/TermoMac.entitlements
         DEVELOPMENT_TEAM: 93D9T7Y56M  # 沿用现有 macOS target 的本机开发签名覆盖
         ENABLE_HARDENED_RUNTIME: NO       # 上架/公证阶段再打开
         MACOSX_DEPLOYMENT_TARGET: "14.0"
@@ -106,12 +106,12 @@ targets:
           # 去符号由 xcodebuild archive 的 install-time 处理（strip 主程序 + 分离 dSYM）；
           # 见 scripts/package-app.sh。dwarf-with-dsym 为 Release 默认，保留以便崩溃符号化。
         DebugMAS:
-          CODE_SIGN_ENTITLEMENTS: Mac/Termo-MAS.entitlements      # 开 App Sandbox（本地测沙盒运行态）
+          CODE_SIGN_ENTITLEMENTS: Mac/Config/TermoMac-MAS.entitlements      # 开 App Sandbox（本地测沙盒运行态）
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG TERMO_MAS
         ReleaseMAS:
           SWIFT_OPTIMIZATION_LEVEL: "-Osize"
           ASSETCATALOG_COMPILER_OPTIMIZATION: space
-          CODE_SIGN_ENTITLEMENTS: Mac/Termo-MAS.entitlements      # 开 App Sandbox
+          CODE_SIGN_ENTITLEMENTS: Mac/Config/TermoMac-MAS.entitlements      # 开 App Sandbox
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: TERMO_MAS      # 编译期渠道开关（隐藏本地终端、私钥仅库）
     # 编译前先产出 russh 静态库（cargo 增量构建，日常 <2s；产物 build/ 不入库）。
     preBuildScripts:
@@ -180,6 +180,11 @@ targets:
         CODE_SIGN_IDENTITY: "-"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo"
         BUNDLE_LOADER: "$(TEST_HOST)"
+        # 托管测试会依赖扫描 App 的桥接头（引用了引擎 C 头文件）；头文件在 TermoSSH/include，
+        # 已不属于任何 target 的 sources，不在跨 target VFS 里——测试 target 需自带搜索路径。
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/TermoSSH/include
+          - $(SRCROOT)/Mac/Features/Terminal
 
 schemes:
   Termo:
