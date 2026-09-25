@@ -51,43 +51,9 @@ final class TranscriptTests: XCTestCase {
         let t = TerminalTranscript()
         for i in 1...20 { t.appendOutput(Array("line-\(i) filler-filler-filler\n".utf8)) }
         let tail = t.tail(maxChars: 60)
-        XCTAssertTrue(tail.count <= 70)                     // 预算附近（含单行溢出）
+        XCTAssertTrue(tail.count <= 60)                     // 包含换行符的严格预算
         XCTAssertTrue(tail.contains("line-20"))             // 最新的一定在
         XCTAssertFalse(tail.contains("line-1\n"))           // 最旧的被裁掉
-    }
-
-    func test_linesFromOffsetSlicesCommandOutput() {
-        let t = TerminalTranscript()
-        t.appendOutput(Array("before\n".utf8))
-        let start = t.lineCount
-        t.appendOutput(Array("cmd-echo\nout1\nout2\n".utf8))
-        XCTAssertEqual(t.lines(from: start), ["cmd-echo", "out1", "out2"])
-    }
-
-    func test_commandCaptureIncludesUnterminatedOutputWithoutOldPrompt() {
-        let t = TerminalTranscript()
-        t.appendOutput(Array("old output\nroot@host:~# ".utf8))
-        let cursor = t.outputCursor()
-        t.appendOutput(Array("READY\nuid=0(root)".utf8))
-        XCTAssertEqual(t.output(since: cursor), "READY\nuid=0(root)")
-    }
-
-    func test_commandCaptureNeverReusesEarlierOutput() {
-        let t = TerminalTranscript()
-        t.appendOutput(Array("earlier command result\n".utf8))
-        let cursor = t.outputCursor()
-        XCTAssertEqual(t.output(since: cursor), "")
-        t.appendOutput(Array("new result".utf8))
-        XCTAssertEqual(t.output(since: cursor), "new result")
-    }
-
-    func test_commandCaptureIgnoresSyntheticInputBeforeOldPrompt() {
-        let t = TerminalTranscript()
-        t.appendOutput(Array("root# ".utf8))
-        let cursor = t.outputCursor()
-        t.appendInput(Array("id\r".utf8))
-        t.appendOutput(Array("id\r\nuid=0(root)".utf8))
-        XCTAssertEqual(t.output(since: cursor), "uid=0(root)")
     }
 
     func test_hookEchoFilterArmsAtInjectionAndHandlesWrappedChunks() {
@@ -110,5 +76,16 @@ final class TranscriptTests: XCTestCase {
         XCTAssertEqual(String(decoding: unrelated, as: UTF8.self), "normal output\n")
         let expired = filter.filter(Array("hook-command\n".utf8), now: now.addingTimeInterval(31))
         XCTAssertEqual(String(decoding: expired, as: UTF8.self), "hook-command\n")
+    }
+
+    func test_hookEchoFilterPreservesFragmentedUnicodeAndTerminalControlBytes() {
+        // The terminal receives bytes directly; splitting a Chinese/emoji scalar must not create replacement characters.
+        let bytes = Array("中文 🖥️\u{1B}]7;file://host/tmp\u{1B}\\\u{1B}[31m完成\u{1B}[0m\n".utf8)
+        for split in 0...bytes.count {
+            var filter = TerminalHookEchoFilter()
+            filter.arm("internal-setup-command\n")
+            let output = filter.filter(Array(bytes[..<split])) + filter.filter(Array(bytes[split...]))
+            XCTAssertEqual(output, bytes, "split at byte \(split)")
+        }
     }
 }

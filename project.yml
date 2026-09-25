@@ -1,5 +1,5 @@
 # XcodeGen 声明式工程定义。改这里后运行 `xcodegen generate` 重新生成 Termo.xcodeproj。
-# macOS 业务代码直接归属 Termo App target；跨端的无平台依赖模型归属 TermoCore。
+# 各端应用按平台名分目录（Mac/iOS/Watch）；跨端的无平台依赖模型位于 TermoCore。
 # iOS 与 watchOS 各自保留独立入口和功能目录；第三方依赖以 Swift Package 形式引入。
 name: Termo
 
@@ -23,7 +23,7 @@ configs:
 
 settings:
   base:
-    # 版本号唯一源是 Termo/Info.plist 的 CFBundleShortVersionString / CFBundleVersion
+    # 版本号唯一源是 Mac/Info.plist 的 CFBundleShortVersionString / CFBundleVersion
     # （运行期由 AppInfo 从主包读取，打包脚本从构建产物 Info.plist 读取）。这里不再重复声明
     # MARKETING_VERSION，避免与 Info.plist 不一致；升版本只改 Info.plist 一处即可。
     SWIFT_VERSION: "5.9"
@@ -40,6 +40,12 @@ settings:
     DEVELOPMENT_TEAM: KTP97H9YFF
 
 packages:
+  MarkdownUI:
+    url: https://github.com/gonzalezreal/swift-markdown-ui.git
+    exactVersion: "2.4.1"
+  SwiftAISDK:
+    url: https://github.com/zaidmukaddam/swift-ai-sdk.git
+    exactVersion: "0.3.0"
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm
     from: "1.13.0"
@@ -52,11 +58,15 @@ targets:
     type: application
     platform: macOS
     sources:
-      - path: Termo
+      - path: Mac
         excludes:
           - "Info.plist"          # 作为 INFOPLIST_FILE，不当资源拷贝
           - "**/.DS_Store"
     dependencies:
+      - package: MarkdownUI
+        product: MarkdownUI
+      - package: SwiftAISDK
+        product: AI
       - package: SwiftTerm
         product: SwiftTerm
       - package: TermoCore
@@ -65,17 +75,18 @@ targets:
       - sdk: CoreFoundation.framework
     settings:
       base:
-        INFOPLIST_FILE: Termo/Info.plist
+        INFOPLIST_FILE: Mac/Info.plist
         ARCHS: arm64  # macOS 仅 Apple Silicon；iOS/watchOS 使用各自 SDK 默认设备架构
         # Cargo 会读取 Rust 源码及用户级依赖缓存；Xcode 的脚本沙盒无法用静态输入列表覆盖。
         # 仅对含 Rust 预构建脚本的 macOS target 关闭，其他 target 仍使用默认设置。
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         # SSH 引擎 C 接口经桥接头暴露给 Swift（Engine 目录在搜索路径中）。
-        SWIFT_OBJC_BRIDGING_HEADER: Termo/Bridge/Termo-Bridging-Header.h
+        SWIFT_OBJC_BRIDGING_HEADER: Mac/Bridge/Termo-Bridging-Header.h
         HEADER_SEARCH_PATHS:
-          - $(SRCROOT)/Termo/Features/SSH/Engine                                # TermoSSHCore.h / TermoRusshCore.h
+          - $(SRCROOT)/Mac/Features/SSH/Engine                           # TermoSSHCore.h / TermoRusshCore.h
+          - $(SRCROOT)/Mac/Features/Terminal                             # TermoTextTranscoder.h
         LIBRARY_SEARCH_PATHS:
-          - $(SRCROOT)/Build/russh/universal   # libtermo_ssh.a（russh 通用静态库，见 scripts/build-russh.sh）
+          - $(SRCROOT)/build/russh/universal   # libtermo_ssh.a（russh 通用静态库，见 scripts/build-russh.sh）
         OTHER_LDFLAGS:
           - -ltermo_ssh  # Rust SSH 引擎（russh 0.63.3 + ring；符号 termo_russh_*）
           - -liconv      # ring/系统层依赖
@@ -83,7 +94,7 @@ targets:
         PRODUCT_NAME: Termo
         PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        CODE_SIGN_ENTITLEMENTS: Termo.entitlements
+        CODE_SIGN_ENTITLEMENTS: Mac/Termo.entitlements
         DEVELOPMENT_TEAM: 93D9T7Y56M  # 沿用现有 macOS target 的本机开发签名覆盖
         ENABLE_HARDENED_RUNTIME: NO       # 上架/公证阶段再打开
         MACOSX_DEPLOYMENT_TARGET: "14.0"
@@ -95,14 +106,14 @@ targets:
           # 去符号由 xcodebuild archive 的 install-time 处理（strip 主程序 + 分离 dSYM）；
           # 见 scripts/package-app.sh。dwarf-with-dsym 为 Release 默认，保留以便崩溃符号化。
         DebugMAS:
-          CODE_SIGN_ENTITLEMENTS: Termo-MAS.entitlements      # 开 App Sandbox（本地测沙盒运行态）
+          CODE_SIGN_ENTITLEMENTS: Mac/Termo-MAS.entitlements      # 开 App Sandbox（本地测沙盒运行态）
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG TERMO_MAS
         ReleaseMAS:
           SWIFT_OPTIMIZATION_LEVEL: "-Osize"
           ASSETCATALOG_COMPILER_OPTIMIZATION: space
-          CODE_SIGN_ENTITLEMENTS: Termo-MAS.entitlements      # 开 App Sandbox
+          CODE_SIGN_ENTITLEMENTS: Mac/Termo-MAS.entitlements      # 开 App Sandbox
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: TERMO_MAS      # 编译期渠道开关（隐藏本地终端、私钥仅库）
-    # 编译前先产出 russh 静态库（cargo 增量构建，日常 <2s；产物 Build/ 不入库）。
+    # 编译前先产出 russh 静态库（cargo 增量构建，日常 <2s；产物 build/ 不入库）。
     preBuildScripts:
       - name: "Build Rust SSH static library"
         basedOnDependencyAnalysis: false
@@ -116,7 +127,7 @@ targets:
     type: application
     platform: iOS
     sources:
-      - path: iOS/Termo-iOS
+      - path: iOS
     dependencies:
       - package: TermoCore
         product: TermoCore
@@ -138,7 +149,7 @@ targets:
     type: application
     platform: watchOS
     sources:
-      - path: Watch/Termo-Watch
+      - path: Watch
     dependencies:
       - package: TermoCore
         product: TermoCore

@@ -7,7 +7,7 @@
 #   scripts/release.sh            交互发版（每步确认）
 #   scripts/release.sh --dry-run  仅预览要执行的动作，不做任何改动
 #
-# 版本号唯一源为 Termo/Info.plist：
+# 版本号唯一源为 Mac/Info.plist：
 #   CFBundleShortVersionString  展示版本（如 0.9.2），给人看
 #   CFBundleVersion             构建号（整数，如 28），Sparkle 据此判断「谁更新」，必须严格递增
 #
@@ -16,7 +16,7 @@
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PLIST="$ROOT/Termo/Info.plist"
+PLIST="$ROOT/Mac/Info.plist"
 DEFAULT_BRANCH="main"
 DRY_RUN=0
 case "${1:-}" in

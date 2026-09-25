@@ -1,0 +1,652 @@
+import AppKit
+import SwiftUI
+
+/// 进程入口：必须在 `NSApplication` 初始化之前对齐语言。文件选择/保存等系统面板由独立服务渲染，
+/// 它沿用进程启动那一刻确定的语言；放到 App.init 里设已太晚。用 bundle 已按系统解析好、剥离地区
+/// 后缀的本地化（如把 zh-Hans-GB 归一为 zh-Hans）覆盖 AppleLanguages，让面板跟随系统语言。
+@main
+enum AppBootstrap {
+    static func main() {
+        let langs = Bundle.main.preferredLocalizations
+        if !langs.isEmpty { UserDefaults.standard.set(langs, forKey: "AppleLanguages") }
+        TermoApp.main()
+    }
+}
+
+struct TermoApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @ObservedObject private var lock = AppLockManager.shared  // 启动锁状态
+
+    var body: some Scene {
+        // 单窗口场景（Window 而非 WindowGroup）：全进程只允许一个窗口实例，从根上杜绝
+        // 隐藏到托盘后经启动台/托盘「显示」/⌘N 等路径重复新建窗口；也不再出现「新建窗口」菜单项。
+        Window("Termo", id: "main") {
+            ContentView()
+                // 保证主机侧栏、工作区和右侧面板同时展开时仍有可用空间。
+                .frame(minWidth: 1000, minHeight: 620)
+                // 启动锁：盖住全部内容（Touch ID / 锁定码解锁），见 AppLockScreen。
+                .overlay {
+                    if lock.isLocked {
+                        AppLockScreen().transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.2), value: lock.isLocked)
+        }
+        .windowStyle(.hiddenTitleBar)
+        // 首次打开的默认尺寸（仅初始值，最小限制不变；用户拖动后由系统记忆）：给三栏 + 工作区更宽裕的空间。
+        .defaultSize(width: 1200, height: 800)
+        // 菜单经 SwiftUI Commands 构建：默认菜单栏自带完整「编辑」（撤销/剪切/复制/
+        // 粘贴/全选，响应链分发到任何文本框）。此前手工替换 NSApp.mainMenu 会被
+        // SwiftUI 重建冲掉——菜单栏没有「编辑」、⌘V 全面失效的根因。
+        .commands {
+            // 应用菜单：关于（自定义窗口）
+            CommandGroup(replacing: .appInfo) {
+                Button("关于 Termo") { appDelegate.showAbout() }
+            }
+            // 应用菜单：锁定（⌘L）+ 退出（走后台任务检查流程）
+            CommandGroup(replacing: .appTermination) {
+                Button("锁定 Termo") { AppLockManager.shared.lock() }
+                    .keyboardShortcut("l", modifiers: .command)
+                Divider()
+                Button("退出 Termo") { appDelegate.requestQuit() }
+                    .keyboardShortcut("q", modifiers: .command)
+            }
+        }
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    private var aboutWindow: NSWindow?
+    private var tray: TrayController?
+    private weak var mainWindow: NSWindow?
+    private var editKeyMonitor: Any?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // 先对齐 AppKit 外观，使窗口首帧即正确明暗，杜绝冷启动露出系统默认浅色窗口底的白闪。
+        NSApp.appearance = NSAppearance(named: ThemeManager.shared.isDark ? .darkAqua : .aqua)
+        NSApp.setActivationPolicy(.regular)
+        applyAppIcon()
+        _ = OSLogo.fontName  // 预注册随包发行版 Logo 字体(Font Logos)
+        _ = AppModel.shared  // 提前建好单例，使托盘/退出流程在窗口之外也能访问后台任务
+        AppLockManager.shared.startIdleWatching()  // 空闲自动锁监听（⌘L 与超时锁定共用状态）
+        Notifier.requestAuthIfNeeded()  // 申请系统通知权限（上传/下载完成提醒）
+        tray = TrayController(
+            onShow: { [weak self] in self?.showMainWindow() },
+            onQuit: { [weak self] in self?.forceQuit() })
+        NSApp.activate(ignoringOtherApps: true)
+        installEditKeyFallback()
+        // 窗口此刻已创建；记录主窗口并接管其关闭行为（隐藏到托盘）。延迟一拍确保 WindowGroup 已出窗口。
+        DispatchQueue.main.async { [weak self] in self?.attachMainWindow() }
+    }
+
+    private func attachMainWindow() {
+        guard mainWindow == nil else { return }
+        // 主窗口 = 可成为主窗口、有内容视图的那个；canBecomeMain 排除托盘 NSStatusBarWindow 与面板，
+        // 避免误把状态栏图标窗口当成主窗口（关于窗口/Tooltip 面板此刻尚未创建）。
+        if let w = NSApp.windows.first(where: { $0.canBecomeMain && $0.contentView != nil }) {
+            mainWindow = w
+            w.delegate = self
+        }
+    }
+
+    /// ⌘V/⌘C/⌘X/⌘A 兜底：自定义主菜单的 Edit 项经响应链分发；当自动验证把某项
+    /// 禁用（首响应者未被识别为可编辑，如 SwiftUI 某些承载形态）时，按键事件会以
+    /// keyDown 形式落到窗口——此时沿响应链直接重发编辑动作；能处理则消费，否则放行。
+    /// 菜单正常命中时 keyDown 根本不会到达这里，不会重复触发。
+    private static let editSelectors: [String: Selector] = [
+        "v": #selector(NSText.paste(_:)),
+        "c": #selector(NSText.copy(_:)),
+        "x": #selector(NSText.cut(_:)),
+        "a": #selector(NSText.selectAll(_:)),
+        "z": Selector(("undo:")),
+    ]
+
+    private func installEditKeyFallback() {
+        guard editKeyMonitor == nil else { return }
+        editKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { ev in
+            guard ev.modifierFlags.contains(.command),
+                ev.modifierFlags.intersection([.option, .control, .shift]).isEmpty,
+                let chars = ev.charactersIgnoringModifiers, chars.count == 1,
+                let sel = Self.editSelectors[chars.lowercased()]
+            else { return ev }
+            return NSApp.sendAction(sel, to: nil, from: ev) ? nil : ev
+        }
+    }
+
+    /// 从托盘恢复：切回常规激活策略（恢复 Dock 图标与主菜单），前置并激活主窗口。
+    /// 现场重新解析窗口（orderOut 后窗口仍在 NSApp.windows 列表中），不依赖可能过期的 mainWindow。
+    /// 托盘图标常驻、从不被 orderOut，故无需在此唤回（参见 hideToTray 的窗口过滤说明）。
+    private func showMainWindow() {
+        NSApp.setActivationPolicy(.regular)
+        let w = mainWindow ?? NSApp.windows.first { $0.canBecomeMain && $0.contentView != nil }
+        if mainWindow == nil, let w { mainWindow = w; w.delegate = self }
+        w?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        installEditKeyFallback()
+        applyAppIcon()  // .accessory→.regular 重建 Dock 图标时系统会重解析，需重新断言，否则回落为通用「exec」占位图标
+    }
+
+    /// 点击 Dock/启动台图标重新打开：隐藏到托盘后窗口只是 orderOut（仍存在），此时无可见窗口，
+    /// WindowGroup 默认会新建一个 → 同进程出现两个相同窗口。这里复用已存在的窗口并返回 false 阻止新建。
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if flag { return true }  // 已有可见窗口：交系统默认前置，不新建
+        // 无可见窗口：若隐藏中的主窗口仍在，复用它；否则放行默认新建。
+        if NSApp.windows.contains(where: { $0.canBecomeMain && $0.contentView != nil }) {
+            showMainWindow()
+            return false
+        }
+        return true
+    }
+
+    /// 关闭主窗口：
+    /// - 开启「隐藏到托盘」：隐藏窗口 + 切附件模式（仅留菜单栏图标），不退出。
+    /// - 否则：视为退出软件，交给退出流程（含后台任务检查）。一律返回 false 不真正关窗——
+    ///   这样用户在确认弹窗里选「取消」时窗口得以保留，不会陷入「无窗口但仍在运行」的状态。
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard sender == mainWindow else { return true }
+        if AppSettings.shared.closeToTray {
+            hideToTray()
+        } else {
+            requestQuit()  // 走退出流程（含后台任务确认）；取消时窗口因返回 false 得以保留
+        }
+        return false
+    }
+
+    /// 隐藏到菜单栏：隐藏所有可见内容窗口、切附件模式。后台任务继续运行，托盘图标常驻不动。
+    /// 关键：仅 orderOut `canBecomeMain` 的窗口（主窗口/关于窗口），**放过托盘图标的宿主窗口
+    /// NSStatusBarWindow**（其 canBecomeMain==false）。此前用 `!(w is NSPanel) && contentView != nil`
+    /// 过滤会连带把 NSStatusBarWindow 也 orderOut——macOS 15 不会自动救回，导致托盘图标消失。
+    /// 既然图标窗口从不被隐藏、状态项也从不重建，位置与可见性天然保留，无需任何唤回/重建。
+    @MainActor private func hideToTray() {
+        // 先关掉所有 sheet + 结束附着 sheet：打开过设置页后其 sheet 宿主窗口可能残留在 NSApp.windows 且仍
+        // isVisible（canBecomeMain==false，被旧的 canBecomeMain 过滤漏掉）→ 切 .accessory 时仍有可见窗口，
+        // 导致 Dock 图标不消失。故 orderOut 除托盘状态栏窗口（NSStatusBarWindow，常驻不可动）外的所有可见窗口。
+        AppModel.shared.dismissAllSheets()
+        for w in NSApp.windows { if let s = w.attachedSheet { w.endSheet(s) } }
+        for w in NSApp.windows where w.isVisible && !w.className.contains("NSStatusBar") {
+            w.orderOut(nil)
+        }
+        NSApp.setActivationPolicy(.accessory)
+    }
+
+    /// 关窗 / 菜单退出（⌘Q）入口。本方法为自定义（非协议方法，故不自动 @MainActor），访问 @MainActor 的
+    /// AppModel 需显式跳主线程；从 AppKit 主线程回调进来，跳转即时，不影响交互。
+    /// - 开启「关闭隐藏到菜单栏」：有后台任务 → 直接隐藏保活（不再弹确认）；无任务 → 直接退出。
+    /// - 未开启：弹自定义确认（含「隐藏到菜单栏」选项；有任务时优先展示任务警告与列表）。
+    /// 真正彻底退出走托盘菜单的「退出 Termo」（forceQuit），不受本设置影响。
+    @objc func requestQuit() {
+        Task { @MainActor in
+            AppModel.shared.dismissAllSheets()  // 先关掉打开的 sheet：否则退出确认弹窗被盖住、或 sheet 模态阻塞退出
+            if AppSettings.shared.closeToTray {
+                if AppModel.shared.hasRunningBackground {
+                    self.hideToTray()  // 有后台任务：隐藏保活，不打断、不弹窗
+                } else {
+                    NSApp.terminate(nil)  // 无任务：直接退出
+                }
+            } else {
+                self.showMainWindow()
+                AppModel.shared.pendingQuitForce = false  // 关窗/⌘Q 的常规确认（可选隐藏到菜单栏）
+                AppModel.shared.pendingQuitConfirm = true
+            }
+        }
+    }
+
+    /// 托盘「退出 Termo」：显式彻底退出，忽略「关闭隐藏到菜单栏」设置。
+    /// 有后台任务则弹「停止任务并退出」确认（确认即停任务退出，不再变成隐藏），无任务直接退出。
+    @objc func forceQuit() {
+        Task { @MainActor in
+            AppModel.shared.dismissAllSheets()  // 同上：避免退出确认弹窗被 sheet 盖住
+            if AppModel.shared.hasRunningBackground {
+                self.showMainWindow()
+                AppModel.shared.pendingQuitForce = true  // 彻底退出模式：确认即退出
+                AppModel.shared.pendingQuitConfirm = true
+            } else {
+                NSApp.terminate(nil)
+            }
+        }
+    }
+
+    // 自定义弹窗已在退出前做后台任务检查（见 requestQuit / QuitConfirmDialog）。
+    // 系统发起的退出（注销/关机）会直接走到这里：放行退出，残留隧道由 willTerminate 的进程登记表兜底清理。
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // 收口所有退出路径的清理：结束附着 sheet、复位 SwiftUI 绑定、优雅停端口转发。
+        for w in NSApp.windows { if let sheet = w.attachedSheet { w.endSheet(sheet) } }
+        AppModel.shared.dismissAllSheets()
+        ForwardProcessRegistry.shared.terminateAll()
+        UserDefaults.standard.synchronize()
+        // 关键：打开过设置页等会拉起 RemoteViewService（进程外视图）的界面后，系统在 exit() 的 atexit 阶段会卡在
+        // CoreAnalytics 退出屏障（sendExitBarrierWithTimeoutSync 同步等该 XPC flush），进程迟迟不退、被系统升级为
+        // SIGTERM（表现为「开着设置页从 Dock 退不掉/报错」）。清理已完成、数据均即时落盘，这里直接 _exit 立即结束
+        // 进程绕过该屏障；不返回。
+        _exit(0)
+    }
+
+    /// 自定义中文主菜单：应用菜单只保留「关于」「退出」；保留「编辑」菜单以注册
+    /// 输入框复制粘贴等标准操作的快捷键（否则这些操作会失效）。
+    /// ⌘L 菜单动作：立即锁定（未启用启动锁时为无操作）。
+    @objc private func lockApp() {
+        AppLockManager.shared.lock()
+    }
+
+    @objc func showAbout() {
+        if aboutWindow == nil {
+            let hosting = NSHostingView(rootView: AboutWindow())
+            let w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 460, height: 260),
+                styleMask: [.titled, .closable],
+                backing: .buffered, defer: false)
+            w.title = String(localized: "关于 Termo")
+            w.isReleasedWhenClosed = false
+            w.contentView = hosting
+            w.setContentSize(NSSize(width: 460, height: hosting.fittingSize.height))
+            w.center()
+            aboutWindow = w
+        }
+        aboutWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        installEditKeyFallback()
+    }
+
+    private func applyAppIcon() {
+        let url =
+            Bundle.app.url(forResource: "AppIcon", withExtension: "icns")
+            ?? Bundle.app.url(forResource: "AppIcon", withExtension: "png")
+        if let url, let img = NSImage(contentsOf: url) {
+            NSApp.applicationIconImage = img
+        }
+    }
+
+    // 关窗行为完全由 windowShouldClose 接管（隐藏到托盘或走退出流程），故不让系统在关窗后自动退出。
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+}
+
+struct ContentView: View {
+    // 观察全局单例（其生命周期由 AppModel.shared 静态属性持有，不归视图所有，故用 ObservedObject）。
+    @ObservedObject private var model: AppModel
+    // 侧栏宽度独立成一个对象,拖动它不会牵动 TabBar/Workspace 重算(见 LayoutModel)。
+    // 布局单例由 AppModel 持有（视图层经 model.layoutModel 观察同一实例）。
+    @ObservedObject private var layout: LayoutModel
+    @MainActor
+    init() {
+        self.init(model: AppModel.shared)
+    }
+
+    @MainActor
+    init(model: AppModel) {
+        self.model = model
+        self.layout = model.layoutModel
+    }
+    @ObservedObject private var theme = ThemeManager.shared
+
+    var body: some View {
+        GeometryReader { proxy in
+            let autoPanelWidth = min(
+                360, max(280, proxy.size.width - layout.sidebarWidth - RightBar.width - 5 - 420))
+            // 手动拖宽优先（拖柄写入 rightPanelManualWidth），对所有功能面板统一生效
+            let panelWidth = min(560, max(260, layout.rightPanelManualWidth ?? autoPanelWidth))
+            VStack(spacing: 0) {
+                WorkbenchHeader(model: model, tabs: model.tabsModel, layout: layout)
+                Rectangle().fill(Pal.border).frame(height: 1)
+                HStack(spacing: 0) {
+                    Sidebar(model: model, tabs: model.tabsModel, layout: layout)
+                    SidebarDivider(layout: layout, maxWidth: 360)
+                        .zIndex(1)
+                    VStack(spacing: 0) {
+                        Workspace(model: model, tabs: model.tabsModel)
+                        FileOperationShelf(model: model, tabs: model.tabsModel)
+                        FileTaskShelf(model: model, tabs: model.tabsModel)
+                    }
+                    CompanionPanel(
+                        model: model, layout: layout, tabs: model.tabsModel,
+                        panelWidth: panelWidth)
+                    RightBar(model: model, layout: layout)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Pal.base)
+        .background(WindowConfigurator())
+        // 后台传输需要用户决策时，展开工作区底部任务详情。
+        .background {
+            ForEach(model.transfers, id: \.id) { task in
+                UploadAskWatcher(task: task) { model.focusedTransferId = task.id }
+            }
+        }
+        .ignoresSafeArea()
+        .preferredColorScheme(theme.isDark ? .dark : .light)
+        // 注意：动画必须局限在各自 overlay 的 ZStack 内，不能加在视图链上——否则会泄漏到
+        // 下方的 .sheet 子树，导致 sheet（如测试连接弹窗）内容出现时被错误地附带动画。
+        .overlay {
+            ZStack {
+                if model.pendingCloseTabId != nil {
+                    ConfirmDialog(
+                        verbatimTitle: model.pendingCloseDialogTitle,
+                        verbatimMessage: model.pendingCloseDialogMessage,
+                        confirmTitle: "关闭",
+                        destructive: true,
+                        onConfirm: { model.confirmPendingClose() },
+                        onCancel: { model.cancelPendingClose() }
+                    )
+                    .transition(.opacity)
+                }
+                if let ctx = model.pendingMultiClose {
+                    ConfirmDialog(
+                        title: "关闭 \(ctx.ids.count) 个标签？",
+                        message: "其中有运行中的会话或未保存的修改，关闭将中断或丢弃。",
+                        confirmTitle: "全部关闭",
+                        destructive: true,
+                        onConfirm: { model.confirmMultiClose() },
+                        onCancel: { model.cancelMultiClose() }
+                    )
+                    .transition(.opacity)
+                }
+                if let ctx = model.pendingTabRename {
+                    RenameDialog(
+                        originalName: ctx.currentTitle, title: "重命名标签",
+                        onConfirm: { model.renameTab(ctx.id, to: $0) },
+                        onCancel: { model.pendingTabRename = nil }
+                    )
+                    .transition(.opacity)
+                }
+            }
+            .animation(.easeOut(duration: 0.15), value: model.pendingCloseTabId)
+            .animation(.easeOut(duration: 0.15), value: model.pendingMultiClose?.id)
+            .animation(.easeOut(duration: 0.15), value: model.pendingTabRename?.id)
+            // 无弹窗时整层不吃点击：避免 .transition 关闭后残留的透明命中层挡住下方内容
+            //（SwiftUI overlay+transition+ignoresSafeArea 的已知缺陷，下同）。
+            .allowsHitTesting(
+                model.pendingCloseTabId != nil || model.pendingMultiClose != nil
+                    || model.pendingTabRename != nil)
+        }
+        // 连接相关弹窗（连接进度 / 指纹验证 / 每次询问密码 / 片段变量填值）统一抽到一个 ViewModifier，
+        // 避免 body 的 overlay 链过长触发「编译器类型检查超时」（同 AppSheets 的拆分思路）。
+        .modifier(ConnectionDialogs(model: model, flow: model.connectionFlow, trust: model.hostTrust))
+        .overlay { fileOpOverlays }
+        .overlay {
+            // 下载不弹窗时的弧线飞入动画：满窗叠层、不吃点击；事件结束即移除（按 id 防被旧动画误清）。
+            // 起点/终点都在 SwiftUI 全局坐标；这里减去叠层自身的全局原点换算到本地坐标，
+            // 与窗口大小、位置、安全区无关，故各种尺寸下起止点都精确对齐。
+            GeometryReader { proxy in
+                if let fly = model.flyTransfer {
+                    let o = proxy.frame(in: .global).origin
+                    FlyToCornerView(
+                        from: CGPoint(x: fly.from.x - o.x, y: fly.from.y - o.y),
+                        to: CGPoint(
+                            x: model.backgroundButtonCenter.x - o.x,
+                            y: model.backgroundButtonCenter.y - o.y)
+                    ) {
+                        if model.flyTransfer?.id == fly.id { model.flyTransfer = nil }
+                    }
+                    .id(fly.id)
+                }
+            }
+            .allowsHitTesting(false)
+        }
+        .overlay {
+            ZStack {
+                if model.pendingQuitConfirm {
+                    QuitConfirmDialog(
+                        model: model,
+                        forceMode: model.pendingQuitForce,
+                        onCancel: {
+                            model.pendingQuitConfirm = false; model.pendingQuitForce = false
+                        },
+                        onHideToTray: {
+                            model.pendingQuitConfirm = false
+                            model.pendingQuitForce = false
+                            AppSettings.shared.closeToTray = true
+                            // 仅隐藏可成为主窗口的内容窗口；放过托盘 NSStatusBarWindow（canBecomeMain==false），
+                            // 否则 macOS 15 会丢托盘图标。详见 AppDelegate.hideToTray 的过滤说明。
+                            for w in NSApp.windows where w.isVisible && w.canBecomeMain {
+                                w.orderOut(nil)
+                            }
+                            NSApp.setActivationPolicy(.accessory)
+                        },
+                        onConfirm: {
+                            model.pendingQuitConfirm = false
+                            model.pendingQuitForce = false
+                            model.stopAllBackground()
+                            ForwardProcessRegistry.shared.terminateAll()
+                            NSApp.terminate(nil)
+                        }
+                    ).transition(.opacity)
+                }
+            }
+            .animation(.easeOut(duration: 0.15), value: model.pendingQuitConfirm)
+            .allowsHitTesting(model.pendingQuitConfirm)
+        }
+        .modifier(AppSheets(model: model))
+        .onAppear { model.applyStartupIfNeeded() }
+    }
+
+    /// 仅主机删除保留确认叠层；文件操作和后台任务详情都在工作区底部。
+    @ViewBuilder
+    private var fileOpOverlays: some View {
+        ZStack {
+            if let h = model.pendingHostDelete {
+                ConfirmDialog(
+                    title: "删除主机「\(h.name)」？",
+                    message: "该主机的配置（含保存的密码、会话历史、端口转发规则）将被删除，不可恢复。",
+                    confirmTitle: "删除", destructive: true,
+                    onConfirm: { model.confirmHostDelete() },
+                    onCancel: { model.cancelHostDelete() }
+                ).transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: model.pendingHostDelete?.id)
+        // 确认关闭后整层不吃点击，避免 transition 残留命中层。
+        .allowsHitTesting(anyFileOverlayActive)
+    }
+
+    /// 仅在主机删除确认显示时启用全窗点击层。
+    private var anyFileOverlayActive: Bool {
+        model.pendingHostDelete != nil
+    }
+}
+
+/// 把全部 sheet 与 alert 收进一个 ViewModifier：避免 ContentView.body 单表达式过长，
+/// 触发「编译器无法在合理时间内类型检查」。
+/// 连接相关弹窗叠层（从 ContentView.body 拆出，缩短 overlay 链以避免类型检查超时）。
+/// 应用顺序即叠放顺序：连接进度 → 指纹验证 → 每次询问密码 → 片段变量填值（后者在最上）。
+private struct ConnectionDialogs: ViewModifier {
+    @ObservedObject var model: AppModel
+    @ObservedObject var flow: HostConnectionFlow
+    @ObservedObject var trust: HostTrustCoordinator
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                ZStack {
+                    if let request = flow.request, request.kind == .connection {
+                        ConnectingDialog(
+                            host: request.host,
+                            successHint: request.hint,
+                            onConnected: { flow.finishConnection(id: request.id) },
+                            onCancel: { model.cancelConnecting(requestID: request.id) }
+                        )
+                        .id(request.id)
+                        .transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.25), value: flow.request?.id)
+                .allowsHitTesting(flow.request?.kind == .connection)
+            }
+            // 指纹验证弹窗叠在连接弹窗之上（未知主机首次连接时需用户核对）
+            .overlay {
+                ZStack {
+                    if let pending = trust.pending {
+                        HostKeyDialog(pending: pending).transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.15), value: trust.pending?.id)
+                .allowsHitTesting(trust.pending != nil)
+            }
+            // 「每次询问」主机连接前的一次性密码弹窗（在连接弹窗之前出现）
+            .overlay {
+                ZStack {
+                    if let request = flow.request, request.kind == .password {
+                        AskPasswordDialog(
+                            host: request.host,
+                            errorText: flow.passwordError,
+                            onConfirm: {
+                                model.submitAskAuth(requestID: request.id, password: $0, remember: $1)
+                            },
+                            onCancel: { flow.cancel(id: request.id) }
+                        )
+                        .id(request.id)
+                        .transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.15), value: flow.request?.id)
+                .allowsHitTesting(flow.request?.kind == .password)
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if flow.request?.kind != .password, !model.showAddHost, model.editingHost == nil,
+                    let message = model.hostSaveError ?? model.hostCredentialNotice
+                {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(
+                            systemName: model.hostSaveError == nil
+                                ? "checkmark.shield" : "exclamationmark.triangle"
+                        )
+                        .foregroundStyle(model.hostSaveError == nil ? Pal.green : Pal.red)
+                        Text(message).font(.system(size: 12)).foregroundStyle(Pal.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button {
+                            model.hostCredentialNotice = nil
+                            model.hostSaveError = nil
+                        } label: {
+                            Image(systemName: "xmark").font(.system(size: 10))
+                        }
+                        .buttonStyle(.plain).help("关闭提示")
+                    }
+                    .padding(14).frame(maxWidth: 390, alignment: .leading)
+                    .background(Pal.solidMantle, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Pal.border, lineWidth: 1))
+                    .padding(18)
+                }
+            }
+            // 片段「插入/运行」选择弹窗（默认动作为「每次询问」时）
+            .overlay {
+                ZStack {
+                    if let s = model.pendingSnippetAction {
+                        SnippetActionDialog(
+                            snippet: s,
+                            targetTitle: model.snippetTargetTabIdPublic().flatMap { id in
+                                model.tabs.first { $0.id == id }?.title
+                            },
+                            onChoose: { model.resolveSnippetAction(s, run: $0, remember: $1) },
+                            onCancel: { model.cancelSnippetAction() }
+                        )
+                        .id(s.id)
+                        .transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.15), value: model.pendingSnippetAction?.id)
+                .allowsHitTesting(model.pendingSnippetAction != nil)
+            }
+            // 含 {{变量}} 的片段运行/插入前的填值弹窗
+            .overlay {
+                ZStack {
+                    if let req = model.pendingSnippetRun {
+                        SnippetRunDialog(
+                            request: req,
+                            targetTitle: model.snippetTargetTabIdPublic().flatMap { id in
+                                model.tabs.first { $0.id == id }?.title
+                            },
+                            onConfirm: { model.submitSnippetRun($0) },
+                            onCancel: { model.cancelSnippetRun() }
+                        )
+                        .id(req.id)
+                        .transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.15), value: model.pendingSnippetRun?.id)
+                .allowsHitTesting(model.pendingSnippetRun != nil)
+            }
+    }
+}
+
+private struct AppSheets: ViewModifier {
+    @ObservedObject var model: AppModel
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $model.showSettings) { SettingsView(model: model) }
+            .sheet(isPresented: $model.showAddHost) { AddHostView(model: model) }
+            .sheet(item: $model.editingHost) { host in AddHostView(model: model, editing: host) }
+            .sheet(isPresented: $model.showCreateSnippet) { SnippetEditView(model: model) }
+            .sheet(item: $model.editingSnippet) { snip in SnippetEditView(model: model, editing: snip) }
+            .alert(
+                "提示",
+                isPresented: Binding(
+                    get: { model.snippetNotice != nil },
+                    set: { if !$0 { model.snippetNotice = nil } }
+                )
+            ) {
+                Button("好", role: .cancel) { model.snippetNotice = nil }
+            } message: {
+                Text(model.snippetNotice ?? "")
+            }
+    }
+}
+
+/// 内容铺满到顶（fullSizeContentView + 透明标题栏），并把系统原生窗口控制按钮整体下移，
+/// 与标签栏对齐（不再单独占用顶部一行）。下移量由 lightsDownOffset 控制。
+struct WindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView(frame: .zero)
+        context.coordinator.attach(to: v)
+        return v
+    }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator: NSObject {
+        weak var window: NSWindow?
+        private var originalY: [ObjectIdentifier: CGFloat] = [:]
+        private let lightsDownOffset: CGFloat = 9  // 窗口控制按钮整体下移量
+
+        func attach(to v: NSView, attempt: Int = 0) {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                guard let w = v.window else {
+                    if attempt < 20 { self.attach(to: v, attempt: attempt + 1) }
+                    return
+                }
+                self.window = w
+                // 窗口底色设为品牌 base：首帧即深/浅品牌底，避免默认窗口底色造成冷启动闪白。
+                w.backgroundColor = ThemeManager.shared.windowBackground
+                w.isOpaque = true
+                w.titlebarAppearsTransparent = true
+                w.titleVisibility = .hidden
+                w.styleMask.insert(.fullSizeContentView)
+                // 冷启动不自动聚焦搜索框：否则 macOS 会给聚焦的文本框弹自动填充/输入法候选浮层，
+                // 启动瞬间闪现一帧白色圆角卡片。清掉初始第一响应者，用户点击搜索框仍可正常聚焦。
+                w.initialFirstResponder = nil
+                w.makeFirstResponder(nil)
+                // 不修改标题栏容器高度——保持原生窗口控制按钮的外观和交互
+                NotificationCenter.default.addObserver(
+                    self, selector: #selector(self.reposition), name: NSWindow.didResizeNotification,
+                    object: w)
+                NotificationCenter.default.addObserver(
+                    self, selector: #selector(self.reposition), name: NSWindow.didBecomeKeyNotification,
+                    object: w)
+                self.reposition()
+            }
+        }
+
+        @objc func reposition() {
+            guard let w = window else { return }
+            let buttons = [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton]
+                .compactMap { w.standardWindowButton($0) }
+            for b in buttons {
+                let id = ObjectIdentifier(b)
+                if originalY[id] == nil { originalY[id] = b.frame.origin.y }
+                b.setFrameOrigin(NSPoint(x: b.frame.origin.x, y: originalY[id]! - lightsDownOffset))
+            }
+        }
+    }
+}

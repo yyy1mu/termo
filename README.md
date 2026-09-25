@@ -37,7 +37,7 @@ Under the hood, Termo runs its SSH / SFTP / terminal / port forwarding / keys en
 | Capability | Details |
 |---|---|
 | **SSH terminal** | Full terminal powered by SwiftTerm; in-process Rust (russh) engine for stable, fast connections |
-| **SFTP browsing** | Upload / download / rename / chmod, resumable transfers, concurrent queue, in-app remote code editing |
+| **SFTP browsing** | Upload / download / rename / chmod, resumable transfers, concurrent queue |
 | **Port forwarding** | Local (-L) / remote (-R) / dynamic SOCKS (-D), running in the background with a menu-bar dashboard |
 | **Host monitoring** | Live CPU / memory / disk / network charts, with system notifications on sustained load |
 | **SSH key management** | Generate / import ed25519 · RSA in-process — no `ssh-keygen` dependency |
@@ -80,7 +80,7 @@ xcodebuild -scheme Termo -configuration Release build
 
 ## Architecture
 
-For iOS and Apple Watch development, see [Multi-platform development](PLATFORMS.md).
+For iOS and Apple Watch development, see [Multi-platform development](docs/PLATFORMS.md).
 
 - **UI**: SwiftUI + AppKit, fully custom unified components; single window with a persistent menu-bar item
 - **SSH stack**: in-process Rust engine (russh 0.63.3, ring backend, built from source) — terminal PTY / SFTP subsystem / direct-TCP forwarding / known-hosts verification / key generation

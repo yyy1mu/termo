@@ -1,3 +1,4 @@
+import AI
 import XCTest
 @testable import Termo
 
@@ -50,25 +51,17 @@ final class AIChatFlowTests: XCTestCase {
         XCTAssertFalse(chat.hasSentCommand("pwd", from: response))
     }
 
-    func testUnknownCompletionWithoutOutputDoesNotTriggerAIAnalysis() {
-        XCTAssertFalse(AIChatState.shouldAnalyzeReadback(output: "  \n", exitCode: nil))
-        XCTAssertTrue(AIChatState.shouldAnalyzeReadback(output: "READY", exitCode: nil))
-        XCTAssertTrue(AIChatState.shouldAnalyzeReadback(output: "", exitCode: 0))
-    }
-
     func testModesKeepSeparateHistoryAndDrafts() {
         let chat = AIChatState()
-        chat.input = "运维草稿"
-        chat.messages.append(AIMessage(role: .user, content: "运维问题"))
+        chat.input = "Agent 草稿"
+        chat.messages.append(AIMessage(role: .user, content: "Agent 问题"))
         chat.selectMode(.general)
         XCTAssertTrue(chat.messages.isEmpty)
         XCTAssertTrue(chat.input.isEmpty)
         chat.input = "问答草稿"
         chat.selectMode(.agent)
-        XCTAssertTrue(chat.messages.isEmpty)
-        chat.selectMode(.ops)
-        XCTAssertEqual(chat.input, "运维草稿")
-        XCTAssertEqual(chat.messages.first?.content, "运维问题")
+        XCTAssertEqual(chat.input, "Agent 草稿")
+        XCTAssertEqual(chat.messages.first?.content, "Agent 问题")
         chat.selectMode(.general)
         XCTAssertEqual(chat.input, "问答草稿")
     }
@@ -85,42 +78,192 @@ final class AIChatFlowTests: XCTestCase {
         XCTAssertEqual(AICommandProposal("# [SAFE] 改时间\ndate --set today").risk, .caution)
     }
 
-    func testFragmentedNativeToolCallBecomesOneApprovalRequest() {
-        var accumulator = AIClient.ToolCallAccumulator()
-        accumulator.append(delta: ["tool_calls": [[
-            "index": 0, "id": "call_1", "function": ["name": "run_terminal_command",
-                                                      "arguments": "{\"command\":\"up"]
-        ]]])
-        accumulator.append(delta: ["tool_calls": [[
-            "index": 0, "function": ["arguments": "time\",\"purpose\":\"查看负载\"}"]
-        ]]])
-        XCTAssertEqual(accumulator.calls.count, 1)
-        let call = accumulator.calls[0]
-        let request = AIToolRequest.decode(callID: call.id, name: call.name,
-            arguments: call.arguments, targetTabID: 81, targetTitle: "shell 1")
-        XCTAssertEqual(request?.command, "uptime")
-        XCTAssertEqual(request?.purpose, "查看负载")
-        XCTAssertEqual(request?.targetTabID, 81)
-        XCTAssertEqual(request?.decision, .pending)
-    }
-
-    func testToolRequestRejectsUnknownNameAndMultilineCommand() {
-        XCTAssertNil(AIToolRequest.decode(callID: "1", name: "delete_file",
-            arguments: "{\"command\":\"rm -rf /\",\"purpose\":\"清理\"}",
-            targetTabID: 1, targetTitle: "shell"))
-        XCTAssertNil(AIToolRequest.decode(callID: "2", name: "run_terminal_command",
-            arguments: "{\"command\":\"pwd\\nreboot\",\"purpose\":\"检查\"}",
-            targetTabID: 1, targetTitle: "shell"))
-    }
-
     func testSwitchingModeExpiresUnapprovedToolRequest() {
         let chat = AIChatState()
         var reply = AIMessage(role: .assistant, content: "查看负载")
-        reply.toolRequest = AIToolRequest(callID: "call_1", command: "uptime",
-            purpose: "查看负载", targetTabID: 81, targetTitle: "shell 1")
+        reply.toolRequest = request()
         chat.messages.append(reply)
         chat.selectMode(.general)
-        chat.selectMode(.ops)
+        chat.selectMode(.agent)
         XCTAssertEqual(chat.messages.first?.toolRequest?.decision, .expired)
+    }
+    private var target: AIExecutionTarget {
+        AIExecutionTarget(Host(id: "test-ai-host", name: "测试机", addr: "test.invalid", group: "",
+            status: .offline, os: "linux", ssh: SSHConnection(host: "test.invalid")))!
+    }
+
+    private func request(command: String = "uptime", now: Date = Date()) -> AIToolRequest {
+        AIToolRequest(id: UUID(), version: 1, callID: UUID().uuidString, command: command,
+            purpose: "查看负载", target: target, timeout: 60, expiresAt: now.addingTimeInterval(600))
+    }
+
+    func testApprovalIsConsumedExactlyOnceAndUsesStoredCommand() async throws {
+        var commands: [String] = []
+        let service = AICommandService { run, _, authorize in
+            guard authorize() else { run.finish(.failed); return }
+            commands.append(run.request.command)
+            run.finish(.completed, exitCode: 0)
+        }
+        let proposal = request()
+        service.register(proposal)
+        let run = try service.approve(id: proposal.id, expectedVersion: 1,
+            currentTarget: { self.target }, unlocked: { true }, connection: { SSHConnection(host: "test.invalid") })
+        XCTAssertThrowsError(try service.approve(id: proposal.id, expectedVersion: 1,
+            currentTarget: { self.target }, unlocked: { true }, connection: { SSHConnection(host: "test.invalid") }))
+        await run.task?.value
+        XCTAssertEqual(commands, ["uptime"])
+        XCTAssertEqual(run.exitCode, 0)
+    }
+
+    func testExpiredChangedLockedAndRevisedApprovalsCannotExecute() throws {
+        let service = AICommandService { _, _, _ in XCTFail("must not dispatch") }
+        let expired = request(now: Date().addingTimeInterval(-601))
+        service.register(expired)
+        XCTAssertThrowsError(try service.approve(id: expired.id, expectedVersion: 1,
+            currentTarget: { self.target }, unlocked: { true }, connection: { SSHConnection() }))
+        let changed = request()
+        service.register(changed)
+        XCTAssertThrowsError(try service.approve(id: changed.id, expectedVersion: 1,
+            currentTarget: { nil }, unlocked: { true }, connection: { SSHConnection() }))
+        let locked = request()
+        service.register(locked)
+        XCTAssertThrowsError(try service.approve(id: locked.id, expectedVersion: 1,
+            currentTarget: { self.target }, unlocked: { false }, connection: { SSHConnection() }))
+        let revised = try XCTUnwrap(service.revise(locked.id, command: "pwd"))
+        XCTAssertEqual(revised.version, 2)
+        XCTAssertEqual(revised.command, "pwd")
+        XCTAssertEqual(service.decision(locked.id), .expired)
+        XCTAssertThrowsError(try service.approve(id: locked.id, expectedVersion: 1,
+            currentTarget: { self.target }, unlocked: { true }, connection: { SSHConnection() }))
+    }
+
+    func testDispatchRevalidatesHostAfterConnectionWait() async throws {
+        var selected: AIExecutionTarget? = target
+        var dispatched = false
+        let service = AICommandService { run, _, authorize in
+            await Task.yield()
+            dispatched = authorize()
+            run.finish(dispatched ? .completed : .failed)
+        }
+        let proposal = request()
+        service.register(proposal)
+        let run = try service.approve(id: proposal.id, expectedVersion: 1,
+            currentTarget: { selected }, unlocked: { true }, connection: { SSHConnection(host: "test.invalid") })
+        selected = nil
+        await run.task?.value
+        XCTAssertFalse(dispatched)
+    }
+
+    func testWorkingDirectoryQuotingDoesNotExpandShellSubstitutions() {
+        XCTAssertEqual(AIExecutionTarget.quote("/tmp/a'$(touch x)"), "'/tmp/a'\\''$(touch x)'")
+        XCTAssertTrue(target.shellCommand("pwd").hasPrefix("cd -- \"$HOME\" && exec sh -c "))
+        XCTAssertTrue(target.shellCommand("pwd").hasSuffix("'pwd'"))
+    }
+
+    func testOutputRemainsBoundedAndKeepsSeparateStreamsAfterCancellation() {
+        let io = AICommandIO()
+        io.append(stderr: false, data: Data(repeating: 65, count: 200_000))
+        io.append(stderr: true, data: Data("failure".utf8))
+        io.cancel()
+        XCTAssertEqual(io.snapshot.stdout.utf8.count, 128 * 1024)
+        XCTAssertEqual(io.snapshot.stderr, "failure")
+        XCTAssertTrue(io.snapshot.truncated)
+        XCTAssertTrue(io.isCancelled)
+    }
+
+    func testNativeToolHistoryEncodesMatchingCallID() throws {
+        let proposal = request()
+        let exchange = AIConversationContext.toolExchange(proposal, text: "", report: "{}")
+        guard case .toolCall(let call) = exchange[0].content.last,
+              case .toolResult(let result) = exchange[1].content.first else {
+            return XCTFail("SDK messages must contain a native call/result pair")
+        }
+        XCTAssertEqual(call.id, proposal.callID)
+        XCTAssertEqual(result.toolCallID, proposal.callID)
+        XCTAssertFalse(AIClient.commandTool.hasExecutor)
+    }
+
+    func testEmptySuccessfulResultAndStderrAreReported() throws {
+        let message = AIMessage(role: .exec, content: "", exitCode: 0,
+                                execCommand: "true", stderr: "warning", executionState: .completed)
+        let report = try XCTUnwrap(AIChatState.executionReport(message).data(using: .utf8))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: report) as? [String: Any])
+        XCTAssertEqual(json["exit_code"] as? Int, 0)
+        XCTAssertEqual(json["stdout"] as? String, "")
+        XCTAssertEqual(json["stderr"] as? String, "warning")
+    }
+
+    func testToolCannotChooseAnotherHostOrApprovalAndAcceptsExplicitMultiline() {
+        XCTAssertNil(AIToolRequest.decode(callID: "1", name: "approve",
+            arguments: "{\"command\":\"pwd\",\"purpose\":\"check\"}", target: target))
+        XCTAssertNil(AIToolRequest.decode(callID: "1", name: "request_shell_command",
+            arguments: "{\"command\":\"pwd\",\"purpose\":\"check\",\"host\":\"other\"}", target: target))
+        XCTAssertNotNil(AIToolRequest.decode(callID: "1", name: "request_shell_command",
+            arguments: "{\"command\":\"pwd\\necho ok\",\"purpose\":\"check\"}", target: target))
+    }
+
+    func testInterruptedReceiptNeverReplaysAndContainsNoCommand() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let service = AICommandService(journalURL: url) { run, _, _ in run.finish(.unknown) }
+        let proposal = request(command: "echo private-command")
+        service.register(proposal)
+        let run = try service.approve(id: proposal.id, expectedVersion: 1,
+            currentTarget: { self.target }, unlocked: { true }, connection: { SSHConnection(host: "test.invalid") })
+        await run.task?.value
+        let recovered = AICommandService(journalURL: url) { _, _, _ in XCTFail("must not replay") }
+        XCTAssertTrue(recovered.interruptedHostIDs.contains(target.hostID))
+        XCTAssertFalse(try String(contentsOf: url).contains("private-command"))
+        XCTAssertThrowsError(try recovered.approve(id: proposal.id, expectedVersion: 1,
+            currentTarget: { self.target }, unlocked: { true }, connection: { SSHConnection(host: "test.invalid") }))
+    }
+
+    func testConnectionResolverCannotRedirectApprovedHost() {
+        let service = AICommandService { _, _, _ in XCTFail("must not dispatch") }
+        let proposal = request()
+        service.register(proposal)
+        XCTAssertThrowsError(try service.approve(id: proposal.id, expectedVersion: 1,
+            currentTarget: { self.target }, unlocked: { true }, connection: { SSHConnection(host: "other.invalid") }))
+    }
+
+
+    func testAgentNeverCapturesTerminalAndQAUsesExplicitSnapshot() {
+        let model = AppModel.shared
+        let savedTabs = model.tabs
+        let own = TabItem(id: 991001, kind: .terminal, title: "fixture", hostId: "qa-fixture")
+        let other = TabItem(id: 991002, kind: .terminal, title: "other", hostId: "other-fixture")
+        model.tabs = [own, other]
+        defer {
+            model.tabs = savedTabs
+            TerminalTranscriptStore.shared.discard(tabId: own.id)
+            TerminalTranscriptStore.shared.discard(tabId: other.id)
+        }
+        let transcript = TerminalTranscriptStore.shared.transcript(for: own.id)
+        transcript.appendOutput(Array("explicit snapshot\n".utf8))
+        TerminalTranscriptStore.shared.transcript(for: other.id).appendOutput(Array("other host\n".utf8))
+        let chat = AIChatState(tabId: own.id, hostId: own.hostId)
+        XCTAssertEqual(chat.mode, .agent)
+        chat.captureTerminal(model: model, tabId: own.id, lines: 20)
+        XCTAssertNil(chat.pendingTerminalContext)
+        XCTAssertNil(chat.capturedContext)
+        XCTAssertTrue(chat.contextTerminals(in: model).isEmpty)
+
+        chat.selectMode(.general)
+        XCTAssertNil(chat.pendingTerminalContext)
+        XCTAssertEqual(chat.contextTerminals(in: model).map(\.id), [own.id])
+        chat.captureTerminal(model: model, tabId: other.id, lines: 20)
+        XCTAssertNil(chat.capturedContext)
+        chat.captureTerminal(model: model, tabId: own.id, lines: 20)
+        XCTAssertEqual(chat.pendingTerminalContext, "explicit snapshot")
+        transcript.appendOutput(Array("later output\n".utf8))
+        XCTAssertEqual(chat.pendingTerminalContext, "explicit snapshot")
+        chat.selectMode(.agent)
+        XCTAssertNil(chat.pendingTerminalContext)
+        chat.selectMode(.general)
+        XCTAssertNil(chat.capturedContext)
+
+        let local = AIChatState(tabId: own.id)
+        local.selectMode(.general)
+        XCTAssertEqual(local.contextTerminals(in: model).map(\.id), [own.id])
     }
 }

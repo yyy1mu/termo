@@ -2,7 +2,7 @@
 set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-OUT_DIR="$ROOT/Build/russh/universal"
+OUT_DIR="$ROOT/build/russh/universal"
 mkdir -p "$OUT_DIR"
 
 # 锁定 rustup 工具链：交叉 target（x86_64-apple-darwin 等）由 rustup 管理。
@@ -20,15 +20,15 @@ fi
 
 # 双架构编译（Intel + Apple Silicon），产出一个通用静态库。
 for TARGET in aarch64-apple-darwin x86_64-apple-darwin; do
-    "$CARGO" build --manifest-path "$ROOT/Rust/TermoSSH/Cargo.toml" \
+    "$CARGO" build --manifest-path "$ROOT/TermoSSH/Cargo.toml" \
         --target "$TARGET" \
         --release \
-        --target-dir "$ROOT/Build/russh/target"
+        --target-dir "$ROOT/build/russh/target"
 done
 
 lipo -create \
-    "$ROOT/Build/russh/target/aarch64-apple-darwin/release/libtermo_ssh.a" \
-    "$ROOT/Build/russh/target/x86_64-apple-darwin/release/libtermo_ssh.a" \
+    "$ROOT/build/russh/target/aarch64-apple-darwin/release/libtermo_ssh.a" \
+    "$ROOT/build/russh/target/x86_64-apple-darwin/release/libtermo_ssh.a" \
     -output "$OUT_DIR/libtermo_ssh.a"
 
 nm -gU "$OUT_DIR/libtermo_ssh.a" | grep -q "_termo_russh_backend_version"

@@ -26,5 +26,5 @@ unset TERMO_IDENTITIES
     -configuration Release -destination 'platform=macOS' \
     CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$TERMO_SIGNER" DEVELOPMENT_TEAM= \
     OTHER_CODE_SIGN_FLAGS=--timestamp=none build
-/usr/bin/codesign --verify --deep --strict "$TERMO_PROJECT_ROOT/Build/Release/Termo.app"
-/usr/bin/codesign -d -r- "$TERMO_PROJECT_ROOT/Build/Release/Termo.app"
+/usr/bin/codesign --verify --deep --strict "$TERMO_PROJECT_ROOT/build/Release/Termo.app"
+/usr/bin/codesign -d -r- "$TERMO_PROJECT_ROOT/build/Release/Termo.app"

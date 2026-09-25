@@ -24,6 +24,61 @@ final class SyncEngineTests: XCTestCase {
                     snippets: snippets, forwards: forwards, settings: settings)
     }
 
+    func testHostMonitoringLegacyDefaultsAndDraftRoundTrip() throws {
+        let encoded = try JSONEncoder().encode(host("A"))
+        let choices: [Bool?] = [nil, true, false]
+        for choice in choices {
+            var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+            var ssh = try XCTUnwrap(json["ssh"] as? [String: Any])
+            if let choice { ssh["monitoringEnabled"] = choice }
+            else { ssh.removeValue(forKey: "monitoringEnabled") }
+            json["ssh"] = ssh
+            let data = try JSONSerialization.data(withJSONObject: json)
+            let restored = try JSONDecoder().decode(Termo.Host.self, from: data)
+            XCTAssertEqual(restored.ssh?.monitoringEnabled ?? true, choice ?? true)
+            let draft = HostDraft()
+            draft.load(from: restored)
+            XCTAssertEqual(draft.monitoringEnabled, choice ?? true)
+            let saved = draft.buildConnection()
+            XCTAssertEqual(saved.monitoringEnabled ?? true, choice ?? true)
+            let synced = try JSONDecoder().decode(SSHConnection.self, from: JSONEncoder().encode(saved))
+            XCTAssertEqual(synced.monitoringEnabled ?? true, choice ?? true)
+        }
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        var ssh = try XCTUnwrap(json["ssh"] as? [String: Any])
+        ssh["monitoringEnabled"] = NSNull()
+        json["ssh"] = ssh
+        let legacy = try JSONDecoder().decode(Termo.Host.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertTrue(legacy.ssh?.monitoringEnabled ?? true)
+    }
+
+    func testMonitoringConflictBelongsToOneHostAndDoesNotChangeAnother() throws {
+        let a = host("A")
+        let b = host("B", name: "second", sshHost: "fixture.invalid")
+        var remoteA = a
+        remoteA.ssh?.monitoringEnabled = false
+        let merged = SyncEngine.merge(local: payload(hosts: [a, b]), remote: payload(hosts: [remoteA, b]))
+        XCTAssertEqual(merged.conflicts.count, 1)
+        let conflict = try XCTUnwrap(merged.conflicts.first)
+        guard case .host(let local, _, _, _) = conflict.item else {
+            return XCTFail("Monitoring must be a host conflict, not an application setting")
+        }
+        XCTAssertEqual(local.id, "A")
+        XCTAssertEqual(conflict.fields.filter(\.isDifferent).count, 1)
+        let resolved = SyncEngine.resolve(result: merged, choices: [conflict.id: false])
+        let restored = try JSONDecoder().decode(SyncPayload.self, from: JSONEncoder().encode(resolved))
+        XCTAssertEqual(restored.hosts.first { $0.id == "A" }?.ssh?.monitoringEnabled, false)
+        XCTAssertTrue(restored.hosts.first { $0.id == "B" }?.ssh?.monitoringEnabled ?? true)
+    }
+
+    func testMissingAndExplicitlyEnabledHostMonitoringDoNotConflict() {
+        let local = host("A")
+        var remote = local
+        remote.ssh?.monitoringEnabled = true
+        let merged = SyncEngine.merge(local: payload(hosts: [local]), remote: payload(hosts: [remote]))
+        XCTAssertTrue(merged.conflicts.isEmpty)
+    }
+
     func test_localOnlyHost_keptAndCounted() {
         let r = SyncEngine.merge(local: payload(hosts: [host("L1")]), remote: payload(hosts: []))
         XCTAssertEqual(r.merged.hosts.map(\.id), ["L1"])

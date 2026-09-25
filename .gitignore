@@ -21,21 +21,17 @@ dist/
 .playwright-mcp/
 
 
-# 私人发布手册等文档：仅本地查阅，不入库
-docs/
+# 本地 UI 审计记录不入库；正式项目文档可提交。
+/docs/UI-AUDIT.md
 
 # russh/构建产物（scripts/build-russh.sh 输出；只保留未跟踪，不入库）
-/Build/
+/build/
 
 # Rust 构建产物（cargo 默认 target 目录）
-Rust/**/target/
+TermoSSH/**/target/
 
 # 本地 Agent 指南：仅本地查阅，永不入库
 agents.local.md
 
-# 外部分析素材（Termark 参照应用），永不入库
-termark/
-
-# Termark 遗留的 package.json 与分析截图：永不入库
-/package.json
-/pic/
+# 外部分析素材、调试截图与遗留包元数据，仅供本机参考。
+/.local-references/

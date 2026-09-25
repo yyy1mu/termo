@@ -37,7 +37,7 @@ SSH · SFTP · 终端 · Windows 远程桌面 · 端口转发 · 主机监控
 | 能力 | 说明 |
 |---|---|
 | **SSH 终端** | 基于 SwiftTerm 的完整终端；进程内 Rust（russh）引擎，连接稳、启动快 |
-| **SFTP 文件浏览** | 上传 / 下载 / 重命名 / 权限修改，断点续传、并发队列、远程代码在线编辑 |
+| **SFTP 文件浏览** | 上传 / 下载 / 重命名 / 权限修改，断点续传、并发队列 |
 | **端口转发** | 本地（-L）/ 远程（-R）/ 动态 SOCKS（-D），后台常驻，托盘看板实时掌控 |
 | **主机监控** | CPU / 内存 / 磁盘 / 网络实时折线，异常持续占用可发系统通知 |
 | **SSH 密钥管理** | 进程内生成 / 导入 ed25519 · RSA，不依赖 `ssh-keygen` |
@@ -80,7 +80,7 @@ xcodebuild -scheme Termo -configuration Release build
 
 ## 技术架构
 
-iOS 与 Apple Watch 的目录、构建方式和功能边界见[多端开发入口](PLATFORMS.md)。
+iOS 与 Apple Watch 的目录、构建方式和功能边界见[多端开发入口](docs/PLATFORMS.md)。
 
 - 界面：SwiftUI + AppKit，全自绘统一组件；单窗口 + 菜单栏常驻
 - SSH 栈：进程内 Rust 引擎（russh 0.63.3，ring 后端，源码构建），覆盖终端 PTY / SFTP 子系统 / 直连转发 / 已知主机校验 / 密钥生成
