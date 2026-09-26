@@ -16,7 +16,8 @@ concurrency:
 
 jobs:
   release:
-    runs-on: macos-15   # Apple Silicon（arm64）；自带 Xcode 16.x，可读 xcodegen 产出的 objectVersion 77 工程
+    # 需要带 macOS 27 SDK 的 Xcode 27+（部署目标 macOS 27，低版本工具链编不过）。
+    runs-on: macos-26   # Apple Silicon（arm64）
     env:
       TEAM_ID: KTP97H9YFF
       NOTARY_PROFILE: termo-notary
@@ -24,10 +25,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 选择 Xcode（取最新稳定版；xcodegen 产出 objectVersion 77，需 Xcode 16.2+ 才能读）
+      - name: 选择 Xcode（需 Xcode 27+，macOS 27 SDK）
         run: |
-          XC=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
-          [ -n "$XC" ] || XC=$(ls -d /Applications/Xcode*.app 2>/dev/null | grep -iv beta | sort -V | tail -1)
+          XC=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XC" ] || XC=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
           echo "选用 Xcode: $XC"
           sudo xcode-select -s "$XC/Contents/Developer"
           # 传给后续步骤：package-app.sh 用 ${DEVELOPER_DIR:-...} 默认，不导出会回落到旧的默认 Xcode。

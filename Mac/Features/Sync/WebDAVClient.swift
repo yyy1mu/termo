@@ -23,13 +23,13 @@ enum WebDAVError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL: return String(localized: "WebDAV 地址或远程路径无效")
-        case .authFailed: return String(localized: "WebDAV 认证失败，请检查用户名与密码")
-        case .notFound: return String(localized: "远端还没有备份文件")
+        case .invalidURL: return String(localized: "WebDAV 地址或远程路径无效", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .authFailed: return String(localized: "WebDAV 认证失败，请检查用户名与密码", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .notFound: return String(localized: "远端还没有备份文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .parentMissing:
-            return String(localized: "远端目录不存在且无法创建：请先在服务器网页端建好第一级目录（Seafile 需先新建资料库）")
-        case .unsupportedMethod: return String(localized: "服务器不支持 WebDAV PROPFIND，请检查地址是否指向 WebDAV 目录")
-        case .serverError(let code): return String(localized: "WebDAV 服务器返回错误（HTTP \(code)）")
+            return String(localized: "远端目录不存在且无法创建：请先在服务器网页端建好第一级目录（Seafile 需先新建资料库）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .unsupportedMethod: return String(localized: "服务器不支持 WebDAV PROPFIND，请检查地址是否指向 WebDAV 目录", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .serverError(let code): return String(localized: "WebDAV 服务器返回错误（HTTP \(code)）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }

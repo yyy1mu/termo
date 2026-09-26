@@ -1,5 +1,7 @@
 import AppKit
 import SwiftTerm
+import TermoEngine
+import TermoCore
 
 /// SwiftTerm UI adapter. Channel ownership, late callbacks and delayed setup belong to the session controller.
 @MainActor
@@ -29,10 +31,10 @@ final class SSHTerminalDriver: NSObject, @preconcurrency TerminalViewDelegate {
         session.onOutput = { [weak tv] bytes in tv?.feed(byteArray: bytes[...]) }
     }
 
-    func connect(cols: Int, rows: Int, initialLine: String, command: String? = nil) {
+    func connect(cols: Int, rows: Int, command: String? = nil) {
         let connection = ssh, hub = hub
         let command = command.flatMap { $0.isEmpty ? nil : $0 }
-        session.start(initialLine: command == nil ? initialLine : nil) { callbacks in
+        session.start { callbacks in
             try SSHTerminalChannel.open(
                 connection: connection, hub: hub, cols: cols, rows: rows,
                 command: command, callbacks: callbacks)

@@ -21,7 +21,7 @@ struct SnippetEditView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(editing == nil ? "新建片段" : "编辑片段")
+                Text(editing == nil ? String(localized: "新建片段", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "编辑片段", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     .font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.text)
                 Spacer()
                 Button { dismiss() } label: {
@@ -46,7 +46,7 @@ struct SnippetEditView: View {
                     labeled("分组") {
                         VStack(alignment: .leading, spacing: 6) {
                             SearchableSelect(options: model.snippetGroupNames, text: $group,
-                                             placeholder: String(localized: "搜索或新建分组…"))
+                                             placeholder: String(localized: "搜索或新建分组…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                             Text("在片段库中按分组归类，留空时放入「未分组」。")
                                 .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                         }
@@ -107,7 +107,7 @@ struct SnippetEditView: View {
     }
 
     @ViewBuilder
-    private func labeled<Content: View>(_ label: String, @ViewBuilder _ content: () -> Content) -> some View {
+    private func labeled<Content: View>(_ label: LocalizedStringKey, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label).font(.system(size: 12)).foregroundStyle(Pal.subtext)
             content()

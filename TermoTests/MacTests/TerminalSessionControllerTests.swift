@@ -125,35 +125,18 @@ final class TerminalSessionControllerTests: XCTestCase {
         XCTAssertEqual(probe.channel.resizeCount, 1)
     }
 
-    func testClosingCancelsDelayedShellSetup() async {
-        let closed = expectation(description: "closed"), released = expectation(description: "released")
-        let wrote = expectation(description: "no stale setup")
-        wrote.isInverted = true
-        let probe = Probe(released: released, wrote: wrote)
-        let controller = TerminalSessionController()
-        controller.onReady = {
-            DispatchQueue.main.async {
-                controller.close(); closed.fulfill()
-            }
-        }
-        controller.start(
-            initialLine: "setup\n", initialDelay: .milliseconds(30), open: { try probe.open($0) })
-        await fulfillment(of: [closed, released], timeout: 2)
-        await fulfillment(of: [wrote], timeout: 0.1)
-    }
-
-    func testSetupIsSentOnceAndSuccessfulOpenCannotBeDuplicated() async {
-        let ready = expectation(description: "ready"), wrote = expectation(description: "setup")
+    func testSuccessfulOpenCannotBeDuplicatedAndWritesNoProgramInput() async {
+        let ready = expectation(description: "ready")
         let released = expectation(description: "released")
-        let probe = Probe(released: released, wrote: wrote)
+        let probe = Probe(released: released)
         let controller = TerminalSessionController()
         controller.onReady = { ready.fulfill() }
-        controller.start(initialLine: "setup\n", initialDelay: .zero, open: { try probe.open($0) })
+        controller.start(open: { try probe.open($0) })
         controller.start { _ in
             XCTFail("Duplicate open"); return probe.channel
         }
-        await fulfillment(of: [ready, wrote], timeout: 2)
-        XCTAssertEqual(probe.channel.writes, [Array("setup\n".utf8)])
+        await fulfillment(of: [ready], timeout: 2)
+        XCTAssertTrue(probe.channel.writes.isEmpty)
         controller.close()
         await fulfillment(of: [released], timeout: 2)
     }
@@ -185,13 +168,10 @@ final class TerminalSessionControllerTests: XCTestCase {
             lock.lock(); defer { lock.unlock() }; return storedCallbacks
         }
 
-        init(
-            opened: XCTestExpectation? = nil, released: XCTestExpectation, blockOpen: Bool = false,
-            wrote: XCTestExpectation? = nil
-        ) {
+        init(opened: XCTestExpectation? = nil, released: XCTestExpectation, blockOpen: Bool = false) {
             self.opened = opened
             self.blockOpen = blockOpen
-            channel = ChannelSpy(released: released, wrote: wrote)
+            channel = ChannelSpy(released: released)
         }
         func open(_ callbacks: TerminalSessionController.Callbacks) throws -> any TerminalChannel {
             lock.lock(); storedCallbacks = callbacks; lock.unlock()
@@ -205,16 +185,13 @@ final class TerminalSessionControllerTests: XCTestCase {
     private final class ChannelSpy: TerminalChannel, @unchecked Sendable {
         private let lock = NSLock()
         private let released: XCTestExpectation
-        private let wrote: XCTestExpectation?
         private var accepted = true
         private var storedWrites: [[UInt8]] = []
         private var storedResizes = 0
         private var storedReports: [Bool] = []
         private var mainClose = false
 
-        init(released: XCTestExpectation, wrote: XCTestExpectation?) {
-            self.released = released; self.wrote = wrote
-        }
+        init(released: XCTestExpectation) { self.released = released }
         var writes: [[UInt8]] { lock.lock(); defer { lock.unlock() }; return storedWrites }
         var resizeCount: Int { lock.lock(); defer { lock.unlock() }; return storedResizes }
         var disconnectReports: [Bool] { lock.lock(); defer { lock.unlock() }; return storedReports }
@@ -228,7 +205,6 @@ final class TerminalSessionControllerTests: XCTestCase {
             lock.lock(); defer { lock.unlock() }
             guard accepted else { return false }
             storedWrites.append(bytes)
-            wrote?.fulfill()
             return true
         }
         func resize(cols: Int, rows: Int) { lock.lock(); storedResizes += 1; lock.unlock() }

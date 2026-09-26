@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		008C13DE2FE6BE9C959564ED /* SyncStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EECFDE558BEBE70A0C45849 /* SyncStore.swift */; };
 		00E8AF4CE672596BD4334759 /* RemoteSFTPStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4A60B804DE5268787E7CE6 /* RemoteSFTPStoreTests.swift */; };
+		00FDBB2759C3CD884D2853B1 /* TermoEngine in Frameworks */ = {isa = PBXBuildFile; productRef = BDD35FC64334C688E5EA796D /* TermoEngine */; };
+		019B1724DA91F628C39BC524 /* SSHEngineEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBEFE2E330C4CE4BDFE9A6A8 /* SSHEngineEnvironment.swift */; };
+		03462E23008064E8E4C732D0 /* IOSHostDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 033BC7BACACD29CA1BD4458B /* IOSHostDetailView.swift */; };
 		036CCBBD9C2506EC668520F2 /* RemoteDirectoryShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CBDAB83164E10DB5D53256 /* RemoteDirectoryShellTests.swift */; };
 		0635B581CDEC7C21B4749E03 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60B6322EC4B964C2AC4EDB1A /* AppModel.swift */; };
 		0AF03350C82D2F300AA7BC50 /* RemoteDirectoryListingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83BC9042256EEC952F9BBD4F /* RemoteDirectoryListingTests.swift */; };
@@ -42,6 +45,7 @@
 		35F26A7524D58A22C6C9DC8F /* PanelScaffold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B79DAE60A8A644543E4068 /* PanelScaffold.swift */; };
 		37345A0AC7E02138B054C459 /* HostKeyDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8746CDEC5D121917C2FFEF41 /* HostKeyDialog.swift */; };
 		3A576E2BEE13177A9FE8C38A /* SFTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B9BAF77516F3C954206C72 /* SFTPClient.swift */; };
+		3BA246A7E36611040FE42EC4 /* IOSKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EA1D99C9DBD42C8C0A0DEA3 /* IOSKeyStore.swift */; };
 		3C7B3D6A9BFAD79C145FC6EA /* HostTrustCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B547BD216713D49B79571A52 /* HostTrustCoordinatorTests.swift */; };
 		3D1ACC2EA1B3EAC67A410F52 /* TabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02E03F139ADD7324C652EC0B /* TabBar.swift */; };
 		3D7CF672F1993E5030D39E8A /* AIChatFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58B38DEB7006A2DA502BC6F /* AIChatFlowTests.swift */; };
@@ -50,7 +54,6 @@
 		3F74E95EBEDF83AE11A4A723 /* AI in Frameworks */ = {isa = PBXBuildFile; productRef = D4090EEC9F8155CAFCC4F3D7 /* AI */; };
 		412E59546F4D82314DC7B5E9 /* Snippet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E315C9255C4E9829364534A /* Snippet.swift */; };
 		416A191103CC2FDA968529F6 /* SSHTerminalChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B88F1B581FD9153B1ACC7253 /* SSHTerminalChannel.swift */; };
-		4182770CC464AFBB0B72A25F /* SSHSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F7C3FE35A23AAB88E56E760 /* SSHSession.swift */; };
 		41999D711C8FB02ED3B6397D /* DownloadDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C6C4652999AB1D81BE456D /* DownloadDestination.swift */; };
 		41B2C3DD63E4B6426CAF26D8 /* AskPasswordDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09EDA7B06B6E7927664C86D7 /* AskPasswordDialog.swift */; };
 		4358D4B562A588CE2F98A575 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6724DD08AF981444729BC025 /* AppSettings.swift */; };
@@ -62,11 +65,14 @@
 		51203B1A7A9E9B347A4BCC81 /* TerminalSessionControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41B91FCFBD7784428E4D56B8 /* TerminalSessionControllerTests.swift */; };
 		5356428AEA2890BF02E4F48D /* FileUpload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311AA502666A1BC16467AA99 /* FileUpload.swift */; };
 		53A12165091C6CAF608AFD01 /* TermoWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 361C8E6ED21F3D4D43BA4ED1 /* TermoWatchApp.swift */; };
+		55694B11439A50BFBB697744 /* IOSSSHSelfTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524530B1389BE0F7A696A6AA /* IOSSSHSelfTest.swift */; };
 		566B1CAC9A60849EE02E629D /* AppModel+HostDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6506D9B2ED6E5C75BA9CF5C3 /* AppModel+HostDiagnostics.swift */; };
 		567575976C6A026599740C21 /* KeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 673F59E121CF29489D8B72DA /* KeyStore.swift */; };
+		56A147868388889DD7B10B11 /* CTermoSSH in Frameworks */ = {isa = PBXBuildFile; productRef = 0C54C10252332426338B5716 /* CTermoSSH */; };
 		58B499AC436B696375A8B5F2 /* PortForward.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1828FCCCCDF03E2190D5592C /* PortForward.swift */; };
 		5AABC88D749C150B1E0C79B9 /* RemoteDirectoryListing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71E140088E24F5EA5288E1D /* RemoteDirectoryListing.swift */; };
 		5C8042C666D50DAF045401FF /* HostKeyVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF28C953E9A2AB80B36E5B6E /* HostKeyVerifier.swift */; };
+		5D10F273E096D7C935CA4CF8 /* IOSHostMonitorSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9906D21F0DE337A54C191FB /* IOSHostMonitorSection.swift */; };
 		5FDEDA80740D0C96C8AA0C83 /* ExecPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91BA4A82D5F527AB12B70C06 /* ExecPanels.swift */; };
 		6345025A4F9465C299B4CCB6 /* WatchHostInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202BFF6A56513EBBB80CE790 /* WatchHostInbox.swift */; };
 		64D1618E6934DD4FE2B142BB /* AppLockScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADBD8C672AF6A530FAACF2AC /* AppLockScreen.swift */; };
@@ -77,11 +83,12 @@
 		6990C63024C4E16279A010BD /* AppModel+Tabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB5603161D73F68CA3AFA4D3 /* AppModel+Tabs.swift */; };
 		6BBC961266E8BF8F442C22CE /* LayoutModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0BB0027038E48D427CA4D8 /* LayoutModel.swift */; };
 		6E5881C51850F4E1E7CA449F /* TermoTextTranscoder.c in Sources */ = {isa = PBXBuildFile; fileRef = C17C73F345594EC9E644E355 /* TermoTextTranscoder.c */; };
+		6F4CC80606E5B495C28B50D9 /* IOSTerminalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E10EF6BB89D838CACE23566 /* IOSTerminalSession.swift */; };
 		6FCE85A335DE0DD92330B45B /* UploadRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D4CEF9B674DAA184791E4C /* UploadRecoveryTests.swift */; };
 		72FC386D8C110117E53CBC5F /* KeyTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D1014C00DA4E46421002F6C /* KeyTools.swift */; };
+		746F35AED5EC5A67C5FE09E6 /* IOSKeysView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E5254C5480E7750D2BE5DEC /* IOSKeysView.swift */; };
 		74D6F09D0686D1D2BA587CE5 /* Notifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = E373476C6C356050214D8D94 /* Notifier.swift */; };
 		7682C5EA5CAD97CE0E6D5AE4 /* HostConnectionFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96DBA16D4664D73395EA399 /* HostConnectionFlowTests.swift */; };
-		77F7C57E7EE8D17B97004713 /* SSHConnectionDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F56BB8E40C8223FFDB83F34 /* SSHConnectionDiagnostic.swift */; };
 		78B31589136A315B2548FC0F /* IOSHostRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 132DE89A2B643DFE67636A3A /* IOSHostRepository.swift */; };
 		7A46547B12F9BEF572AD896F /* TransferFileSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B58CC268C6B03E6231E7F262 /* TransferFileSystem.swift */; };
 		7BBA812BE87E9AB292FE13CA /* RemoteFileMutation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5E744734E3A3A94168EDB15 /* RemoteFileMutation.swift */; };
@@ -91,8 +98,10 @@
 		826774BDBC9AFEAE6E989915 /* UploadShellStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 028428D74B2DC008008F4CEC /* UploadShellStream.swift */; };
 		82ECDB3CEE387FC8FFC36508 /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D580580C212E46779C856D /* SyncEngine.swift */; };
 		831936D5E321D2F0D5AF3E29 /* SidebarDivider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51ACEE3C5F9E02408AB10674 /* SidebarDivider.swift */; };
+		84F57BC0602E49E490B746C2 /* TermoIOSUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9ADA138BF568100E044F4B1 /* TermoIOSUITests.swift */; };
 		84FBE5DEB87CBC77B430B5A3 /* IOSHostEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC5408AFDD12F8C6B1CB2338 /* IOSHostEditor.swift */; };
 		861F036960122A3816BD2090 /* ForwardRuleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1745CF64A2988ECFC2432C5D /* ForwardRuleTests.swift */; };
+		87C72F12C6236C9B93C84358 /* IOSHostMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B84B10A6559D8800DD009172 /* IOSHostMonitor.swift */; };
 		882E7BEAE929A8514DB87F6C /* AIMessageMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55614D00678322EB6694262 /* AIMessageMarkdown.swift */; };
 		8A058DF1B257F3E4D0B16138 /* RemoteFileMutationShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73BBFBA90F9CBA59BC528D3B /* RemoteFileMutationShellTests.swift */; };
 		8A5BBBE9780A3047EAD21615 /* ResourceAlertEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A8F0BC18DF9A3E105D2DDD /* ResourceAlertEvaluator.swift */; };
@@ -101,10 +110,10 @@
 		8EFD8E233F27EC385402C50C /* AppModel+Monitoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF52B8D04006CDF1EAB9EF8 /* AppModel+Monitoring.swift */; };
 		8F1BC4EF09C84556B4F350A3 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A935FA96FEDF66F64860BEA /* NetworkMonitor.swift */; };
 		9050A8A19E80BB47AA5FBC8F /* AIMarkdownRenderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C950741D674F6F6A15E329D /* AIMarkdownRenderingTests.swift */; };
-		91129060873D7C350C3BDA0F /* SSHSessionPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049C2569C0C8988BE92AE721 /* SSHSessionPool.swift */; };
 		914A7C32668A74E5C86A23FD /* DownloadStreamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 213AFFCD2CE91EB7468C5F1C /* DownloadStreamTests.swift */; };
 		91E9BD91033D3128A3A21238 /* RemoteSFTPStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 882114535891B12FF3362710 /* RemoteSFTPStore.swift */; };
 		924C47E476A0908E36A2BB2E /* TerminalSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F519B916764A6310D5136C /* TerminalSessionController.swift */; };
+		9313C045A11C712D9CCE7011 /* IOSHostKeyVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F818927713504A72AC389EDC /* IOSHostKeyVerifier.swift */; };
 		93AFAF1A5615F82698B36FA0 /* TabsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C22196C3C84805990F6C6B6 /* TabsModel.swift */; };
 		94338A95E6A21AEC68BE4B13 /* AISettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F88A263464FEDB1191A223 /* AISettingsView.swift */; };
 		959F0C0C0B9ABC56C457E80F /* UploadSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11ED83D2E6A198D69649B59F /* UploadSource.swift */; };
@@ -114,7 +123,6 @@
 		992FF7E58ECCF49C51C06A72 /* RightBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DDD7F947918816470231126 /* RightBar.swift */; };
 		9A50666C1AAF29384C87CC1B /* FileOpDialogs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D7F42C2206DAE3BC6F8959B /* FileOpDialogs.swift */; };
 		9AA5D8AF0B5190C1C927C9FB /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 432D53274FB2D2A577075616 /* Workspace.swift */; };
-		9B094E1C43C8C805EB4E2807 /* TerminalHookEchoFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD97A340A054424F22133C44 /* TerminalHookEchoFilter.swift */; };
 		9B36766D105AF6DA3EBF9378 /* UploadFinalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 849EE83500C788B394C663EA /* UploadFinalizerTests.swift */; };
 		9C08E05B01DE8C576E995BDB /* AIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 658501B812DF1C3992BE03ED /* AIClient.swift */; };
 		9C869B38D7A57E4C9548D3A5 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDFA5A78D09136A53EA20D7C /* Models.swift */; };
@@ -125,22 +133,26 @@
 		A6417F6DE7959A6340992A3D /* UploadStreamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C412AF64A0A529CA0B5299 /* UploadStreamTests.swift */; };
 		A7B418B2632B74FC43AF6953 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3868A1543C405CF1F14FAAFB /* AboutView.swift */; };
 		A829A001F23264C2FA724372 /* AICommandService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF72D8CA1324AF8367013F4D /* AICommandService.swift */; };
-		A8381FA3BFD0A5B6A033166D /* TermoSSHDispatch.c in Sources */ = {isa = PBXBuildFile; fileRef = C3969DBB30888DCE5C8BAECE /* TermoSSHDispatch.c */; };
+		A88F67E80E9AD90AB39B81A2 /* TermoEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 54FB33F64FDFBFA75E78BD0E /* TermoEngine */; };
 		A9380C297638AACBF512B110 /* TermoCore in Frameworks */ = {isa = PBXBuildFile; productRef = 00883044E5144AA64EDA8951 /* TermoCore */; };
 		A9753CD2CA2BC70D5557411F /* WatchHostsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3EA725F2D712F05927C451 /* WatchHostsView.swift */; };
 		A9F4E672A4267529A3C59C1F /* AppModel+Files.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7930E5C330C5AE5E14D63695 /* AppModel+Files.swift */; };
+		AB55109819E84C02AFDEB2C6 /* CTermoSSH in Frameworks */ = {isa = PBXBuildFile; productRef = 387CF51C5CE3E6363B05AC7A /* CTermoSSH */; };
 		AC3EAF33BE5B83E1F502054B /* Termo-Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		ACE645E1846C28EE85D52E73 /* AppIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = D3A7D63C661D272FB126B20A /* AppIcon.png */; };
 		AD0D45C094EFB1465A27FD65 /* UploadPreflightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A68025DB06D4182D5776A9E9 /* UploadPreflightTests.swift */; };
 		AE39A82CB28D6163E22D2164 /* WebDAVClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A4FF31B6E3F15AB303E595 /* WebDAVClient.swift */; };
+		B0FB3C15DA4A683CD776AFFD /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 540AF348EB9C063282F44C85 /* SwiftTerm */; };
 		B1731FF190BDC21C0F3CA216 /* UploadPreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDAB8B11418EFC1808E207EF /* UploadPreflight.swift */; };
 		B208778ADCA67D40AC22240E /* AppModel+Connections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D1B4D261331F587E0B271C /* AppModel+Connections.swift */; };
+		B2C02A8C3804D64C21051BAA /* IOSEngineEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F861EE5FFB2BBD43DC61137B /* IOSEngineEnvironment.swift */; };
 		B48F2CC37E4AE6E117A37761 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C9922F588D1868C09A26014 /* Persistence.swift */; };
 		B55809317A01703E3FE30F2F /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = AE6BF5DD67CF80A2665BB888 /* AppIcon.icns */; };
 		B56117ACAA00F52FEDFF4A50 /* SnippetSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A5A94C62C5EA6DFFB15415A /* SnippetSheets.swift */; };
 		B603EC5800C6CE20A35B944A /* SSHKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2CB49E7904ADBFC718081F /* SSHKey.swift */; };
 		BAE44F10799A540213FB804A /* DownloadStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3442D632E8665C4C236B6D08 /* DownloadStream.swift */; };
 		BB613F2F58FEA86346C7FCA4 /* UploadShellStreamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97F0B3DC5A4C4FD534673A7E /* UploadShellStreamTests.swift */; };
+		BBFDC88C742F5B836AB5146A /* IOSHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021EEAFBAFEFFC674C2FEDFB /* IOSHost.swift */; };
 		BC438C81126C9AE1E5413D5B /* BundleResources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E576AE4D71B807223A277F7 /* BundleResources.swift */; };
 		BCC50775BB5E460E110B9A55 /* AIPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFC11485BD8BB3303AF19D5 /* AIPanel.swift */; };
 		BCF33DD80DF4D5EB00E63083 /* AppPasswordTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5010B421CDF7AAC3B50887 /* AppPasswordTests.swift */; };
@@ -150,10 +162,11 @@
 		C2AF68757EA582C3B517C6FC /* AppModel+Hosts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CDC2D870C51E6ACC0231DB1 /* AppModel+Hosts.swift */; };
 		C2E5E0A017B0B7764B2D5E81 /* BackgroundActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A013690109ED667720091C /* BackgroundActivity.swift */; };
 		C40B619C5076E3102B43288F /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9CB5B6C4EC8E2FEF2C25F92 /* Components.swift */; };
+		C54A92BCE1EEDFEF304E08B6 /* IOSTerminalTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 560B17FC4083B1D5F58EFA2E /* IOSTerminalTheme.swift */; };
 		C6E750507DC3D4AE7F15452D /* HostSystemProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = C61617599B98B1052B33C011 /* HostSystemProbe.swift */; };
 		C702F6B7A6BB36E370D53F96 /* HostTrustCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E7B85B0627A34D9FC66171 /* HostTrustCoordinator.swift */; };
 		C80F8B21003FC7DBFC6E79E2 /* ConnectionTesterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949EAAAB96DF8BE626D8A7B8 /* ConnectionTesterTests.swift */; };
-		C9A000C55CE5B08D6203306E /* HostReachabilityProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 565DF590B9FAE5ED39A365E6 /* HostReachabilityProbe.swift */; };
+		C8AB26C22FC932296922BAC0 /* IOSKnownHosts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 091C17BC619C5D8A588142B4 /* IOSKnownHosts.swift */; };
 		C9E40A520C6855F212CCD84E /* SSHConnectionBoundaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DC483FEC96CAD880C689B9D /* SSHConnectionBoundaryTests.swift */; };
 		CB8992C433EAB990A2A8C19B /* DownloadDestinationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD8402DA5B0B74048273081 /* DownloadDestinationTests.swift */; };
 		CE1DD4F27EE16B11363254AB /* HostDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECEC4794E5C016A52FDA43A3 /* HostDraft.swift */; };
@@ -163,19 +176,21 @@
 		D6CF9F5139E06ECE5795F3C1 /* AddHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31AF99221F3A498ADEE26D96 /* AddHostView.swift */; };
 		D70680126BD2F53FB18CF7CB /* SyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A946BD62AB3865D04A5955F7 /* SyncModels.swift */; };
 		D71B3A5AB5732C288E2D1F4E /* TermoCore in Frameworks */ = {isa = PBXBuildFile; productRef = 29B716FC3EC01F73653D4A43 /* TermoCore */; };
-		DA96367C0EC2F025CB10EA35 /* SSHConnectionCancellation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D40989C50F8DD1B24D8AAF7 /* SSHConnectionCancellation.swift */; };
 		DB2FCCA3A63EEC8555308CDB /* ConnectionTester.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98258890C364FA85A30393D /* ConnectionTester.swift */; };
 		DBA6EC48523D1271651A7A08 /* AppModel+Snippets.swift in Sources */ = {isa = PBXBuildFile; fileRef = B856E0CB461EDE84755FB31F /* AppModel+Snippets.swift */; };
 		DBD2E7E8B993ADC8473C6C6C /* TermoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2CD05F3D5F4211D2AD7E26C /* TermoApp.swift */; };
 		DC3C584F66E9C919A852E8F4 /* NerdFontIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80E6E433C52A03065166EBD1 /* NerdFontIcons.swift */; };
+		DD33403B42E9EE8C2E5F28D6 /* TermoSSH.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43D39B8B206542F9166270AF /* TermoSSH.xcframework */; };
 		DF537F399A704C1C52104E1E /* IOSSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 961D1B24451732D2C96907F8 /* IOSSettingsView.swift */; };
 		DF9B152D8D64311B020A97BC /* TerminalEncodingCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81168536F0701E8834FAABD5 /* TerminalEncodingCodecTests.swift */; };
 		E0DBF96AF5BAD18BCE65D53B /* AppModel+Keys.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC05FCE413A2BE0A6B3871C /* AppModel+Keys.swift */; };
 		E1E44ACFD39AC69AA571DBB2 /* SnippetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 421302A342FBC7EEFBA8905B /* SnippetStore.swift */; };
 		E2186D7381CD0D336FFA1559 /* HostMonitoringServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7440A8E15C3859B014408597 /* HostMonitoringServiceTests.swift */; };
 		E54998809978D2EBACABBE3D /* LLMProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE46E457F4D4654BA2BCCB9B /* LLMProfile.swift */; };
+		E55E178DD5C0461042A79D61 /* IOSTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D57B81AE6AA17CDBFD03341 /* IOSTheme.swift */; };
 		E5CACDF0F7D00D9576A0BDB4 /* SnippetRunDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54EE67DDC7E849FA66D710C8 /* SnippetRunDialog.swift */; };
 		E80A7C7FA433B9BB17432D8E /* TerminalTranscript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 897C77833FB5357CB3BAF95E /* TerminalTranscript.swift */; };
+		E86060695DC8B96D3D88CC56 /* IOSTerminalViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94261ADC44CB5E60D515E47B /* IOSTerminalViewModel.swift */; };
 		E94ABF77377FDEB920AEB59F /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 9AFD70D7F0CA6271D43F4764 /* SwiftTerm */; };
 		EC001AAF6306F574AB27FED2 /* TerminalSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103EE9E3F78DBC3FE4C5FBA6 /* TerminalSurface.swift */; };
 		ECBB42B892E880183AD07837 /* TranscriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47DBAC2D5C0C0EFABAC0A10E /* TranscriptTests.swift */; };
@@ -183,6 +198,8 @@
 		ED84761C778D1E15495BA33B /* ResourceAlertEvaluatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2BFC86C1599D2C626E6FFD /* ResourceAlertEvaluatorTests.swift */; };
 		EF41384D14AE10FFA2C5BD6B /* HostOverview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CB01B1C4F8FCC0026ECE33A /* HostOverview.swift */; };
 		F092CDBB0E43B082B81FF2CA /* TransferLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86060F7F8816062F10640974 /* TransferLifecycleTests.swift */; };
+		F11DBFFC9A67F3784579BAE8 /* IOSLatencyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F62CA80A45A044A89B0E545 /* IOSLatencyStore.swift */; };
+		F3FD106214DA671A6C9D86CC /* IOSKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78BD0EC3307634B8B699354 /* IOSKeychain.swift */; };
 		F45DEC309AA90DAFD726E5C8 /* SyncEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A86F05FD82FCC3336D8FBF /* SyncEngineTests.swift */; };
 		F48A9E29981C365F43167DD4 /* SSHTransportOptionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CBEA50A397ECA9B6747CD92 /* SSHTransportOptionsTests.swift */; };
 		F48D8DECF1154AD25FE7A843 /* Tooltip.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E0652269AF207E08AC970A /* Tooltip.swift */; };
@@ -190,11 +207,10 @@
 		F59AC4CB31BAB01E688A7193 /* TerminalEncodingCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E7E495F1A07440D157CF41 /* TerminalEncodingCodec.swift */; };
 		F5B3AE3D0DA903464CC16F47 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7F11BB7AEF9BDB198C9803A9 /* CoreFoundation.framework */; };
 		F9BB2F530B75E2A3F2C2FEF5 /* UploadShellCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCCB8DA95F7FC5A53DEA4413 /* UploadShellCommands.swift */; };
+		F9FAB0192A05634D26C935AC /* IOSTerminalPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F57AE02ABA6DEAF299D1092F /* IOSTerminalPage.swift */; };
 		FAC8D04DD3007FDE589ADC49 /* AppEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31CBA4C5BFEC9B7BA447740 /* AppEnv.swift */; };
 		FB0F317EC6ACDA4A6BE35618 /* KeySheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9AB62AC03E73DEE7C0311D3 /* KeySheets.swift */; };
 		FC0932C9F2E9DC71EAA529C2 /* UploadStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BD104C2AD258A043CD4BC1 /* UploadStream.swift */; };
-		FC9D15CF8DD9A713E222A3E3 /* SSHConnectionHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B4CD0960F585A13AA32D6F3 /* SSHConnectionHub.swift */; };
-		FD6E38FAB1867E53EAB96F06 /* SSHConnectionConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40555E576C8D14D3F6E2A5A1 /* SSHConnectionConfiguration.swift */; };
 		FEEAB7AA633826F7FD3E69A9 /* AppLockManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F282A28A5568323EC667A8EF /* AppLockManager.swift */; };
 /* End PBXBuildFile section */
 
@@ -213,6 +229,13 @@
 			remoteGlobalIDString = C30F527531995F0E3B3DFE49;
 			remoteInfo = Termo;
 		};
+		C3899C24930B7427EA64E3EC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C0DEF0E23DD91FD59440ED00 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0A48118B32F1155789C7FB0A;
+			remoteInfo = "Termo-iOS";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -230,10 +253,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		021EEAFBAFEFFC674C2FEDFB /* IOSHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSHost.swift; sourceTree = "<group>"; };
 		028428D74B2DC008008F4CEC /* UploadShellStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadShellStream.swift; sourceTree = "<group>"; };
 		02E03F139ADD7324C652EC0B /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
-		049C2569C0C8988BE92AE721 /* SSHSessionPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHSessionPool.swift; sourceTree = "<group>"; };
+		033BC7BACACD29CA1BD4458B /* IOSHostDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSHostDetailView.swift; sourceTree = "<group>"; };
 		07F88A263464FEDB1191A223 /* AISettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISettingsView.swift; sourceTree = "<group>"; };
+		091C17BC619C5D8A588142B4 /* IOSKnownHosts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSKnownHosts.swift; sourceTree = "<group>"; };
 		0972F9D146D84483F7A39E3D /* TermoCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TermoCore; path = TermoCore; sourceTree = SOURCE_ROOT; };
 		09EDA7B06B6E7927664C86D7 /* AskPasswordDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskPasswordDialog.swift; sourceTree = "<group>"; };
 		0A0744D42DDD96A5A903D1A3 /* TestConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestConnectionView.swift; sourceTree = "<group>"; };
@@ -241,7 +266,6 @@
 		0AB64E14E5843E066CE5AC81 /* IOSHostsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSHostsView.swift; sourceTree = "<group>"; };
 		0CB01B1C4F8FCC0026ECE33A /* HostOverview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostOverview.swift; sourceTree = "<group>"; };
 		0D1014C00DA4E46421002F6C /* KeyTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyTools.swift; sourceTree = "<group>"; };
-		0F56BB8E40C8223FFDB83F34 /* SSHConnectionDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHConnectionDiagnostic.swift; sourceTree = "<group>"; };
 		103EE9E3F78DBC3FE4C5FBA6 /* TerminalSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSurface.swift; sourceTree = "<group>"; };
 		10BD2690D321F35270543B79 /* TermoIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TermoIOSApp.swift; sourceTree = "<group>"; };
 		11ED83D2E6A198D69649B59F /* UploadSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadSource.swift; sourceTree = "<group>"; };
@@ -261,10 +285,8 @@
 		2A935FA96FEDF66F64860BEA /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		2B0BB0027038E48D427CA4D8 /* LayoutModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutModel.swift; sourceTree = "<group>"; };
 		2B2CB49E7904ADBFC718081F /* SSHKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKey.swift; sourceTree = "<group>"; };
-		2B4CD0960F585A13AA32D6F3 /* SSHConnectionHub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHConnectionHub.swift; sourceTree = "<group>"; };
 		2B66FC621767B1BCE34F30BC /* MonitorPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorPanel.swift; sourceTree = "<group>"; };
 		2C950741D674F6F6A15E329D /* AIMarkdownRenderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIMarkdownRenderingTests.swift; sourceTree = "<group>"; };
-		2F7C3FE35A23AAB88E56E760 /* SSHSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHSession.swift; sourceTree = "<group>"; };
 		311AA502666A1BC16467AA99 /* FileUpload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUpload.swift; sourceTree = "<group>"; };
 		31AF99221F3A498ADEE26D96 /* AddHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddHostView.swift; sourceTree = "<group>"; };
 		343C6EEEE8041D77A854EF1F /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -275,27 +297,30 @@
 		38C20F0E6700E560F88312CA /* PortForwardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardView.swift; sourceTree = "<group>"; };
 		3AD769427871241347D3864D /* FileIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileIcons.swift; sourceTree = "<group>"; };
 		3C60B20F388AAF44F2887715 /* HostMonitoringService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostMonitoringService.swift; sourceTree = "<group>"; };
+		3CBB96D2AB0A3F384C779D63 /* TermoEngine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TermoEngine; path = TermoEngine; sourceTree = SOURCE_ROOT; };
 		3CFABDFBE09D77F0C6CBFCE9 /* AppModel+Transfers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Transfers.swift"; sourceTree = "<group>"; };
 		3D7F42C2206DAE3BC6F8959B /* FileOpDialogs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOpDialogs.swift; sourceTree = "<group>"; };
 		3DF52B8D04006CDF1EAB9EF8 /* AppModel+Monitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Monitoring.swift"; sourceTree = "<group>"; };
-		40555E576C8D14D3F6E2A5A1 /* SSHConnectionConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHConnectionConfiguration.swift; sourceTree = "<group>"; };
 		41B91FCFBD7784428E4D56B8 /* TerminalSessionControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSessionControllerTests.swift; sourceTree = "<group>"; };
 		421302A342FBC7EEFBA8905B /* SnippetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetStore.swift; sourceTree = "<group>"; };
 		427A88771D47CE57537EE6D1 /* TransferPathLocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferPathLocks.swift; sourceTree = "<group>"; };
 		432D53274FB2D2A577075616 /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
+		43D39B8B206542F9166270AF /* TermoSSH.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = TermoSSH.xcframework; path = build/russh/ios/TermoSSH.xcframework; sourceTree = "<group>"; };
 		43E7F5C7AC3E3AB98207AA2D /* TerminalPasteQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalPasteQueueTests.swift; sourceTree = "<group>"; };
 		45F519B916764A6310D5136C /* TerminalSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSessionController.swift; sourceTree = "<group>"; };
 		47DBAC2D5C0C0EFABAC0A10E /* TranscriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptTests.swift; sourceTree = "<group>"; };
 		4A2BFC86C1599D2C626E6FFD /* ResourceAlertEvaluatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourceAlertEvaluatorTests.swift; sourceTree = "<group>"; };
 		4C775952C72518D4E7D0BC1B /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
+		4D57B81AE6AA17CDBFD03341 /* IOSTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSTheme.swift; sourceTree = "<group>"; };
 		4DDD7F947918816470231126 /* RightBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightBar.swift; sourceTree = "<group>"; };
 		51ACEE3C5F9E02408AB10674 /* SidebarDivider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDivider.swift; sourceTree = "<group>"; };
 		51D1B4D261331F587E0B271C /* AppModel+Connections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Connections.swift"; sourceTree = "<group>"; };
 		51D580580C212E46779C856D /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
+		524530B1389BE0F7A696A6AA /* IOSSSHSelfTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSSHSelfTest.swift; sourceTree = "<group>"; };
 		533149650C4F7DAD10D07B70 /* SnippetsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetsPanel.swift; sourceTree = "<group>"; };
 		54C6C4652999AB1D81BE456D /* DownloadDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadDestination.swift; sourceTree = "<group>"; };
 		54EE67DDC7E849FA66D710C8 /* SnippetRunDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetRunDialog.swift; sourceTree = "<group>"; };
-		565DF590B9FAE5ED39A365E6 /* HostReachabilityProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostReachabilityProbe.swift; sourceTree = "<group>"; };
+		560B17FC4083B1D5F58EFA2E /* IOSTerminalTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSTerminalTheme.swift; sourceTree = "<group>"; };
 		56BD104C2AD258A043CD4BC1 /* UploadStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadStream.swift; sourceTree = "<group>"; };
 		577E3FABCC4F7B3FB2135A66 /* BackgroundCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundCenterView.swift; sourceTree = "<group>"; };
 		5B1D8FC36733F5533D7DD346 /* TermoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TermoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -318,6 +343,7 @@
 		7CBEA50A397ECA9B6747CD92 /* SSHTransportOptionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHTransportOptionsTests.swift; sourceTree = "<group>"; };
 		7DE2E385027FF512644CB741 /* TransferCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferCoordinator.swift; sourceTree = "<group>"; };
 		7E315C9255C4E9829364534A /* Snippet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snippet.swift; sourceTree = "<group>"; };
+		7EA1D99C9DBD42C8C0A0DEA3 /* IOSKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSKeyStore.swift; sourceTree = "<group>"; };
 		7EECFDE558BEBE70A0C45849 /* SyncStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStore.swift; sourceTree = "<group>"; };
 		7F11BB7AEF9BDB198C9803A9 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		80E6E433C52A03065166EBD1 /* NerdFontIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NerdFontIcons.swift; sourceTree = "<group>"; };
@@ -333,21 +359,25 @@
 		8A5010B421CDF7AAC3B50887 /* AppPasswordTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPasswordTests.swift; sourceTree = "<group>"; };
 		8B98C4B8B210F38C372B2955 /* Termo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Termo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8CDC2D870C51E6ACC0231DB1 /* AppModel+Hosts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Hosts.swift"; sourceTree = "<group>"; };
-		8D40989C50F8DD1B24D8AAF7 /* SSHConnectionCancellation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHConnectionCancellation.swift; sourceTree = "<group>"; };
 		8E576AE4D71B807223A277F7 /* BundleResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleResources.swift; sourceTree = "<group>"; };
+		8F62CA80A45A044A89B0E545 /* IOSLatencyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSLatencyStore.swift; sourceTree = "<group>"; };
 		91BA4A82D5F527AB12B70C06 /* ExecPanels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecPanels.swift; sourceTree = "<group>"; };
 		92B9BAF77516F3C954206C72 /* SFTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SFTPClient.swift; sourceTree = "<group>"; };
+		94261ADC44CB5E60D515E47B /* IOSTerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSTerminalViewModel.swift; sourceTree = "<group>"; };
 		949EAAAB96DF8BE626D8A7B8 /* ConnectionTesterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionTesterTests.swift; sourceTree = "<group>"; };
 		961D1B24451732D2C96907F8 /* IOSSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSettingsView.swift; sourceTree = "<group>"; };
 		97F0B3DC5A4C4FD534673A7E /* UploadShellStreamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadShellStreamTests.swift; sourceTree = "<group>"; };
 		9C26B0F2AE3943DEC875BE48 /* Termo-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Termo-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		9C9922F588D1868C09A26014 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		9DD8402DA5B0B74048273081 /* DownloadDestinationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadDestinationTests.swift; sourceTree = "<group>"; };
+		9E10EF6BB89D838CACE23566 /* IOSTerminalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSTerminalSession.swift; sourceTree = "<group>"; };
+		9E5254C5480E7750D2BE5DEC /* IOSKeysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSKeysView.swift; sourceTree = "<group>"; };
 		9E5E1F00C37D69144D7698D6 /* TerminalPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalPalette.swift; sourceTree = "<group>"; };
 		A2AA41922F8B7ED9F000E4B6 /* SyncPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPanel.swift; sourceTree = "<group>"; };
 		A2CD05F3D5F4211D2AD7E26C /* TermoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TermoApp.swift; sourceTree = "<group>"; };
 		A55614D00678322EB6694262 /* AIMessageMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIMessageMarkdown.swift; sourceTree = "<group>"; };
 		A68025DB06D4182D5776A9E9 /* UploadPreflightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadPreflightTests.swift; sourceTree = "<group>"; };
+		A78BD0EC3307634B8B699354 /* IOSKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSKeychain.swift; sourceTree = "<group>"; };
 		A946BD62AB3865D04A5955F7 /* SyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModels.swift; sourceTree = "<group>"; };
 		ADBD8C672AF6A530FAACF2AC /* AppLockScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockScreen.swift; sourceTree = "<group>"; };
 		AE6BF5DD67CF80A2665BB888 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
@@ -359,16 +389,18 @@
 		B58CC268C6B03E6231E7F262 /* TransferFileSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferFileSystem.swift; sourceTree = "<group>"; };
 		B5930C5930D77D0D80D5A1B4 /* OSLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLogo.swift; sourceTree = "<group>"; };
 		B6C412AF64A0A529CA0B5299 /* UploadStreamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadStreamTests.swift; sourceTree = "<group>"; };
+		B84B10A6559D8800DD009172 /* IOSHostMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSHostMonitor.swift; sourceTree = "<group>"; };
 		B856E0CB461EDE84755FB31F /* AppModel+Snippets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Snippets.swift"; sourceTree = "<group>"; };
 		B88F1B581FD9153B1ACC7253 /* SSHTerminalChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHTerminalChannel.swift; sourceTree = "<group>"; };
 		B96DBA16D4664D73395EA399 /* HostConnectionFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionFlowTests.swift; sourceTree = "<group>"; };
+		B9ADA138BF568100E044F4B1 /* TermoIOSUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TermoIOSUITests.swift; sourceTree = "<group>"; };
 		BC4A60B804DE5268787E7CE6 /* RemoteSFTPStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSFTPStoreTests.swift; sourceTree = "<group>"; };
 		BCCB8DA95F7FC5A53DEA4413 /* UploadShellCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadShellCommands.swift; sourceTree = "<group>"; };
 		BCF5E46A722C32CC7C1508B8 /* TranscriptStreamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptStreamTests.swift; sourceTree = "<group>"; };
 		BEC05FCE413A2BE0A6B3871C /* AppModel+Keys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Keys.swift"; sourceTree = "<group>"; };
 		BEF17ED414D082957A4F66F7 /* HostConnectionFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionFlow.swift; sourceTree = "<group>"; };
 		C17C73F345594EC9E644E355 /* TermoTextTranscoder.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TermoTextTranscoder.c; sourceTree = "<group>"; };
-		C3969DBB30888DCE5C8BAECE /* TermoSSHDispatch.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TermoSSHDispatch.c; sourceTree = "<group>"; };
+		C31862010AC1FA6B6C440B74 /* Termo-iOS-UITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = "Termo-iOS-UITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C404ED3ACD60E1056926335C /* AppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfo.swift; sourceTree = "<group>"; };
 		C481189EBCCE18AAC217F484 /* TermoMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TermoMac.entitlements; sourceTree = "<group>"; };
 		C4D4CEF9B674DAA184791E4C /* UploadRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadRecoveryTests.swift; sourceTree = "<group>"; };
@@ -379,6 +411,7 @@
 		C93B24F42A2C3B8C48F0D9EC /* HostMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostMonitor.swift; sourceTree = "<group>"; };
 		C9CB5B6C4EC8E2FEF2C25F92 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		CA641A651142011E01C7CB85 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		CBEFE2E330C4CE4BDFE9A6A8 /* SSHEngineEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHEngineEnvironment.swift; sourceTree = "<group>"; };
 		CC3EA725F2D712F05927C451 /* WatchHostsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHostsView.swift; sourceTree = "<group>"; };
 		CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Termo-Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D3907EDCB91A29E323C7FD85 /* FileExtract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExtract.swift; sourceTree = "<group>"; };
@@ -387,7 +420,6 @@
 		D4A4AC82D5E4167F51B03BBD /* Sidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sidebar.swift; sourceTree = "<group>"; };
 		D8174800EA79C2CC7B83EC7D /* TerminalTextDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTextDecoder.swift; sourceTree = "<group>"; };
 		DB812177DA41D8CDBA6D2C8B /* SyncCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCrypto.swift; sourceTree = "<group>"; };
-		DD97A340A054424F22133C44 /* TerminalHookEchoFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalHookEchoFilter.swift; sourceTree = "<group>"; };
 		DE46E457F4D4654BA2BCCB9B /* LLMProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMProfile.swift; sourceTree = "<group>"; };
 		DF72D8CA1324AF8367013F4D /* AICommandService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICommandService.swift; sourceTree = "<group>"; };
 		E0A013690109ED667720091C /* BackgroundActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundActivity.swift; sourceTree = "<group>"; };
@@ -407,11 +439,15 @@
 		F1A86F05FD82FCC3336D8FBF /* SyncEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngineTests.swift; sourceTree = "<group>"; };
 		F2610F73FEB5402B06D9076D /* AIChatState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatState.swift; sourceTree = "<group>"; };
 		F282A28A5568323EC667A8EF /* AppLockManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockManager.swift; sourceTree = "<group>"; };
+		F57AE02ABA6DEAF299D1092F /* IOSTerminalPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSTerminalPage.swift; sourceTree = "<group>"; };
 		F6CBDAB83164E10DB5D53256 /* RemoteDirectoryShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteDirectoryShellTests.swift; sourceTree = "<group>"; };
 		F735ED131D9F023A9291106B /* TerminalShellIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalShellIntegrationTests.swift; sourceTree = "<group>"; };
 		F79398199213ECFCC6A5B502 /* TrayController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrayController.swift; sourceTree = "<group>"; };
+		F818927713504A72AC389EDC /* IOSHostKeyVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSHostKeyVerifier.swift; sourceTree = "<group>"; };
+		F861EE5FFB2BBD43DC61137B /* IOSEngineEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSEngineEnvironment.swift; sourceTree = "<group>"; };
 		F91ED440A2FF6C72C9AC8941 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F98258890C364FA85A30393D /* ConnectionTester.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionTester.swift; sourceTree = "<group>"; };
+		F9906D21F0DE337A54C191FB /* IOSHostMonitorSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSHostMonitorSection.swift; sourceTree = "<group>"; };
 		FB06C5A5503411EFC2A6B493 /* AppModel+Terminal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Terminal.swift"; sourceTree = "<group>"; };
 		FB5603161D73F68CA3AFA4D3 /* AppModel+Tabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Tabs.swift"; sourceTree = "<group>"; };
 		FB97D199EE3F8877D4CE443D /* font-logos.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "font-logos.ttf"; sourceTree = "<group>"; };
@@ -432,6 +468,8 @@
 				3F74E95EBEDF83AE11A4A723 /* AI in Frameworks */,
 				E94ABF77377FDEB920AEB59F /* SwiftTerm in Frameworks */,
 				A9380C297638AACBF512B110 /* TermoCore in Frameworks */,
+				00FDBB2759C3CD884D2853B1 /* TermoEngine in Frameworks */,
+				AB55109819E84C02AFDEB2C6 /* CTermoSSH in Frameworks */,
 				2EE07A6CD3B97876E60F14BE /* Security.framework in Frameworks */,
 				F5B3AE3D0DA903464CC16F47 /* CoreFoundation.framework in Frameworks */,
 			);
@@ -450,6 +488,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				45E2AF15536559A48A74A94B /* TermoCore in Frameworks */,
+				A88F67E80E9AD90AB39B81A2 /* TermoEngine in Frameworks */,
+				56A147868388889DD7B10B11 /* CTermoSSH in Frameworks */,
+				B0FB3C15DA4A683CD776AFFD /* SwiftTerm in Frameworks */,
+				DD33403B42E9EE8C2E5F28D6 /* TermoSSH.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -536,6 +578,14 @@
 			path = File;
 			sourceTree = "<group>";
 		};
+		14EA04BE6511691E462C5252 /* iOSUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B9ADA138BF568100E044F4B1 /* TermoIOSUITests.swift */,
+			);
+			path = iOSUITests;
+			sourceTree = "<group>";
+		};
 		1A28FDA430C04335E0EBC8A5 /* Theme */ = {
 			isa = PBXGroup;
 			children = (
@@ -584,6 +634,17 @@
 				B5930C5930D77D0D80D5A1B4 /* OSLogo.swift */,
 			);
 			path = Icons;
+			sourceTree = "<group>";
+		};
+		3A3ACD4FF94D43A86E144D88 /* Terminal */ = {
+			isa = PBXGroup;
+			children = (
+				F57AE02ABA6DEAF299D1092F /* IOSTerminalPage.swift */,
+				9E10EF6BB89D838CACE23566 /* IOSTerminalSession.swift */,
+				560B17FC4083B1D5F58EFA2E /* IOSTerminalTheme.swift */,
+				94261ADC44CB5E60D515E47B /* IOSTerminalViewModel.swift */,
+			);
+			path = Terminal;
 			sourceTree = "<group>";
 		};
 		3E5C6647EA9CDF07043922DA /* Security */ = {
@@ -698,6 +759,7 @@
 		73A71940EFCC3B417839098F /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				C31862010AC1FA6B6C440B74 /* Termo-iOS-UITests.xctest */,
 				9C26B0F2AE3943DEC875BE48 /* Termo-iOS.app */,
 				CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */,
 				8B98C4B8B210F38C372B2955 /* Termo.app */,
@@ -718,7 +780,9 @@
 			isa = PBXGroup;
 			children = (
 				C0D813930F3D170FB13A954C /* Hosts */,
+				DA98698B578EAC6216D7D088 /* Keys */,
 				3F8EDF816F6DDC339260BEEC /* Settings */,
+				3A3ACD4FF94D43A86E144D88 /* Terminal */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -756,14 +820,7 @@
 		827B726A0137132BEBAB8D9F /* Engine */ = {
 			isa = PBXGroup;
 			children = (
-				8D40989C50F8DD1B24D8AAF7 /* SSHConnectionCancellation.swift */,
-				40555E576C8D14D3F6E2A5A1 /* SSHConnectionConfiguration.swift */,
-				0F56BB8E40C8223FFDB83F34 /* SSHConnectionDiagnostic.swift */,
-				2B4CD0960F585A13AA32D6F3 /* SSHConnectionHub.swift */,
-				2F7C3FE35A23AAB88E56E760 /* SSHSession.swift */,
-				049C2569C0C8988BE92AE721 /* SSHSessionPool.swift */,
 				B88F1B581FD9153B1ACC7253 /* SSHTerminalChannel.swift */,
-				C3969DBB30888DCE5C8BAECE /* TermoSSHDispatch.c */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -793,6 +850,7 @@
 				0CB01B1C4F8FCC0026ECE33A /* HostOverview.swift */,
 				21E7B85B0627A34D9FC66171 /* HostTrustCoordinator.swift */,
 				2B66FC621767B1BCE34F30BC /* MonitorPanel.swift */,
+				CBEFE2E330C4CE4BDFE9A6A8 /* SSHEngineEnvironment.swift */,
 				0A0744D42DDD96A5A903D1A3 /* TestConnectionView.swift */,
 			);
 			path = SSH;
@@ -820,7 +878,6 @@
 		9D5EFF0D15F1C7CFA06609AB /* Support */ = {
 			isa = PBXGroup;
 			children = (
-				565DF590B9FAE5ED39A365E6 /* HostReachabilityProbe.swift */,
 				C61617599B98B1052B33C011 /* HostSystemProbe.swift */,
 				9E5E1F00C37D69144D7698D6 /* TerminalPalette.swift */,
 			);
@@ -848,7 +905,17 @@
 		A67BF2568C08F347BAD58874 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				F861EE5FFB2BBD43DC61137B /* IOSEngineEnvironment.swift */,
+				021EEAFBAFEFFC674C2FEDFB /* IOSHost.swift */,
+				F818927713504A72AC389EDC /* IOSHostKeyVerifier.swift */,
+				B84B10A6559D8800DD009172 /* IOSHostMonitor.swift */,
 				132DE89A2B643DFE67636A3A /* IOSHostRepository.swift */,
+				A78BD0EC3307634B8B699354 /* IOSKeychain.swift */,
+				7EA1D99C9DBD42C8C0A0DEA3 /* IOSKeyStore.swift */,
+				091C17BC619C5D8A588142B4 /* IOSKnownHosts.swift */,
+				8F62CA80A45A044A89B0E545 /* IOSLatencyStore.swift */,
+				524530B1389BE0F7A696A6AA /* IOSSSHSelfTest.swift */,
+				4D57B81AE6AA17CDBFD03341 /* IOSTheme.swift */,
 				347F2B66B5310ADBC65A8B9E /* IOSWatchBridge.swift */,
 			);
 			path = Services;
@@ -872,6 +939,7 @@
 			children = (
 				7F11BB7AEF9BDB198C9803A9 /* CoreFoundation.framework */,
 				FD32E564F595878325C284FC /* Security.framework */,
+				43D39B8B206542F9166270AF /* TermoSSH.xcframework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -911,7 +979,9 @@
 		C0D813930F3D170FB13A954C /* Hosts */ = {
 			isa = PBXGroup;
 			children = (
+				033BC7BACACD29CA1BD4458B /* IOSHostDetailView.swift */,
 				FC5408AFDD12F8C6B1CB2338 /* IOSHostEditor.swift */,
+				F9906D21F0DE337A54C191FB /* IOSHostMonitorSection.swift */,
 				0AB64E14E5843E066CE5AC81 /* IOSHostsView.swift */,
 			);
 			path = Hosts;
@@ -960,6 +1030,7 @@
 		D264D98E4157F33F1964D359 /* TermoTests */ = {
 			isa = PBXGroup;
 			children = (
+				14EA04BE6511691E462C5252 /* iOSUITests */,
 				71E6EA5EDE65F0F4B15C4BE3 /* MacTests */,
 			);
 			path = TermoTests;
@@ -991,10 +1062,19 @@
 			path = Tray;
 			sourceTree = "<group>";
 		};
+		DA98698B578EAC6216D7D088 /* Keys */ = {
+			isa = PBXGroup;
+			children = (
+				9E5254C5480E7750D2BE5DEC /* IOSKeysView.swift */,
+			);
+			path = Keys;
+			sourceTree = "<group>";
+		};
 		E84A2EC1481BCF349828A73C /* Packages */ = {
 			isa = PBXGroup;
 			children = (
 				0972F9D146D84483F7A39E3D /* TermoCore */,
+				3CBB96D2AB0A3F384C779D63 /* TermoEngine */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -1024,7 +1104,6 @@
 			children = (
 				5FC7FF741EDFBDCD5BC227F1 /* SSHTerminalDriver.swift */,
 				E0E7E495F1A07440D157CF41 /* TerminalEncodingCodec.swift */,
-				DD97A340A054424F22133C44 /* TerminalHookEchoFilter.swift */,
 				B3CD242B3800A21B789FBDF7 /* TerminalPasteQueue.swift */,
 				45F519B916764A6310D5136C /* TerminalSessionController.swift */,
 				AFA49CA0814D93ECB777AE07 /* TerminalShellIntegration.swift */,
@@ -1044,6 +1123,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = B38F0668C8E5D51169EB9F10 /* Build configuration list for PBXNativeTarget "Termo-iOS" */;
 			buildPhases = (
+				D8A8517BF112090C31F6F62B /* Build Rust SSH XCFramework */,
 				2FF40774B315C4A76D59E0B2 /* Sources */,
 				E2FCA2A816EB4F995E902869 /* Frameworks */,
 				9C0A211BC45301A990377007 /* Embed Watch Content */,
@@ -1056,6 +1136,9 @@
 			name = "Termo-iOS";
 			packageProductDependencies = (
 				6B0B341D52D906722944780E /* TermoCore */,
+				54FB33F64FDFBFA75E78BD0E /* TermoEngine */,
+				0C54C10252332426338B5716 /* CTermoSSH */,
+				540AF348EB9C063282F44C85 /* SwiftTerm */,
 			);
 			productName = "Termo-iOS";
 			productReference = 9C26B0F2AE3943DEC875BE48 /* Termo-iOS.app */;
@@ -1080,6 +1163,24 @@
 			productReference = CCAEBA09CA7689DAA7B7799E /* Termo-Watch.app */;
 			productType = "com.apple.product-type.application";
 		};
+		65203F3995452C72F271D2A3 /* Termo-iOS-UITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 979A942E8B58C0078DF10347 /* Build configuration list for PBXNativeTarget "Termo-iOS-UITests" */;
+			buildPhases = (
+				07707B779E3FFE3EDDFF7C11 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EBDC696431237C86F4A0E9F0 /* PBXTargetDependency */,
+			);
+			name = "Termo-iOS-UITests";
+			packageProductDependencies = (
+			);
+			productName = "Termo-iOS-UITests";
+			productReference = C31862010AC1FA6B6C440B74 /* Termo-iOS-UITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		C30F527531995F0E3B3DFE49 /* Termo */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6D67467588D7309322003925 /* Build configuration list for PBXNativeTarget "Termo" */;
@@ -1099,6 +1200,8 @@
 				D4090EEC9F8155CAFCC4F3D7 /* AI */,
 				9AFD70D7F0CA6271D43F4764 /* SwiftTerm */,
 				00883044E5144AA64EDA8951 /* TermoCore */,
+				BDD35FC64334C688E5EA796D /* TermoEngine */,
+				387CF51C5CE3E6363B05AC7A /* CTermoSSH */,
 			);
 			productName = Termo;
 			productReference = 8B98C4B8B210F38C372B2955 /* Termo.app */;
@@ -1139,6 +1242,11 @@
 						DevelopmentTeam = KTP97H9YFF;
 						ProvisioningStyle = Automatic;
 					};
+					65203F3995452C72F271D2A3 = {
+						DevelopmentTeam = KTP97H9YFF;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 0A48118B32F1155789C7FB0A;
+					};
 					C30F527531995F0E3B3DFE49 = {
 						DevelopmentTeam = 93D9T7Y56M;
 						ProvisioningStyle = Automatic;
@@ -1164,6 +1272,7 @@
 				DB8F52AE6F51B5EF07F7240D /* XCRemoteSwiftPackageReference "swift-ai-sdk" */,
 				24FC386F270D786934C82453 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 				5F40513BC93BFAD017093EF7 /* XCLocalSwiftPackageReference "TermoCore" */,
+				6A484369E3120BAEFA5F41AC /* XCLocalSwiftPackageReference "TermoEngine" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 73A71940EFCC3B417839098F /* Products */;
@@ -1174,6 +1283,7 @@
 				0A48118B32F1155789C7FB0A /* Termo-iOS */,
 				3827CF9BD8686ACED0D922E6 /* Termo-Watch */,
 				D9AB9BEC8F9DDB0D35762C4B /* TermoTests */,
+				65203F3995452C72F271D2A3 /* Termo-iOS-UITests */,
 			);
 		};
 /* End PBXProject section */
@@ -1213,17 +1323,61 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"   # Xcode 脚本环境默认不含 Homebrew\n\"$SRCROOT/scripts/build-russh.sh\"\n";
 		};
+		D8A8517BF112090C31F6F62B /* Build Rust SSH XCFramework */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust SSH XCFramework";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"   # Xcode 脚本环境默认不含 Homebrew\n\"$SRCROOT/scripts/build-russh-ios.sh\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		07707B779E3FFE3EDDFF7C11 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				84F57BC0602E49E490B746C2 /* TermoIOSUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2FF40774B315C4A76D59E0B2 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B2C02A8C3804D64C21051BAA /* IOSEngineEnvironment.swift in Sources */,
+				BBFDC88C742F5B836AB5146A /* IOSHost.swift in Sources */,
+				03462E23008064E8E4C732D0 /* IOSHostDetailView.swift in Sources */,
 				84FBE5DEB87CBC77B430B5A3 /* IOSHostEditor.swift in Sources */,
+				9313C045A11C712D9CCE7011 /* IOSHostKeyVerifier.swift in Sources */,
+				87C72F12C6236C9B93C84358 /* IOSHostMonitor.swift in Sources */,
+				5D10F273E096D7C935CA4CF8 /* IOSHostMonitorSection.swift in Sources */,
 				78B31589136A315B2548FC0F /* IOSHostRepository.swift in Sources */,
 				95F3A85569432E0DA1CB06F6 /* IOSHostsView.swift in Sources */,
+				3BA246A7E36611040FE42EC4 /* IOSKeyStore.swift in Sources */,
+				F3FD106214DA671A6C9D86CC /* IOSKeychain.swift in Sources */,
+				746F35AED5EC5A67C5FE09E6 /* IOSKeysView.swift in Sources */,
+				C8AB26C22FC932296922BAC0 /* IOSKnownHosts.swift in Sources */,
+				F11DBFFC9A67F3784579BAE8 /* IOSLatencyStore.swift in Sources */,
+				55694B11439A50BFBB697744 /* IOSSSHSelfTest.swift in Sources */,
 				DF537F399A704C1C52104E1E /* IOSSettingsView.swift in Sources */,
+				F9FAB0192A05634D26C935AC /* IOSTerminalPage.swift in Sources */,
+				6F4CC80606E5B495C28B50D9 /* IOSTerminalSession.swift in Sources */,
+				C54A92BCE1EEDFEF304E08B6 /* IOSTerminalTheme.swift in Sources */,
+				E86060695DC8B96D3D88CC56 /* IOSTerminalViewModel.swift in Sources */,
+				E55E178DD5C0461042A79D61 /* IOSTheme.swift in Sources */,
 				CFA0E700D764A0E97D29BB12 /* IOSWatchBridge.swift in Sources */,
 				7EA6410A752E1C698E1344D9 /* TermoIOSApp.swift in Sources */,
 			);
@@ -1283,7 +1437,6 @@
 				F58E060519DA16833EEFB587 /* HostMonitor.swift in Sources */,
 				D2D1F924EEC49223DF50EFEA /* HostMonitoringService.swift in Sources */,
 				EF41384D14AE10FFA2C5BD6B /* HostOverview.swift in Sources */,
-				C9A000C55CE5B08D6203306E /* HostReachabilityProbe.swift in Sources */,
 				C6E750507DC3D4AE7F15452D /* HostSystemProbe.swift in Sources */,
 				C702F6B7A6BB36E370D53F96 /* HostTrustCoordinator.swift in Sources */,
 				FB0F317EC6ACDA4A6BE35618 /* KeySheets.swift in Sources */,
@@ -1311,13 +1464,8 @@
 				8A5BBBE9780A3047EAD21615 /* ResourceAlertEvaluator.swift in Sources */,
 				992FF7E58ECCF49C51C06A72 /* RightBar.swift in Sources */,
 				3A576E2BEE13177A9FE8C38A /* SFTPClient.swift in Sources */,
-				DA96367C0EC2F025CB10EA35 /* SSHConnectionCancellation.swift in Sources */,
-				FD6E38FAB1867E53EAB96F06 /* SSHConnectionConfiguration.swift in Sources */,
-				77F7C57E7EE8D17B97004713 /* SSHConnectionDiagnostic.swift in Sources */,
-				FC9D15CF8DD9A713E222A3E3 /* SSHConnectionHub.swift in Sources */,
+				019B1724DA91F628C39BC524 /* SSHEngineEnvironment.swift in Sources */,
 				B603EC5800C6CE20A35B944A /* SSHKey.swift in Sources */,
-				4182770CC464AFBB0B72A25F /* SSHSession.swift in Sources */,
-				91129060873D7C350C3BDA0F /* SSHSessionPool.swift in Sources */,
 				416A191103CC2FDA968529F6 /* SSHTerminalChannel.swift in Sources */,
 				68CB40E1BB8816ECBD63BE9F /* SSHTerminalDriver.swift in Sources */,
 				C014B7AD5C7BEBDD879EB354 /* SettingsView.swift in Sources */,
@@ -1337,7 +1485,6 @@
 				3D1ACC2EA1B3EAC67A410F52 /* TabBar.swift in Sources */,
 				93AFAF1A5615F82698B36FA0 /* TabsModel.swift in Sources */,
 				F59AC4CB31BAB01E688A7193 /* TerminalEncodingCodec.swift in Sources */,
-				9B094E1C43C8C805EB4E2807 /* TerminalHookEchoFilter.swift in Sources */,
 				A053EB8160C5EBB1AD099E1E /* TerminalPalette.swift in Sources */,
 				A3F61B48AE76E65124513314 /* TerminalPasteQueue.swift in Sources */,
 				924C47E476A0908E36A2BB2E /* TerminalSessionController.swift in Sources */,
@@ -1346,7 +1493,6 @@
 				1C1D81747865A80D465EF740 /* TerminalTextDecoder.swift in Sources */,
 				E80A7C7FA433B9BB17432D8E /* TerminalTranscript.swift in Sources */,
 				DBD2E7E8B993ADC8473C6C6C /* TermoApp.swift in Sources */,
-				A8381FA3BFD0A5B6A033166D /* TermoSSHDispatch.c in Sources */,
 				6E5881C51850F4E1E7CA449F /* TermoTextTranscoder.c in Sources */,
 				271FDD4FAFDD8B285FFE85CB /* TestConnectionView.swift in Sources */,
 				2DE78092C84E733FAF379DB6 /* Theme.swift in Sources */,
@@ -1432,6 +1578,11 @@
 			target = 3827CF9BD8686ACED0D922E6 /* Termo-Watch */;
 			targetProxy = 93A79AED29D5392D933786CD /* PBXContainerItemProxy */;
 		};
+		EBDC696431237C86F4A0E9F0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0A48118B32F1155789C7FB0A /* Termo-iOS */;
+			targetProxy = C3899C24930B7427EA64E3EC /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -1484,7 +1635,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1550,7 +1701,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -1570,7 +1721,6 @@
 				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/TermoSSH/include",
 					"$(SRCROOT)/Mac/Features/Terminal",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1578,7 +1728,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.tests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo";
@@ -1617,7 +1767,6 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/TermoSSH/include",
 					"$(SRCROOT)/Mac/Features/Terminal",
 				);
 				INFOPLIST_FILE = Mac/Info.plist;
@@ -1626,9 +1775,9 @@
 					"@executable_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = (
-					"$(SRCROOT)/build/russh/universal",
+					"$(SRCROOT)/build/russh/aarch64-apple-darwin",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				OTHER_LDFLAGS = (
 					"-ltermo_ssh",
 					"-liconv",
@@ -1650,7 +1799,6 @@
 				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/TermoSSH/include",
 					"$(SRCROOT)/Mac/Features/Terminal",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1658,7 +1806,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.tests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo";
@@ -1696,7 +1844,6 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/TermoSSH/include",
 					"$(SRCROOT)/Mac/Features/Terminal",
 				);
 				INFOPLIST_FILE = Mac/Info.plist;
@@ -1705,9 +1852,9 @@
 					"@executable_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = (
-					"$(SRCROOT)/build/russh/universal",
+					"$(SRCROOT)/build/russh/aarch64-apple-darwin",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				OTHER_LDFLAGS = (
 					"-ltermo_ssh",
 					"-liconv",
@@ -1723,9 +1870,15 @@
 		6DF78356B434F050FC7EA7BA /* ReleaseMAS */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"build/russh/ios\"",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1740,6 +1893,69 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = ReleaseMAS;
+		};
+		71DFD5025E65900BA0C00BCE /* ReleaseMAS */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "-";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.ios.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Termo-iOS";
+			};
+			name = ReleaseMAS;
+		};
+		7255B6C4513113B6EA8E70D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "-";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.ios.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Termo-iOS";
+			};
+			name = Debug;
+		};
+		7820848CAE3EA670436429A7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "-";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.ios.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Termo-iOS";
+			};
+			name = Release;
 		};
 		787178CD72E035BED5388D6D /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1763,9 +1979,15 @@
 		7C45D0C6780B2BEB607B9731 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"build/russh/ios\"",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1789,7 +2011,6 @@
 				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/TermoSSH/include",
 					"$(SRCROOT)/Mac/Features/Terminal",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1797,7 +2018,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.tests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo";
@@ -1816,7 +2037,6 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/TermoSSH/include",
 					"$(SRCROOT)/Mac/Features/Terminal",
 				);
 				INFOPLIST_FILE = Mac/Info.plist;
@@ -1825,9 +2045,9 @@
 					"@executable_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = (
-					"$(SRCROOT)/build/russh/universal",
+					"$(SRCROOT)/build/russh/aarch64-apple-darwin",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				OTHER_LDFLAGS = (
 					"-ltermo_ssh",
 					"-liconv",
@@ -1871,7 +2091,6 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/TermoSSH/include",
 					"$(SRCROOT)/Mac/Features/Terminal",
 				);
 				INFOPLIST_FILE = Mac/Info.plist;
@@ -1880,9 +2099,9 @@
 					"@executable_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = (
-					"$(SRCROOT)/build/russh/universal",
+					"$(SRCROOT)/build/russh/aarch64-apple-darwin",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				OTHER_LDFLAGS = (
 					"-ltermo_ssh",
 					"-liconv",
@@ -1898,9 +2117,15 @@
 		DC14A95CFFD4C54132E33CE8 /* DebugMAS */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"build/russh/ios\"",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1919,9 +2144,15 @@
 		E5E50511A6D48DA90CCD5C9C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"build/russh/ios\"",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1986,7 +2217,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2052,7 +2283,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -2072,7 +2303,6 @@
 				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/TermoSSH/include",
 					"$(SRCROOT)/Mac/Features/Terminal",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2080,12 +2310,33 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.tests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo";
 			};
 			name = Release;
+		};
+		FA1DC964B8E9878548C8CBB0 /* DebugMAS */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "-";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudza.termo.ios.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Termo-iOS";
+			};
+			name = DebugMAS;
 		};
 /* End XCBuildConfiguration section */
 
@@ -2123,6 +2374,17 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		979A942E8B58C0078DF10347 /* Build configuration list for PBXNativeTarget "Termo-iOS-UITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7255B6C4513113B6EA8E70D8 /* Debug */,
+				FA1DC964B8E9878548C8CBB0 /* DebugMAS */,
+				7820848CAE3EA670436429A7 /* Release */,
+				71DFD5025E65900BA0C00BCE /* ReleaseMAS */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		B38F0668C8E5D51169EB9F10 /* Build configuration list for PBXNativeTarget "Termo-iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -2151,6 +2413,10 @@
 		5F40513BC93BFAD017093EF7 /* XCLocalSwiftPackageReference "TermoCore" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = TermoCore;
+		};
+		6A484369E3120BAEFA5F41AC /* XCLocalSwiftPackageReference "TermoEngine" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = TermoEngine;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -2186,9 +2452,26 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = TermoCore;
 		};
+		0C54C10252332426338B5716 /* CTermoSSH */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CTermoSSH;
+		};
 		29B716FC3EC01F73653D4A43 /* TermoCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = TermoCore;
+		};
+		387CF51C5CE3E6363B05AC7A /* CTermoSSH */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CTermoSSH;
+		};
+		540AF348EB9C063282F44C85 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 24FC386F270D786934C82453 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
+		54FB33F64FDFBFA75E78BD0E /* TermoEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TermoEngine;
 		};
 		6B0B341D52D906722944780E /* TermoCore */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -2198,6 +2481,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 24FC386F270D786934C82453 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
 			productName = SwiftTerm;
+		};
+		BDD35FC64334C688E5EA796D /* TermoEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TermoEngine;
 		};
 		C7E62E9BE21BC63D5B281361 /* MarkdownUI */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -13,14 +13,14 @@ enum SyncUIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .weakMaster: return String(localized: "主密码至少 8 位（用于加密备份）")
-        case .badPayload: return String(localized: "备份内容无法解析")
-        case .masterUnavailable: return String(localized: "请先验证主密码，再进行同步或备份")
+        case .weakMaster: return String(localized: "主密码至少 8 位（用于加密备份）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .badPayload: return String(localized: "备份内容无法解析", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .masterUnavailable: return String(localized: "请先验证主密码，再进行同步或备份", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .credentialUnavailable(let detail): return detail
         case .unresolvedConflicts(let count):
-            return String(localized: "还有 \(count) 项冲突未选择保留版本。")
+            return String(localized: "还有 \(count) 项冲突未选择保留版本。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .remoteUpdatedLocalFailed(let error):
-            return String(localized: "远端备份已更新，本机应用未完成。\(error.localizedDescription)")
+            return String(localized: "远端备份已更新，本机应用未完成。\(error.localizedDescription)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -122,8 +122,8 @@ final class SyncModel: ObservableObject {
             let exists = try await WebDAVClient.test(self.config)
             try self.saveConfig()
             return exists
-                ? String(localized: "连接成功")
-                : String(localized: "连接成功；远端目录尚不存在，首次同步会尝试创建（Seafile 需先在网页端新建资料库）")
+                ? String(localized: "连接成功", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                : String(localized: "连接成功；远端目录尚不存在，首次同步会尝试创建（Seafile 需先在网页端新建资料库）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
@@ -136,6 +136,9 @@ final class SyncModel: ObservableObject {
         let localHosts, localPasswords, localKeys, localSnippets: Int
         let remoteHosts, remotePasswords, remoteKeys, remoteSnippets: Int
         let mergedHosts, mergedKeys, mergedSnippets: Int
+        let localForwards, remoteForwards, mergedForwards: Int
+        let localKnownHosts, remoteKnownHosts, mergedKnownHosts: Int
+        let localAI, remoteAI, mergedAI: Bool
         var conflicts: Int { result.conflicts.count }
     }
     @Published var pendingPreview: SyncPreview?
@@ -160,9 +163,9 @@ final class SyncModel: ObservableObject {
                     guard self.masterPassword.count >= 8 else { throw SyncUIError.weakMaster }
                     try await self.upload(local)
                     self.recordSuccessfulSync()
-                    return String(localized: "远端无备份，已用本机数据创建")
+                    return String(localized: "远端无备份，已用本机数据创建", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                 }
-                return String(localized: "远端没有可下载的备份")
+                return String(localized: "远端没有可下载的备份", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
             let remote = try await self.decode(remoteData)
             let result = SyncEngine.merge(local: local, remote: remote)
@@ -173,7 +176,12 @@ final class SyncModel: ObservableObject {
                 remoteHosts: remote.hosts.count, remotePasswords: remote.hostPasswords.count,
                 remoteKeys: remote.keys.count, remoteSnippets: remote.snippets.count,
                 mergedHosts: result.merged.hosts.count, mergedKeys: result.merged.keys.count,
-                mergedSnippets: result.merged.snippets.count
+                mergedSnippets: result.merged.snippets.count,
+                localForwards: local.forwards.count, remoteForwards: remote.forwards.count,
+                mergedForwards: result.merged.forwards.count,
+                localKnownHosts: local.knownHosts.count, remoteKnownHosts: remote.knownHosts.count,
+                mergedKnownHosts: result.merged.knownHosts.count,
+                localAI: local.ai != nil, remoteAI: remote.ai != nil, mergedAI: result.merged.ai != nil
             )
             return nil
         }
@@ -186,7 +194,7 @@ final class SyncModel: ObservableObject {
         await perform {
             guard p.result.conflicts.isEmpty else {
                 self.pendingMerge = PendingMerge(result: p.result, uploadAfter: p.uploadAfter)
-                return String(localized: "发现 \(p.result.conflicts.count) 处冲突，请选择保留哪边")
+                return String(localized: "发现 \(p.result.conflicts.count) 处冲突，请选择保留哪边", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
             try await self.applyMergedPayload(p.result.merged, to: model, uploadFirst: p.uploadAfter)
             return self.summary(p.result)
@@ -212,7 +220,7 @@ final class SyncModel: ObservableObject {
             let payload = try SyncEngine.makePayload(model: model)
             try await self.upload(payload)
             self.recordSuccessfulSync()
-            return String(localized: "已上传本机数据覆盖远端备份")
+            return String(localized: "已上传本机数据覆盖远端备份", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
@@ -225,7 +233,7 @@ final class SyncModel: ObservableObject {
             return
         }
         let panel = NSSavePanel()
-        panel.title = String(localized: "导出加密备份")
+        panel.title = String(localized: "导出加密备份", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         panel.nameFieldStringValue = "termo-backup-\(Self.dateStamp()).json"
         panel.allowedContentTypes = [.json]
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -238,7 +246,7 @@ final class SyncModel: ObservableObject {
                     try SyncCrypto.encrypt(plain, password: password)
                 }.value
                 try encrypted.write(to: url, options: .atomic)
-                return String(localized: "已导出加密备份：\(url.lastPathComponent)")
+                return String(localized: "已导出加密备份：\(url.lastPathComponent)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
         }
     }
@@ -247,7 +255,7 @@ final class SyncModel: ObservableObject {
     func importFromFile(model: AppModel) {
         guard validateMaster() else { return }
         let panel = NSOpenPanel()
-        panel.title = String(localized: "选择 Termo 备份文件")
+        panel.title = String(localized: "选择 Termo 备份文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
@@ -261,7 +269,7 @@ final class SyncModel: ObservableObject {
                 let result = SyncEngine.merge(local: local, remote: remote)
                 guard result.conflicts.isEmpty else {
                     self.pendingMerge = PendingMerge(result: result, uploadAfter: false)
-                    return String(localized: "发现 \(result.conflicts.count) 处冲突，请选择保留哪边")
+                    return String(localized: "发现 \(result.conflicts.count) 处冲突，请选择保留哪边", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                 }
                 try await self.applyMergedPayload(result.merged, to: model, uploadFirst: false)
                 return self.summary(result)
@@ -282,14 +290,14 @@ final class SyncModel: ObservableObject {
         let payload = SyncEngine.resolve(result: pending.result, choices: choices)
         await perform {
             try await self.applyMergedPayload(payload, to: model, uploadFirst: pending.uploadAfter)
-            return pending.uploadAfter ? String(localized: "同步完成") : String(localized: "已从备份合并导入")
+            return pending.uploadAfter ? String(localized: "同步完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "已从备份合并导入", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
     func cancelPending() {
         pendingMerge = nil
         statusIsError = false
-        statusText = String(localized: "已取消本次合并")
+        statusText = String(localized: "已取消本次合并", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 
     // MARK: - 内部
@@ -356,9 +364,9 @@ final class SyncModel: ObservableObject {
 
     private func summary(_ result: SyncMergeResult) -> String {
         guard result.localOnlyCount > 0 || result.remoteOnlyCount > 0 else {
-            return String(localized: "同步完成，无变更")
+            return String(localized: "同步完成，无变更", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
-        return String(localized: "同步完成（仅本机 \(result.localOnlyCount) 项，仅远端 \(result.remoteOnlyCount) 项）")
+        return String(localized: "同步完成（仅本机 \(result.localOnlyCount) 项，仅远端 \(result.remoteOnlyCount) 项）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 
     private func validateConfig() -> Bool {
@@ -369,7 +377,7 @@ final class SyncModel: ObservableObject {
             return false
         }
         guard config.isComplete else {
-            statusText = String(localized: "请先填写 WebDAV 服务器地址与远程路径")
+            statusText = String(localized: "请先填写 WebDAV 服务器地址与远程路径", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             statusIsError = true
             return false
         }

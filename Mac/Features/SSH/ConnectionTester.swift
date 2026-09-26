@@ -1,4 +1,6 @@
 import SwiftUI
+import TermoCore
+import TermoEngine
 
 // MARK: - 连接测试器（消费进程内 SSH 引擎的阶段回调）
 
@@ -10,10 +12,10 @@ struct ConnectionStep: Identifiable {
     var detail: String? = nil
     var statusLabel: String {
         switch state {
-        case .pending: return String(localized: "未执行")
-        case .running: return String(localized: "进行中")
-        case .success: return String(localized: "已完成")
-        case .failure: return String(localized: "失败")
+        case .pending: return String(localized: "未执行", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .running: return String(localized: "进行中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .success: return String(localized: "已完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .failure: return String(localized: "失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -53,12 +55,12 @@ final class ConnectionTester: ObservableObject {
     deinit { cancellation?.cancel() }
 
     private let stepTitles = [
-        String(localized: "初始化配置"),
-        String(localized: "解析连接地址"),
-        String(localized: "建立连接通道"),
-        String(localized: "SSH 协议握手"),
-        String(localized: "身份验证"),
-        String(localized: "连接成功"),
+        String(localized: "初始化配置", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+        String(localized: "解析连接地址", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+        String(localized: "建立连接通道", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+        String(localized: "SSH 协议握手", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+        String(localized: "身份验证", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+        String(localized: "连接成功", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
     ]
     private var concluded = false
     /// 测试/连接结束时回调一次（true=成功）。
@@ -73,12 +75,12 @@ final class ConnectionTester: ObservableObject {
     var succeeded: Bool { !steps.isEmpty && steps.allSatisfy { $0.state == .success } }
 
     var overallStatusText: String {
-        if pendingHostKey != nil { return String(localized: "等待核对主机指纹") }
-        if isRunning { return String(localized: "连接中…") }
-        if failed { return String(localized: "连接失败") }
-        if succeeded { return String(localized: "连接成功") }
-        if cancelled { return String(localized: "已取消") }
-        return String(localized: "等待中")
+        if pendingHostKey != nil { return String(localized: "等待核对主机指纹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        if isRunning { return String(localized: "连接中…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        if failed { return String(localized: "连接失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        if succeeded { return String(localized: "连接成功", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        if cancelled { return String(localized: "已取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        return String(localized: "等待中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 
     var overallColor: Color {
@@ -99,16 +101,16 @@ final class ConnectionTester: ObservableObject {
         concluded = false
 
         guard !conn.host.isEmpty else {
-            log(String(localized: "未填写主机地址"), color: Pal.red)
+            log(String(localized: "未填写主机地址", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), color: Pal.red)
             failStep(0); return
         }
 
         guard (1...65535).contains(conn.port) else {
-            log(String(localized: "端口需为 1–65535 之间的整数。"), color: Pal.red)
+            log(String(localized: "端口需为 1–65535 之间的整数。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), color: Pal.red)
             failStep(0); return
         }
         markRunning(0)
-        log(String(localized: "开始测试连接到 \(conn.host):\(conn.port)（用户 \(conn.user)）"))
+        log(String(localized: "开始测试连接到 \(conn.host):\(conn.port)（用户 \(conn.user)）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         markSuccess(0)
         markRunning(1)
 
@@ -122,7 +124,7 @@ final class ConnectionTester: ObservableObject {
             switch result {
             case .known: break
             case .scanFailed:
-                log(String(localized: "无法核对主机指纹，请检查网络连接和 known_hosts 记录。"), color: Pal.red)
+                log(String(localized: "无法核对主机指纹，请检查网络连接和 known_hosts 记录。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), color: Pal.red)
                 failStep(3)
                 return
             case .prompt(let info), .changed(let info):
@@ -136,7 +138,7 @@ final class ConnectionTester: ObservableObject {
                 guard !Task.isCancelled, generation == connectionGeneration, isRunning else { return }
                 guard decision != .cancel else { cancel(); return }
                 do { try HostKeyVerifier.trust(info, persist: decision == .save) } catch {
-                    log(String(localized: "主机信任记录未能保存：\(error.localizedDescription)"), color: Pal.red)
+                    log(String(localized: "主机信任记录未能保存：\(error.localizedDescription)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), color: Pal.red)
                     failStep(3)
                     return
                 }
@@ -163,13 +165,13 @@ final class ConnectionTester: ObservableObject {
                 ? (conn.keyPath.isEmpty ? nil : conn.keyPath) : KeyMaterializer.path(forKeyId: conn.keyId))
             : nil
         guard !isKey || keyPath?.isEmpty == false else {
-            log(String(localized: "无法读取所选私钥，请重新选择密钥库条目或私钥文件。"), color: Pal.red)
+            log(String(localized: "无法读取所选私钥，请重新选择密钥库条目或私钥文件。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), color: Pal.red)
             failStep(4)
             return
         }
         let runTest = self.runTest
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            runTest(conn, keyPath, cancellation) { [weak self] stage, ok, message in
+            runTest(conn, keyPath, cancellation, .mac) { [weak self] stage, ok, message in
                 Task { @MainActor [weak self] in
                     guard self?.connectionGeneration == generation else { return }
                     self?.onStage(stage: stage, ok: ok, message: message)
@@ -195,7 +197,7 @@ final class ConnectionTester: ObservableObject {
         if ok {
             markSuccess(stage)
             if stage == steps.count - 1 {  // 末阶段「连接成功」
-                log(String(localized: "连接成功 ✓"), color: Pal.green)
+                log(String(localized: "连接成功 ✓", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), color: Pal.green)
                 isRunning = false
                 conclude(true)
             } else {
@@ -222,7 +224,7 @@ final class ConnectionTester: ObservableObject {
             steps[index].state = .pending
         }
         steps[i].state = .failure
-        failureMessage = logs.last?.message ?? String(localized: "连接未完成，请查看日志后重试。")
+        failureMessage = logs.last?.message ?? String(localized: "连接未完成，请查看日志后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         failed = true
         isRunning = false
         cancel()

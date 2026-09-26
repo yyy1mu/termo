@@ -89,8 +89,8 @@ extension AppModel {
         guard !trimmed.isEmpty, let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
         if tabs.contains(where: { $0.id != id && $0.title == trimmed }) {
             pendingFileInfo = FileInfoContext(
-                title: String(localized: "名称已被占用"),
-                message: String(localized: "已有标签使用「\(trimmed)」，换一个名称以便区分。"))
+                title: String(localized: "名称已被占用", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                message: String(localized: "已有标签使用「\(trimmed)」，换一个名称以便区分。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             return
         }
         tabs[idx].title = trimmed
@@ -181,9 +181,9 @@ extension AppModel {
     var pendingCloseDialogTitle: String {
         guard let id = pendingCloseTabId,
             let tab = tabs.first(where: { $0.id == id })
-        else { return String(localized: "关闭此标签？") }
+        else { return String(localized: "关闭此标签？", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
         switch tab.kind {
-        default: return String(localized: "关闭此终端？")
+        default: return String(localized: "关闭此终端？", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
@@ -193,7 +193,7 @@ extension AppModel {
             let tab = tabs.first(where: { $0.id == id })
         else { return "" }
         switch tab.kind {
-        default: return String(localized: "「\(tab.title)」有正在运行的进程，关闭后进程将被终止。")
+        default: return String(localized: "「\(tab.title)」有正在运行的进程，关闭后进程将被终止。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }

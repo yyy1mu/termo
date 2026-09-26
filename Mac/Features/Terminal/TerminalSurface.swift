@@ -63,9 +63,10 @@ struct TerminalDropArea: View {
 struct TerminalSurface: NSViewRepresentable {
     let terminal: LocalProcessTerminalView
     var isActive: Bool = true     // tab 是否为当前活动 tab（keep-alive 下所有终端常驻，靠这个区分）
+    @Environment(\.locale) private var locale
 
     func makeNSView(context: Context) -> LocalProcessTerminalView {
-        terminal.menu = Self.buildContextMenu()
+        terminal.menu = Self.buildContextMenu(localeIdentifier: locale.identifier)
         terminal.isHidden = !isActive
         // 只让活动终端首次创建时抢焦点；非活动的不抢（keep-alive 下会同时创建多个，避免互相抢）。
         if isActive {
@@ -80,26 +81,31 @@ struct TerminalSurface: NSViewRepresentable {
         // responder（焦点安全）。切到终端的聚焦由 AppModel.focusActiveTab 显式处理 —— 不在此 makeFirstResponder：
         // updateNSView 会随主题/设置/hover 任意重绘频繁触发，在此抢焦点会把键盘从侧栏搜索框抢回终端。
         if nsView.isHidden == isActive { nsView.isHidden = !isActive }
+        let menuIdentifier = NSUserInterfaceItemIdentifier("TermoTerminalMenu.\(locale.identifier)")
+        if nsView.menu?.identifier != menuIdentifier {
+            nsView.menu = Self.buildContextMenu(localeIdentifier: locale.identifier)
+        }
     }
 
-    private static func buildContextMenu() -> NSMenu {
+    private static func buildContextMenu(localeIdentifier: String) -> NSMenu {
         let menu = NSMenu()
+        menu.identifier = NSUserInterfaceItemIdentifier("TermoTerminalMenu.\(localeIdentifier)")
 
-        let copy = NSMenuItem(title: String(localized: "复制"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        let copy = NSMenuItem(title: String(localized: "复制", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
         copy.keyEquivalentModifierMask = .command
         menu.addItem(copy)
 
-        let paste = NSMenuItem(title: String(localized: "粘贴"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        let paste = NSMenuItem(title: String(localized: "粘贴", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         paste.keyEquivalentModifierMask = .command
         menu.addItem(paste)
 
-        let selectAll = NSMenuItem(title: String(localized: "全选"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        let selectAll = NSMenuItem(title: String(localized: "全选", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         selectAll.keyEquivalentModifierMask = .command
         menu.addItem(selectAll)
 
         menu.addItem(.separator())
 
-        let clear = NSMenuItem(title: String(localized: "清屏"), action: #selector(TerminalActions.clearTerminal(_:)), keyEquivalent: "k")
+        let clear = NSMenuItem(title: String(localized: "清屏", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: #selector(TerminalActions.clearTerminal(_:)), keyEquivalent: "k")
         clear.keyEquivalentModifierMask = .command
         menu.addItem(clear)
 
@@ -107,14 +113,14 @@ struct TerminalSurface: NSViewRepresentable {
 
         // 会话操作：复制会话（同主机新终端，走共享连接不重新登录；本地终端点了无效）/ 重命名标签。
         // 不设快捷键——⌘D 等在终端里有自身语义（EOF），不能占用。
-        menu.addItem(NSMenuItem(title: String(localized: "复制会话"),
+        menu.addItem(NSMenuItem(title: String(localized: "复制会话", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                                 action: #selector(TerminalActions.duplicateSession(_:)), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: String(localized: "重命名标签"),
+        menu.addItem(NSMenuItem(title: String(localized: "重命名标签", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                                 action: #selector(TerminalActions.renameSessionTab(_:)), keyEquivalent: ""))
 
         menu.addItem(.separator())
 
-        let search = NSMenuItem(title: String(localized: "搜索"), action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
+        let search = NSMenuItem(title: String(localized: "搜索", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
         search.keyEquivalentModifierMask = .command
         search.tag = Int(NSFindPanelAction.showFindPanel.rawValue)
         menu.addItem(search)
@@ -169,9 +175,9 @@ struct TerminalReconnectOverlay: View {
 
     private var reconnectDescription: String {
         switch conn.reconnectStatus {
-        case .waitingForNetwork: return String(localized: "等待网络恢复后重连")
-        case .scheduled: return String(localized: "即将自动重连")
-        case .connecting: return String(localized: "正在重连…")
+        case .waitingForNetwork: return String(localized: "等待网络恢复后重连", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .scheduled: return String(localized: "即将自动重连", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .connecting: return String(localized: "正在重连…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -229,6 +235,81 @@ extension LocalProcessTerminalView: TerminalActions {
 /// User pastes are paced and serialized; queued bytes stay bound to the connection that received the paste.
 final class PacedTerminalView: LocalProcessTerminalView {
     private let pasteQueue = TerminalPasteQueue()
+    private var scrollerHideWorkItem: DispatchWorkItem?
+    private var scrollEventMonitor: Any?
+    private var scrollerGeneration = 0
+
+    private var terminalScroller: NSScroller? {
+        subviews.compactMap { $0 as? NSScroller }.first
+    }
+
+    /// SwiftTerm currently creates a legacy scroller. Keep its functional thumb, but present it like
+    /// the rest of the app: overlay while the user scrolls, then fade it out after a short idle period.
+    func configureTransientScroller() {
+        configureTransientScroller(retriesRemaining: 2)
+    }
+
+    private func configureTransientScroller(retriesRemaining: Int) {
+        guard let scroller = terminalScroller else {
+            guard retriesRemaining > 0 else { return }
+            DispatchQueue.main.async { [weak self] in
+                self?.configureTransientScroller(retriesRemaining: retriesRemaining - 1)
+            }
+            return
+        }
+        scroller.scrollerStyle = .overlay
+        scroller.controlSize = .small
+        scroller.alphaValue = 0
+        scroller.isHidden = true
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        removeScrollEventMonitor()
+        guard window != nil else { return }
+        scrollEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard let self,
+                  !self.isHidden,
+                  event.window === self.window,
+                  event.deltaY != 0 || event.scrollingDeltaY != 0 else { return event }
+            let point = self.convert(event.locationInWindow, from: nil)
+            guard self.bounds.contains(point) else { return event }
+            // The monitor runs before SwiftTerm updates its scroll view. Reveal on the next main-loop
+            // turn so the thumb uses the new position while leaving the event untouched.
+            DispatchQueue.main.async { [weak self] in self?.showTransientScroller() }
+            return event
+        }
+    }
+
+    private func showTransientScroller() {
+        guard let scroller = terminalScroller, scroller.isEnabled else { return }
+        scrollerHideWorkItem?.cancel()
+        scrollerGeneration += 1
+        let generation = scrollerGeneration
+        scroller.isHidden = false
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.12
+            scroller.animator().alphaValue = 1
+        }
+
+        let work = DispatchWorkItem { [weak self, weak scroller] in
+            guard let self, let scroller, self.scrollerGeneration == generation else { return }
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.22
+                scroller.animator().alphaValue = 0
+            }, completionHandler: {
+                if self.scrollerGeneration == generation { scroller.isHidden = true }
+            })
+        }
+        scrollerHideWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9, execute: work)
+    }
+
+    private func removeScrollEventMonitor() {
+        guard let scrollEventMonitor else { return }
+        NSEvent.removeMonitor(scrollEventMonitor)
+        self.scrollEventMonitor = nil
+    }
 
     override func paste(_ sender: Any) {
         guard let text = NSPasteboard.general.string(forType: .string),
@@ -242,4 +323,9 @@ final class PacedTerminalView: LocalProcessTerminalView {
     }
 
     func cancelPendingPaste() { pasteQueue.cancel() }
+
+    deinit {
+        scrollerHideWorkItem?.cancel()
+        removeScrollEventMonitor()
+    }
 }

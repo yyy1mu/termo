@@ -43,10 +43,14 @@ final class AISettingsDraft: ObservableObject {
         guard let url = normalizedProfile.chatCompletionsURL,
               ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
               let host = url.host, !host.isEmpty else {
-            return String(localized: "请输入以 http:// 或 https:// 开头的服务地址。")
+            return String(localized: "请输入以 http:// 或 https:// 开头的服务地址。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
-        guard (8_192...2_000_000).contains(profile.contextWindow) else { return String(localized: "上下文容量应在 8192 到 2000000 之间。") }
-        guard !normalizedProfile.model.isEmpty else { return String(localized: "请输入模型名称。") }
+        guard (8_192...2_000_000).contains(profile.contextWindow) else {
+            return String(localized: "上下文容量应在 8192 到 2000000 之间。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        }
+        guard !normalizedProfile.model.isEmpty else {
+            return String(localized: "请输入模型名称。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        }
         return nil
     }
 
@@ -54,7 +58,9 @@ final class AISettingsDraft: ObservableObject {
 
     func save() {
         guard validationMessage == nil else {
-            saveResult = Notice(kind: .failure, title: String(localized: "尚未保存"), text: validationMessage ?? "")
+            saveResult = Notice(kind: .failure,
+                                title: String(localized: "尚未保存", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                                text: validationMessage ?? "")
             return
         }
         let next = normalizedProfile
@@ -65,9 +71,14 @@ final class AISettingsDraft: ObservableObject {
             apiKey = key
             savedProfile = next
             savedAPIKey = key
-            saveResult = Notice(kind: .success, title: String(localized: "配置已保存"), text: String(localized: "下一次发送消息时生效。"))
+            saveResult = Notice(
+                kind: .success,
+                title: String(localized: "配置已保存", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                text: String(localized: "下一次发送消息时生效。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         } catch {
-            saveResult = Notice(kind: .failure, title: String(localized: "保存失败"), text: error.localizedDescription)
+            saveResult = Notice(kind: .failure,
+                                title: String(localized: "保存失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                                text: error.localizedDescription)
         }
     }
 
@@ -86,11 +97,15 @@ final class AISettingsDraft: ObservableObject {
                 try Task.checkCancellation()
                 let response = try await ping(candidate, key)
                 guard let self, self.testID == id, !Task.isCancelled else { return }
-                self.testResult = Notice(kind: .success, title: String(localized: "连接成功"), text: response)
+                self.testResult = Notice(kind: .success,
+                                         title: String(localized: "连接成功", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                                         text: response)
                 self.finishTest()
             } catch {
                 guard let self, self.testID == id, !Task.isCancelled else { return }
-                self.testResult = Notice(kind: .failure, title: String(localized: "连接失败"), text: error.localizedDescription)
+                self.testResult = Notice(kind: .failure,
+                                         title: String(localized: "连接失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                                         text: error.localizedDescription)
                 self.finishTest()
             }
         }
@@ -103,7 +118,10 @@ final class AISettingsDraft: ObservableObject {
         testTask = nil
         testing = false
         if wasTesting {
-            testResult = Notice(kind: .information, title: String(localized: "测试已取消"), text: String(localized: "配置未保存，可继续编辑或重新测试。"))
+            testResult = Notice(
+                kind: .information,
+                title: String(localized: "测试已取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                text: String(localized: "配置未保存，可继续编辑或重新测试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
     }
 
@@ -131,6 +149,7 @@ final class AISettingsDraft: ObservableObject {
 
 extension SettingsView {
     struct AISettingsContent: View {
+        @Environment(\.locale) private var locale
         @ObservedObject private var theme = ThemeManager.shared
         @StateObject private var draft: AISettingsDraft
 
@@ -229,7 +248,9 @@ extension SettingsView {
                 }
                 HStack(spacing: 8) {
                     Circle().fill(draft.isDirty ? Pal.yellow : Pal.green).frame(width: 6, height: 6)
-                    Text(draft.isDirty ? "有未保存的修改" : "无未保存的修改")
+                    Text(draft.isDirty
+                         ? String(localized: "有未保存的修改", bundle: AppSettings.localizationBundle, locale: locale)
+                         : String(localized: "无未保存的修改", bundle: AppSettings.localizationBundle, locale: locale))
                         .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                     Spacer(minLength: 0)
                 }
@@ -255,7 +276,9 @@ extension SettingsView {
                 } label: {
                     HStack(spacing: 6) {
                         if draft.testing { ProgressView().controlSize(.mini) }
-                        Text(draft.testing ? "取消测试" : "测试连接")
+                        Text(draft.testing
+                             ? String(localized: "取消测试", bundle: AppSettings.localizationBundle, locale: locale)
+                             : String(localized: "测试连接", bundle: AppSettings.localizationBundle, locale: locale))
                     }
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Pal.text)

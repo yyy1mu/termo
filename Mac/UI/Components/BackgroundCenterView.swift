@@ -192,7 +192,7 @@ struct BackgroundCenterButton: View {
         .buttonStyle(.plain)
         .pointerCursor()
         .onHover { hover = $0 }
-        .help(String(localized: "后台任务"))
+        .help(String(localized: "后台任务", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         .popover(isPresented: $open, arrowEdge: arrowEdge) {
             BackgroundCenterPanel(model: model, dismiss: { open = false })
         }
@@ -254,7 +254,7 @@ struct BackgroundCenterPanel: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("后台任务").font(.system(size: 14, weight: .semibold)).foregroundStyle(Pal.text)
                 let pending = model.backgroundActivities.filter { !$0.isFinished }.count
-                Text(pending > 0 ? String(localized: "\(pending) 项未结束 · 关闭面板后继续") : String(localized: "传输、隧道与解压记录"))
+                Text(pending > 0 ? String(localized: "\(pending) 项未结束 · 关闭面板后继续", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "传输、隧道与解压记录", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     .font(.system(size: 11)).foregroundStyle(Pal.subtext)
             }
             Spacer(minLength: 0)
@@ -287,17 +287,17 @@ struct BackgroundCenterPanel: View {
                 PanelEmptyState(
                     symbol: "tray", title: emptyTitle,
                     detail: filter == .all
-                        ? String(localized: "上传下载、端口转发和解压任务会显示在这里。")
-                        : String(localized: "切换到「全部」查看其他任务。"))
+                        ? String(localized: "上传下载、端口转发和解压任务会显示在这里。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                        : String(localized: "切换到「全部」查看其他任务。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
         }
     }
 
     private var emptyTitle: String {
         switch filter {
-        case .all: return String(localized: "暂无后台任务")
-        case .active: return String(localized: "所有任务均已结束")
-        case .finished: return String(localized: "暂无已结束记录")
+        case .all: return String(localized: "暂无后台任务", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .active: return String(localized: "所有任务均已结束", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .finished: return String(localized: "暂无已结束记录", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -377,7 +377,8 @@ struct BackgroundActivityList: View {
                     .lineLimit(2).help(host.name)
             } else {
                 Image(systemName: "desktopcomputer").font(.system(size: 11)).foregroundStyle(Pal.overlay).frame(width: 20)
-                Text(hostId == nil ? "本机" : (fallback.isEmpty ? "未知主机" : fallback))
+                Text(hostId == nil ? String(localized: "本机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                     : (fallback.isEmpty ? String(localized: "未知主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : fallback))
                     .font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.subtext)
             }
             Spacer(minLength: 0)
@@ -426,8 +427,8 @@ struct QuitConfirmDialog: View {
     // 是否走「隐藏到菜单栏」语义：仅常规模式且已开启设置时；彻底退出模式恒为退出。
     private var hidesOnConfirm: Bool { !forceMode && settings.closeToTray }
     private var confirmTitle: String {
-        if forceMode { return hasTasks ? String(localized: "停止任务并退出") : String(localized: "退出") }
-        return settings.closeToTray ? String(localized: "隐藏到菜单栏") : (hasTasks ? String(localized: "关闭任务并退出") : String(localized: "退出"))
+        if forceMode { return hasTasks ? String(localized: "停止任务并退出", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "退出", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        return settings.closeToTray ? String(localized: "隐藏到菜单栏", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : (hasTasks ? String(localized: "关闭任务并退出", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "退出", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 
     var body: some View {
@@ -493,9 +494,12 @@ struct QuitConfirmDialog: View {
                 .frame(width: 30, height: 30)
                 .background((hasTasks ? Pal.yellow : Pal.mauve).opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 2) {
-                Text(hidesOnConfirm ? "隐藏 Termo 窗口？" : (hasTasks ? "仍有 \(model.activeBackgroundCount) 个后台任务未结束" : "退出 Termo？"))
+                Text(hidesOnConfirm ? String(localized: "隐藏 Termo 窗口？", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                     : (hasTasks ? String(localized: "仍有 \(model.activeBackgroundCount) 个后台任务未结束", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                        : String(localized: "退出 Termo？", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
                     .font(.system(size: 14, weight: .semibold)).foregroundStyle(Pal.text)
-                Text(hidesOnConfirm ? "窗口隐藏后，后台任务会继续运行。" : (hasTasks ? "退出会中断以下任务" : "确认后将关闭应用"))
+                Text(hidesOnConfirm ? String(localized: "窗口隐藏后，后台任务会继续运行。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                     : (hasTasks ? String(localized: "退出会中断以下任务", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "确认后将关闭应用", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
                     .font(.system(size: 11)).foregroundStyle(Pal.overlay)
             }
             Spacer()
@@ -523,14 +527,14 @@ private struct HubForwardRow: View {
     var body: some View {
         rowShell(
             icon: "arrow.left.arrow.right", iconColor: Pal.mauve,
-            title: rule.name.isEmpty ? rule.kind.title + String(localized: "转发") : rule.name,
+            title: rule.name.isEmpty ? rule.kind.title + String(localized: "转发", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : rule.name,
             subtitle: rule.summary,
             statusDot: statusColor, statusText: statusText, detail: failure
         ) {
             if !readOnly {
                 iconButton(enabled ? "stop.fill" : "play.fill", color: enabled ? Pal.red : Pal.mauve,
-                           help: enabled ? String(localized: "停止") : String(localized: "重试"), action: onToggle)
-                iconButton("slider.horizontal.3", color: Pal.subtext, help: String(localized: "管理"), action: onManage)
+                           help: enabled ? String(localized: "停止", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "重试", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onToggle)
+                iconButton("slider.horizontal.3", color: Pal.subtext, help: String(localized: "管理", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onManage)
             }
         }
     }
@@ -545,10 +549,10 @@ private struct HubForwardRow: View {
     }
     private var statusText: String {
         switch status {
-        case .active:   return String(localized: "运行中")
-        case .starting: return String(localized: "连接中")
-        case .failed: return enabled ? String(localized: "等待重连") : String(localized: "连接失败")
-        case .stopped:  return String(localized: "已停止")
+        case .active:   return String(localized: "运行中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .starting: return String(localized: "连接中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .failed: return enabled ? String(localized: "等待重连", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "连接失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .stopped:  return String(localized: "已停止", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -563,10 +567,10 @@ private struct HubTransferRow: View {
     private var fraction: Double {
         task.totalBytes > 0 ? min(1, Double(task.overallSent) / Double(task.totalBytes)) : 0
     }
-    private var verb: String { task.direction == .upload ? String(localized: "上传") : String(localized: "下载") }
+    private var verb: String { task.direction == .upload ? String(localized: "上传", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "下载", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
     private var title: String {
         if task.items.count == 1, let item = task.items.first { return "\(verb) · \(item.name)" }
-        return String(localized: "\(verb) \(task.items.count) 项")
+        return String(localized: "\(verb) \(task.items.count) 项", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 
     var body: some View {
@@ -578,26 +582,26 @@ private struct HubTransferRow: View {
             statusDot: statusColor, statusText: statusText,
             progress: (task.phase == .running || task.phase == .paused) ? fraction : nil,
             subtitleTooltip: task.destDir,
-            detail: task.pendingAsk != nil ? String(localized: "存在同名文件，请打开详情选择处理方式。") : nil
+            detail: task.pendingAsk != nil ? String(localized: "存在同名文件，请打开详情选择处理方式。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : nil
         ) {
             if !readOnly {
                 switch task.phase {
                 case .running:
-                    iconButton("pause.fill", color: Pal.mauve, help: String(localized: "暂停")) { AppModel.shared.pauseTransfer(task) }
-                    iconButton("xmark", color: Pal.red, help: String(localized: "取消")) { task.cancel() }
+                    iconButton("pause.fill", color: Pal.mauve, help: String(localized: "暂停", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { AppModel.shared.pauseTransfer(task) }
+                    iconButton("xmark", color: Pal.red, help: String(localized: "取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { task.cancel() }
                 case .paused:
                     let waiting = task.awaitingSlot
                     iconButton(waiting ? "clock" : "play.fill",
                                color: waiting ? Pal.subtext : Pal.green,
-                               help: waiting ? String(localized: "等待名额…") : String(localized: "继续")) { AppModel.shared.resumeTransfer(task) }
+                               help: waiting ? String(localized: "等待名额…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "继续", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { AppModel.shared.resumeTransfer(task) }
                         .disabled(waiting)
-                    iconButton("xmark", color: Pal.red, help: String(localized: "取消")) { task.cancel() }
+                    iconButton("xmark", color: Pal.red, help: String(localized: "取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { task.cancel() }
                 case .queued:
-                    iconButton("xmark", color: Pal.red, help: String(localized: "取消")) { task.cancel() }
+                    iconButton("xmark", color: Pal.red, help: String(localized: "取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { task.cancel() }
                 case .done, .cancelled:
-                    iconButton("trash", color: Pal.red, help: String(localized: "清除记录"), action: onClear)
+                    iconButton("trash", color: Pal.red, help: String(localized: "清除记录", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onClear)
                 }
-                iconButton("arrow.up.left.and.arrow.down.right", color: Pal.subtext, help: task.pendingAsk != nil ? String(localized: "处理") : String(localized: "详情"), action: onOpen)
+                iconButton("arrow.up.left.and.arrow.down.right", color: Pal.subtext, help: task.pendingAsk != nil ? String(localized: "处理", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "详情", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onOpen)
             }
         }
     }
@@ -623,21 +627,21 @@ private struct HubTransferRow: View {
     }
     private var statusText: String {
         if let waiting = task.schedulingStatus { return waiting }
-        if task.pendingAsk != nil { return String(localized: "待确认") }
+        if task.pendingAsk != nil { return String(localized: "待确认", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
         switch task.phase {
-        case .queued:    return String(localized: "排队中")
-        case .running:   return task.direction == .upload ? String(localized: "上传中") : String(localized: "下载中")
-        case .paused:    return task.awaitingSlot ? String(localized: "等待名额") : String(localized: "已暂停")
+        case .queued:    return String(localized: "排队中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .running:   return task.direction == .upload ? String(localized: "上传中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "下载中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .paused:    return task.awaitingSlot ? String(localized: "等待名额", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "已暂停", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .done:
             if task.hasFailures {
                 let allFailed = !task.items.isEmpty && task.items.allSatisfy {
                     if case .failed = $0.state { return true }
                     return false
                 }
-                return allFailed ? String(localized: "传输失败") : String(localized: "部分失败")
+                return allFailed ? String(localized: "传输失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "部分失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
-            return String(localized: "已完成")
-        case .cancelled: return String(localized: "已取消")
+            return String(localized: "已完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .cancelled: return String(localized: "已取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
@@ -664,7 +668,7 @@ private struct HubExtractRow: View {
     var body: some View {
         rowShell(
             icon: "doc.zipper", iconColor: Pal.mauve,
-            title: String(localized: "解压 \(task.archive.name)"),
+            title: String(localized: "解压 \(task.archive.name)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
             subtitle: task.destDir,
             statusDot: statusColor, statusText: statusText,
             progress: nil,
@@ -672,9 +676,9 @@ private struct HubExtractRow: View {
         ) {
             if !readOnly {
                 if isTerminal {
-                    iconButton("trash", color: Pal.red, help: String(localized: "清除记录"), action: onClear)
+                    iconButton("trash", color: Pal.red, help: String(localized: "清除记录", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onClear)
                 }
-                iconButton("arrow.up.left.and.arrow.down.right", color: Pal.subtext, help: String(localized: "展开"), action: onOpen)
+                iconButton("arrow.up.left.and.arrow.down.right", color: Pal.subtext, help: String(localized: "展开", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onOpen)
             }
         }
     }
@@ -689,10 +693,10 @@ private struct HubExtractRow: View {
     }
     private var statusText: String {
         switch task.phase {
-        case .ready:   return String(localized: "待解压")
-        case .running: return String(localized: "解压中")
-        case .done:    return String(localized: "完成")
-        case .failed:  return String(localized: "失败")
+        case .ready:   return String(localized: "待解压", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .running: return String(localized: "解压中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .done:    return String(localized: "完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .failed:  return String(localized: "失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -754,7 +758,7 @@ private func rowShell<Actions: View>(
 
 private func iconButton(_ symbol: String, color: Color, help: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
-        Label(help == String(localized: "展开") ? String(localized: "详情") : help, systemImage: symbol)
+        Label(help == String(localized: "展开", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) ? String(localized: "详情", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : help, systemImage: symbol)
             .font(.system(size: 10)).foregroundStyle(color)
             .padding(.horizontal, 7).frame(height: 26)
             .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 6))

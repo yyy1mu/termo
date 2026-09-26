@@ -117,9 +117,11 @@ struct HostKeyDialog: View {
                 .frame(width: 38, height: 38)
                 .background((info.changed ? Pal.red : Pal.mauve).opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 5) {
-                Text(info.changed ? "主机密钥已变更" : "核对主机指纹")
+                Text(info.changed ? String(localized: "主机密钥已变更", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "核对主机指纹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     .font(.system(size: 16, weight: .semibold)).foregroundStyle(Pal.textBright)
-                Text(info.changed ? "请重新确认服务器身份" : "首次连接，需要确认服务器身份")
+                Text(info.changed
+                     ? String(localized: "请重新确认服务器身份", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                     : String(localized: "首次连接，需要确认服务器身份", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -144,14 +146,15 @@ struct HostKeyDialog: View {
                         copiedFingerprint = nil
                     }
                 } label: {
-                    Label(copiedFingerprint == title ? "已复制" : "复制", systemImage: copiedFingerprint == title ? "checkmark" : "doc.on.doc")
+                    Label(copiedFingerprint == title ? String(localized: "已复制", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "复制", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                          systemImage: copiedFingerprint == title ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 11)).foregroundStyle(Pal.mauve)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).pointerCursor().disabled(value.isEmpty)
-                .accessibilityLabel(String(localized: "复制 \(title) 指纹"))
+                .accessibilityLabel(String(localized: "复制 \(title) 指纹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
-            Text(value.isEmpty ? String(localized: "暂无指纹信息") : value)
+            Text(value.isEmpty ? String(localized: "暂无指纹信息", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : value)
                 .font(.system(size: 12, design: .monospaced)).foregroundStyle(Pal.text)
                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)

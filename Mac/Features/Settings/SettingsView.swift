@@ -8,8 +8,12 @@ struct SettingsView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var theme = ThemeManager.shared
     @ObservedObject private var settings = AppSettings.shared
-    @State private var showLanguageRestart = false
     @State private var aiDraft: AISettingsDraft?
+
+    /// Use the observed value directly so changing the picker updates this already-presented
+    /// sheet in the same render pass. Reading UserDefaults here can return the previous value
+    /// because `@Published` announces a change before its `didSet` persistence runs.
+    private var locale: Locale { settings.effectiveLocale }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -34,31 +38,9 @@ struct SettingsView: View {
         } message: {
             Text(model.keyOpError ?? "")
         }
-        .onChange(of: settings.appLanguage) { showLanguageRestart = true }
-        .overlay {
-            if showLanguageRestart {
-                ConfirmDialog(
-                    title: "重启以应用语言",
-                    message: "语言更改需重启 Termo 后生效。",
-                    confirmTitle: "立即重启",
-                    cancelTitle: "稍后",
-                    onConfirm: { showLanguageRestart = false; Self.relaunch() },
-                    onCancel: { showLanguageRestart = false })
-            }
-        }
-    }
-
-    /// 干净重启：先关所有模态 sheet（SwiftUI 的 .sheet 会拦截 NSApp.terminate，不先关就会
-    /// 「新实例已起、旧实例退不掉」双开），留一拍让其关闭，再启动新实例并退出旧进程。
-    static func relaunch() {
-        AppModel.shared.dismissAllSheets()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            let cfg = NSWorkspace.OpenConfiguration()
-            cfg.createsNewApplicationInstance = true
-            NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: cfg) { _, _ in
-                DispatchQueue.main.async { NSApp.terminate(nil) }
-            }
-        }
+        // Keep this outermost: sheets and alerts presented by SettingsView must inherit the
+        // app-selected language as well as the visible settings content.
+        .environment(\.locale, settings.effectiveLocale)
     }
 
     // MARK: - 左侧导航
@@ -187,18 +169,18 @@ struct SettingsView: View {
         .background(Pal.solidBase)
     }
 
-    private var pageDescription: String {
+    private var pageDescription: LocalizedStringKey {
         switch model.settingsTab {
-        case .general: return String(localized: "外观、语言与窗口行为，更改后自动保存。")
-        case .terminal: return String(localized: "调整终端显示和交互，更改后自动保存。")
-        case .transfer: return String(localized: "管理文件保存位置与后台传输，更改后自动保存。")
-        case .monitor: return String(localized: "设置所有主机的资源告警。单台主机的监控开关位于编辑主机 → 终端设置。")
-        case .security: return String(localized: "保护应用访问，并管理备份加密使用的主密码。")
-        case .ai: return String(localized: "连接模型服务，配置完成后保存。")
-        case .sshKeys: return String(localized: "集中管理连接主机使用的 SSH 密钥。")
-        case .sync: return String(localized: "通过 WebDAV 在设备间同步加密备份。")
-        case .keys: return String(localized: "常用操作的键盘快捷键。")
-        case .about: return String(localized: "版本信息、项目与隐私。")
+        case .general: return "外观、语言与窗口行为，更改后自动保存。"
+        case .terminal: return "调整终端显示和交互，更改后自动保存。"
+        case .transfer: return "管理文件保存位置与后台传输，更改后自动保存。"
+        case .monitor: return "设置所有主机的资源告警。单台主机的监控开关位于编辑主机 → 终端设置。"
+        case .security: return "保护应用访问，并管理备份加密使用的主密码。"
+        case .ai: return "连接模型服务，配置完成后保存。"
+        case .sshKeys: return "集中管理连接主机使用的 SSH 密钥。"
+        case .sync: return "通过 WebDAV 在设备间全量同步主机、密钥、AI 配置与设置，全程主密码加密。"
+        case .keys: return "常用操作的键盘快捷键。"
+        case .about: return "版本信息、项目与隐私。"
         }
     }
 
@@ -206,35 +188,35 @@ struct SettingsView: View {
 
     private var generalSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            settingRow(String(localized: "外观模式"), description: String(localized: "切换深色、浅色或跟随系统")) {
+            settingRow("外观模式", description: "切换深色、浅色或跟随系统") {
                 SegmentedControl(
-                    options: AppearanceMode.allCases.map { (value: $0, verbatim: $0.label) },
+                    options: AppearanceMode.allCases.map { (value: $0, label: $0.label) },
                     selection: $theme.mode
                 )
                 .frame(width: 240)
             }
 
-            settingRow(String(localized: "语言"), description: String(localized: "界面语言，更改后需重启 Termo 生效")) {
+            settingRow("语言", description: "界面语言，选择后立即应用") {
                 ThemedDropdown(
-                    options: AppLanguage.allCases.map { (value: $0, verbatim: $0.label) },
+                    options: AppLanguage.allCases.map { (value: $0, label: $0.label) },
                     selection: $settings.appLanguage
                 )
                 .frame(width: 160)
             }
 
-            settingRow(String(localized: "启动行为"), description: String(localized: "选择打开应用时显示的内容")) {
+            settingRow("启动行为", description: "选择打开应用时显示的内容") {
                 ThemedDropdown(
-                    options: [(StartupBehavior.welcome, String(localized: "显示欢迎页")), (.terminal, String(localized: "打开新终端"))],
+                    options: StartupBehavior.allCases.map { (value: $0, label: $0.label) },
                     selection: $settings.startupBehavior
                 )
                 .frame(width: 160)
             }
 
-            settingRow(String(localized: "关闭窗口时隐藏到菜单栏"), description: String(localized: "关闭主窗口不退出，后台任务（如端口转发）继续运行；从菜单栏图标恢复"), inlineControl: true) {
+            settingRow("关闭窗口时隐藏到菜单栏", description: "关闭主窗口不退出，后台任务（如端口转发）继续运行；从菜单栏图标恢复", inlineControl: true) {
                 ThemedToggle(isOn: $settings.closeToTray)
             }
 
-            settingRow(String(localized: "删除主机前确认"), description: String(localized: "删除主机时弹出确认弹窗，避免误删"), inlineControl: true) {
+            settingRow("删除主机前确认", description: "删除主机时弹出确认弹窗，避免误删", inlineControl: true) {
                 ThemedToggle(isOn: $settings.confirmHostDelete)
             }
 
@@ -245,12 +227,12 @@ struct SettingsView: View {
 
     private var transferSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            settingRow(String(localized: "下载时询问位置"), description: String(localized: "每次下载都弹出选择保存位置"), inlineControl: true) {
+            settingRow("下载时询问位置", description: "每次下载都弹出选择保存位置", inlineControl: true) {
                 ThemedToggle(isOn: $settings.downloadAskEachTime)
             }
 
             if !settings.downloadAskEachTime {
-                settingRow(String(localized: "默认下载目录"), description: String(localized: "下载的文件保存到此处")) {
+                settingRow("默认下载目录", description: "下载的文件保存到此处") {
                     HStack(spacing: 8) {
                         Text(settings.resolvedDownloadDir.path)
                             .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
@@ -262,19 +244,25 @@ struct SettingsView: View {
                 }
             }
 
-            settingRow(String(localized: "下载时显示弹窗"), description: String(localized: "关闭后，在后台任务中查看传输进度"), inlineControl: true) {
+            settingRow("下载时显示弹窗", description: "关闭后，在后台任务中查看传输进度", inlineControl: true) {
                 ThemedToggle(isOn: $settings.showDownloadDialog)
             }
 
-            settingRow(String(localized: "并发传输数"), description: String(localized: "同时进行的上传/下载数量（共用一个池），超出自动排队")) {
+            settingRow("并发传输数", description: "同时进行的上传/下载数量（共用一个池），超出自动排队") {
                 ThemedDropdown(
-                    options: [(1, String(localized: "1 个")), (2, String(localized: "2 个")), (3, String(localized: "3 个")), (4, String(localized: "4 个")), (5, String(localized: "5 个"))],
+                    options: [
+                        (value: 1, label: LocalizedStringKey("1 个")),
+                        (value: 2, label: LocalizedStringKey("2 个")),
+                        (value: 3, label: LocalizedStringKey("3 个")),
+                        (value: 4, label: LocalizedStringKey("4 个")),
+                        (value: 5, label: LocalizedStringKey("5 个")),
+                    ],
                     selection: $settings.maxConcurrentTransfers
                 )
                 .frame(width: 120)
             }
 
-            settingRow(String(localized: "暂停时让出名额"), description: String(localized: "暂停传输时允许队列中的其他任务开始"), inlineControl: true) {
+            settingRow("暂停时让出名额", description: "暂停传输时允许队列中的其他任务开始", inlineControl: true) {
                 ThemedToggle(isOn: $settings.pausedReleasesSlot)
             }
         }
@@ -284,7 +272,7 @@ struct SettingsView: View {
 
     private var monitorSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            settingRow(String(localized: "资源告警"), description: String(localized: "主机 CPU、内存或磁盘持续高占用时发送系统通知"), inlineControl: true) {
+            settingRow("资源告警", description: "主机 CPU、内存或磁盘持续高占用时发送系统通知", inlineControl: true) {
                 ThemedToggle(isOn: $settings.resourceAlerts)
             }
         }
@@ -294,7 +282,7 @@ struct SettingsView: View {
 
     private var securitySettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            settingRow(String(localized: "启动时锁定 App"), description: String(localized: "启动 Termo 时先显示锁定屏，用 Touch ID 或主密码解锁进入"), inlineControl: true) {
+            settingRow("启动时锁定 App", description: "启动 Termo 时先显示锁定屏，用 Touch ID 或主密码解锁进入", inlineControl: true) {
                 ThemedToggle(isOn: Binding(
                     get: { appLock.isEnabled },
                     set: { on in
@@ -304,9 +292,11 @@ struct SettingsView: View {
                 ))
             }
 
-            settingRow(String(localized: "主密码"), description: String(localized: "文字、数字和符号均可；应用解锁与 WebDAV 备份加密共用")) {
+            settingRow("主密码", description: "文字、数字和符号均可；应用解锁与 WebDAV 备份加密共用") {
                 Button { showPinSetup = true } label: {
-                    Text(appLock.hasPin ? String(localized: "修改") : String(localized: "设置"))
+                    Text(appLock.hasPin
+                         ? String(localized: "修改", bundle: AppSettings.localizationBundle, locale: locale)
+                         : String(localized: "设置", bundle: AppSettings.localizationBundle, locale: locale))
                         .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
                         .padding(.horizontal, 12).padding(.vertical, 5)
                         .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 6))
@@ -316,9 +306,10 @@ struct SettingsView: View {
                 .buttonStyle(.plain).pointerCursor()
             }
 
-            settingRow(String(localized: "自动锁定"), description: String(localized: "无操作达到该时长后自动锁定，需 Touch ID 或主密码解锁")) {
+            settingRow("自动锁定", description: "无操作达到该时长后自动锁定，需 Touch ID 或主密码解锁；选「从不」则只用手动锁定（⌘L）") {
                 ThemedDropdown(
-                    options: [1, 5, 15, 30].map { ($0, String(localized: "\($0) 分钟")) },
+                    options: [(0, String(localized: "从不", bundle: AppSettings.localizationBundle, locale: locale))]
+                        + [1, 5, 15, 30].map { ($0, String(localized: "\($0) 分钟", bundle: AppSettings.localizationBundle, locale: locale)) },
                     selection: $idleMinutes
                 )
                 .frame(width: 150)
@@ -326,7 +317,7 @@ struct SettingsView: View {
                 .onChange(of: idleMinutes) { _, value in appLock.idleMinutes = value }
             }
 
-            Text(String(localized: "快捷键 ⌘L 可随时手动锁定；Touch ID 在锁定屏自动弹出，失败或取消后可点「使用 Touch ID 解锁」重试。"))
+            Text("快捷键 ⌘L 可随时手动锁定；锁定屏不会自动请求验证，按需点「使用 Touch ID」解锁。")
                 .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -339,7 +330,7 @@ struct SettingsView: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = String(localized: "选择")
+        panel.prompt = String(localized: "选择", bundle: AppSettings.localizationBundle, locale: locale)
         panel.directoryURL = settings.resolvedDownloadDir
         if panel.runModal() == .OK, let url = panel.url { settings.downloadDir = url.path }
     }
@@ -348,45 +339,51 @@ struct SettingsView: View {
 
     private var terminalSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            settingRow(String(localized: "本地 Shell"), description: String(localized: "新建本地终端时使用的 Shell 程序")) {
+            settingRow("本地 Shell", description: "新建本地终端时使用的 Shell 程序") {
                 ThemedDropdown(
-                    options: [(DefaultShell.auto, String(localized: "自动检测")), (.zsh, "/bin/zsh"), (.bash, "/bin/bash")],
+                    options: [
+                        (value: DefaultShell.auto, text: Text("自动检测")),
+                        (value: .zsh, text: Text(verbatim: "/bin/zsh")),
+                        (value: .bash, text: Text(verbatim: "/bin/bash")),
+                    ],
                     selection: $settings.defaultShell
                 )
                 .frame(width: 160)
             }
 
-            settingRow(String(localized: "关闭确认"), description: String(localized: "关闭有活跃进程的终端时提示确认"), inlineControl: true) {
+            settingRow("关闭确认", description: "关闭有活跃进程的终端时提示确认", inlineControl: true) {
                 ThemedToggle(isOn: $settings.closeConfirm)
             }
 
-            settingRow(String(localized: "代码片段运行方式"), description: String(localized: "选择插入命令、直接运行，或每次使用时询问")) {
+            settingRow("代码片段运行方式", description: "选择插入命令、直接运行，或每次使用时询问") {
                 ThemedDropdown(
-                    options: SnippetAction.allCases.map { ($0, $0.label) },
+                    options: SnippetAction.allCases.map { (value: $0, label: $0.label) },
                     selection: $settings.snippetAction
                 )
                 .frame(width: 160)
             }
 
-            settingRow(String(localized: "字体"), description: String(localized: "终端显示使用的字体")) {
+            settingRow("字体", description: "终端显示使用的字体") {
                 ThemedDropdown(
                     options: [
-                        ("", String(localized: "自动 (推荐)")),
-                        ("SF Mono", "SF Mono"), ("Menlo", "Menlo"), ("Monaco", "Monaco"),
-                        ("JetBrainsMono Nerd Font", "JetBrains Mono"),
-                        ("FiraCode Nerd Font", "Fira Code"),
-                        ("MesloLGM Nerd Font", "Meslo LGM"),
+                        (value: "", text: Text("自动 (推荐)")),
+                        (value: "SF Mono", text: Text(verbatim: "SF Mono")),
+                        (value: "Menlo", text: Text(verbatim: "Menlo")),
+                        (value: "Monaco", text: Text(verbatim: "Monaco")),
+                        (value: "JetBrainsMono Nerd Font", text: Text(verbatim: "JetBrains Mono")),
+                        (value: "FiraCode Nerd Font", text: Text(verbatim: "Fira Code")),
+                        (value: "MesloLGM Nerd Font", text: Text(verbatim: "Meslo LGM")),
                     ],
                     selection: $settings.termFont
                 )
                 .frame(width: 220)
             }
 
-            settingRow(String(localized: "字号"), description: String(localized: "终端字体大小")) {
+            settingRow("字号", description: "终端字体大小") {
                 ThemedStepper(value: $settings.termFontSize, range: 10...24, suffix: " pt")
             }
 
-            settingRow(String(localized: "光标样式"), description: String(localized: "终端光标的形状")) {
+            settingRow("光标样式", description: "终端光标的形状") {
                 SegmentedControl(
                     options: [(value: "block", label: "方块"), (value: "bar", label: "竖线"), (value: "underline", label: "下划线")],
                     selection: $settings.termCursorStyle
@@ -394,13 +391,19 @@ struct SettingsView: View {
                 .frame(width: 220)
             }
 
-            settingRow(String(localized: "光标闪烁"), description: String(localized: "光标是否闪烁"), inlineControl: true) {
+            settingRow("光标闪烁", description: "光标是否闪烁", inlineControl: true) {
                 ThemedToggle(isOn: $settings.termCursorBlink)
             }
 
-            settingRow(String(localized: "滚动缓冲区"), description: String(localized: "终端保留的最大行数")) {
+            settingRow("滚动缓冲区", description: "终端保留的最大行数") {
                 ThemedDropdown(
-                    options: [(500, String(localized: "500 行")), (1000, String(localized: "1,000 行")), (5000, String(localized: "5,000 行")), (10000, String(localized: "10,000 行")), (50000, String(localized: "50,000 行"))],
+                    options: [
+                        (value: 500, label: LocalizedStringKey("500 行")),
+                        (value: 1_000, label: LocalizedStringKey("1,000 行")),
+                        (value: 5_000, label: LocalizedStringKey("5,000 行")),
+                        (value: 10_000, label: LocalizedStringKey("10,000 行")),
+                        (value: 50_000, label: LocalizedStringKey("50,000 行")),
+                    ],
                     selection: $settings.termScrollback
                 )
                 .frame(width: 140)
@@ -412,18 +415,11 @@ struct SettingsView: View {
 
     private var keysSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            shortcutRow(String(localized: "新建终端"), shortcut: "⌘ T")
-            shortcutRow(String(localized: "关闭标签"), shortcut: "⌘ W")
-            shortcutRow(String(localized: "复制"), shortcut: "⌘ C")
-            shortcutRow(String(localized: "粘贴"), shortcut: "⌘ V")
-            shortcutRow(String(localized: "锁定应用"), shortcut: "⌘ L")
-            shortcutRow(String(localized: "清屏"), shortcut: "⌘ K")
-            shortcutRow(String(localized: "搜索"), shortcut: "⌘ F")
-            shortcutRow(String(localized: "切换侧栏"), shortcut: "⌘ B")
-            shortcutRow(String(localized: "下一个标签"), shortcut: "⌃ Tab")
-            shortcutRow(String(localized: "上一个标签"), shortcut: "⌃ ⇧ Tab")
-            shortcutRow(String(localized: "放大字体"), shortcut: "⌘ +")
-            shortcutRow(String(localized: "缩小字体"), shortcut: "⌘ -")
+            // 只列真实生效的快捷键（逐项核实过实现）；未实现的一律不展示。
+            shortcutRow("复制", shortcut: "⌘ C")
+            shortcutRow("粘贴", shortcut: "⌘ V")
+            shortcutRow("锁定应用", shortcut: "⌘ L")
+            shortcutRow("退出", shortcut: "⌘ Q")
         }
     }
 
@@ -437,7 +433,7 @@ struct SettingsView: View {
 
     // MARK: - 组件
 
-    private func settingRow<C: View>(_ title: String, description: String,
+    private func settingRow<C: View>(_ title: LocalizedStringKey, description: LocalizedStringKey,
                                       inlineControl: Bool = false,
                                       @ViewBuilder control: () -> C) -> some View {
         let layout = inlineControl
@@ -458,7 +454,7 @@ struct SettingsView: View {
         .overlay(RoundedRectangle(cornerRadius: 11).stroke(Pal.border, lineWidth: 1))
     }
 
-    private func shortcutRow(_ action: String, shortcut: String) -> some View {
+    private func shortcutRow(_ action: LocalizedStringKey, shortcut: String) -> some View {
         HStack {
             Text(action).font(.system(size: 13)).foregroundStyle(Pal.text)
             Spacer()

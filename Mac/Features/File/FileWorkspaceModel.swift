@@ -1,4 +1,6 @@
 import Foundation
+import TermoEngine
+import TermoCore
 
 /// 文件浏览器缓存与网络重连联动，由 AppModel 持有。
 /// 标签浏览器随标签释放；右侧伴随浏览器按主机隔离，避免切主机时复用其他连接。

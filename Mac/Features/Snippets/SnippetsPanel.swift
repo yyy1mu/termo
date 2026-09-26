@@ -38,14 +38,14 @@ struct SnippetsPanel: View {
             Divider().overlay(Pal.border)
             if model.snippets.isEmpty {
                 PanelEmptyState(
-                    symbol: "curlybraces", title: String(localized: "保存常用命令"),
-                    detail: String(localized: "片段可在不同主机间复用，也支持填入变量。"),
-                    actionTitle: String(localized: "新建片段"), action: { model.showCreateSnippet = true })
+                    symbol: "curlybraces", title: String(localized: "保存常用命令", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                    detail: String(localized: "片段可在不同主机间复用，也支持填入变量。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                    actionTitle: String(localized: "新建片段", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: { model.showCreateSnippet = true })
             } else if filtered.isEmpty {
                 PanelEmptyState(
-                    symbol: "magnifyingglass", title: String(localized: "没有匹配的片段"),
-                    detail: String(localized: "试试命令、名称或分组。"),
-                    actionTitle: String(localized: "清除搜索"), action: { query = "" })
+                    symbol: "magnifyingglass", title: String(localized: "没有匹配的片段", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                    detail: String(localized: "试试命令、名称或分组。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                    actionTitle: String(localized: "清除搜索", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: { query = "" })
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
@@ -108,8 +108,8 @@ struct SnippetsPanel: View {
             }
             Label {
                 Text(
-                    targetTitle.map { String(localized: "发送到：\($0)") }
-                        ?? String(localized: "先切到终端，再插入或运行片段")
+                    targetTitle.map { String(localized: "发送到：\($0)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+                        ?? String(localized: "先切到终端，再插入或运行片段", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                 )
                 .lineLimit(2).fixedSize(horizontal: false, vertical: true)
             } icon: {

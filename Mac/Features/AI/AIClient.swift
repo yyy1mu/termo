@@ -33,9 +33,13 @@ enum AIClient {
                       session: URLSession = .shared) throws -> AICompatibleModel {
         guard let endpoint = profile.chatCompletionsURL,
               ["http", "https"].contains(endpoint.scheme?.lowercased() ?? ""),
-              endpoint.host != nil else { throw ClientError(message: "Base URL 无效") }
+              endpoint.host != nil else {
+            throw ClientError(message: localized("Base URL 无效"))
+        }
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { throw ClientError(message: "API Key 未配置：请到 设置 → AI 助手 粘贴并保存") }
+        guard !key.isEmpty else {
+            throw ClientError(message: localized("API Key 未配置：请到 设置 → AI 助手 粘贴并保存"))
+        }
         return AICompatibleModel(base: OpenAICompatibleProvider(name: "termo", baseURL: endpoint.deletingLastPathComponent().deletingLastPathComponent(),
                                         apiKey: key, urlSession: session)(profile.model))
     }
@@ -73,12 +77,12 @@ enum AIClient {
                             }
                         } catch is CancellationError { throw CancellationError() }
                         catch {
-                            throw ClientError(message: "历史摘要未完成，原始对话已保留。可重试，或在设置中核对模型的上下文容量。\n" + errorMessage(error))
+                            throw ClientError(message: localized("历史摘要未完成，原始对话已保留。可重试，或在设置中核对模型的上下文容量。") + "\n" + errorMessage(error))
                         }
                     }
                     try Task.checkCancellation()
                     guard ContextCompactor.estimateTokens(prepared) <= window / 5 else {
-                        throw ClientError(message: "近期消息或终端输出过长，压缩后仍超出安全预算。请缩短本次内容，或新建对话；不要将上下文容量设为超过模型实际支持的值。")
+                        throw ClientError(message: localized("近期消息或终端输出过长，压缩后仍超出安全预算。请缩短本次内容，或新建对话；不要将上下文容量设为超过模型实际支持的值。"))
                     }
                     continuation.yield(.prepared(messages: prepared, compacted: compacted))
                     let tools: [any AIToolProtocol] = allowTerminalTool ? [commandTool] : []
@@ -112,7 +116,7 @@ enum AIClient {
             group.addTask { try await ContextCompactor.compact(messages, settings: settings, model: model) }
             group.addTask {
                 try await Task.sleep(for: .seconds(120))
-                throw ClientError(message: "历史摘要请求超时。")
+                throw ClientError(message: localized("历史摘要请求超时。"))
             }
             defer { group.cancelAll() }
             return try await group.next() ?? nil
@@ -133,13 +137,13 @@ enum AIClient {
                 continuation.yield(.text(text))
             case .toolCall(let call):
                 receivedContent = true
-                guard !call.providerExecuted else { throw ClientError(message: "不接受服务端已执行的主机命令。") }
-                guard !call.id.isEmpty else { throw ClientError(message: "工具调用缺少 ID，请重试。") }
+                guard !call.providerExecuted else { throw ClientError(message: localized("不接受服务端已执行的主机命令。")) }
+                guard !call.id.isEmpty else { throw ClientError(message: localized("工具调用缺少 ID，请重试。")) }
                 let data = try JSONEncoder().encode(call.arguments)
                 continuation.yield(.toolCall(id: call.id, name: call.name, arguments: String(decoding: data, as: UTF8.self)))
             case .finish(let reason, _):
-                if reason == .length { throw ClientError(message: "回复达到长度上限，请重试或缩小任务范围；未提交命令申请。") }
-                if reason == .error || reason == .contentFilter { throw ClientError(message: "模型未正常完成回复，请重试。") }
+                if reason == .length { throw ClientError(message: localized("回复达到长度上限，请重试或缩小任务范围；未提交命令申请。")) }
+                if reason == .error || reason == .contentFilter { throw ClientError(message: localized("模型未正常完成回复，请重试。")) }
             default: break
             }
         }
@@ -162,7 +166,7 @@ enum AIClient {
     private static func errorMessage(_ error: Error) -> String {
         if let error = error as? ClientError { return error.message }
         if case AIError.http(let status, let body) = error {
-            if status == 401 { return "API Key 无效，请到 设置 → AI 助手 检查配置。" }
+            if status == 401 { return localized("API Key 无效，请到 设置 → AI 助手 检查配置。") }
             return "HTTP \(status)：\(body.prefix(300))"
         }
         if let error = error as? AIError { return error.description }
@@ -172,11 +176,15 @@ enum AIClient {
     static func ping(profile: LLMProfile, apiKey: String) async throws -> String {
         do {
             let result = try await generateText(model: model(profile: profile, apiKey: apiKey),
-                prompt: "用一句中文回答：服务是否可用？", maxOutputTokens: 128, temperature: 0.1,
+                prompt: localized("用一句话回答：服务是否可用？"), maxOutputTokens: 128, temperature: 0.1,
                 maxSteps: 1, maxRetries: 0, timeout: .after(.seconds(30)))
-            guard !result.text.isEmpty else { throw ClientError(message: "模型未返回测试内容。") }
+            guard !result.text.isEmpty else { throw ClientError(message: localized("模型未返回测试内容。")) }
             return result.text
         } catch { throw ClientError(message: errorMessage(error)) }
+    }
+
+    private static func localized(_ key: String.LocalizationValue) -> String {
+        String(localized: key, bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 }
 

@@ -69,7 +69,7 @@ struct HostOverview: View {
                     .background(Pal.card, in: RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain).pointerCursor()
-            .help(String(localized: "锁定工作台 · 主密码与同步共用"))
+            .help(String(localized: "锁定工作台 · 主密码与同步共用", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             .accessibilityLabel("锁定工作台")
         }
     }
@@ -140,7 +140,7 @@ struct HostOverview: View {
                         alignment: .leading, spacing: 12
                     ) {
                         if !specs.os.isEmpty { specPair("系统", specs.os) }
-                        if !specs.cores.isEmpty { specPair("处理器", String(localized: "\(specs.cores) 核")) }
+                        if !specs.cores.isEmpty { specPair("处理器", String(localized: "\(specs.cores) 核", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) }
                         if !specs.memory.isEmpty { specPair("总内存", specs.memory) }
                         if !specs.disk.isEmpty { specPair("磁盘快照", specs.disk) }
                         if !specs.gpu.isEmpty { specPair("显卡", specs.gpu) }
@@ -193,9 +193,9 @@ struct HostOverview: View {
             liveHost.status == .online ? Pal.green : (liveHost.status == .offline ? Pal.red : Pal.overlay)
         let title: String =
             switch liveHost.status {
-            case .online: String(localized: "主机可达")
-            case .offline: String(localized: "主机不可达")
-            case .unknown: String(localized: "尚未检测")
+            case .online: String(localized: "主机可达", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            case .offline: String(localized: "主机不可达", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            case .unknown: String(localized: "尚未检测", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
         return HStack(spacing: 5) {
             Circle().fill(color).frame(width: 5, height: 5)
@@ -208,6 +208,6 @@ struct HostOverview: View {
         .padding(.horizontal, 8).padding(.vertical, 4)
         .background(color.opacity(0.10), in: Capsule())
         .fixedSize(horizontal: true, vertical: false)
-        .help(String(localized: "网络连通性检测，不代表 SSH 已认证连接"))
+        .help(String(localized: "网络连通性检测，不代表 SSH 已认证连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 }

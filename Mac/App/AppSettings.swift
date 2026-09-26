@@ -1,7 +1,15 @@
 import Foundation
+import SwiftUI
 
 enum StartupBehavior: String, CaseIterable, Hashable {
     case welcome, terminal
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .welcome: return "显示欢迎页"
+        case .terminal: return "打开新终端"
+        }
+    }
 }
 
 enum DefaultShell: String, CaseIterable, Hashable {
@@ -11,31 +19,33 @@ enum DefaultShell: String, CaseIterable, Hashable {
 /// 代码片段点击运行时的行为：每次询问 / 仅插入命令行 / 直接运行。
 enum SnippetAction: String, CaseIterable, Hashable {
     case ask, insert, run
-    var label: String {
+    var label: LocalizedStringKey {
         switch self {
-        case .ask: return String(localized: "每次询问")
-        case .insert: return String(localized: "仅插入命令行")
-        case .run: return String(localized: "直接运行")
+        case .ask: return "每次询问"
+        case .insert: return "仅插入命令行"
+        case .run: return "直接运行"
         }
     }
 }
 
-/// 界面语言：跟随系统 / 简体中文 / English。默认简体中文。
+/// 界面语言：跟随系统 / 简体中文 / English。默认跟随 macOS。
 enum AppLanguage: String, CaseIterable, Hashable {
     case system, zh, en
-    var label: String {
+    var label: LocalizedStringKey {
         switch self {
-        case .system: return String(localized: "跟随系统")
+        case .system: return "跟随系统"
         case .zh: return "简体中文"
         case .en: return "English"
         }
     }
-    /// 写入 AppleLanguages 的语言码；system 返回 nil 表示不覆盖、跟随系统。
-    var appleCode: String? {
+
+    /// App-owned SwiftUI and Foundation strings use the same locale.
+    /// System-owned panels continue to follow the macOS language, as expected for AppKit UI.
+    var locale: Locale {
         switch self {
-        case .system: return nil
-        case .zh: return "zh-Hans"
-        case .en: return "en"
+        case .system: return .autoupdatingCurrent
+        case .zh: return Locale(identifier: "zh-Hans")
+        case .en: return Locale(identifier: "en")
         }
     }
 }
@@ -44,13 +54,23 @@ enum AppLanguage: String, CaseIterable, Hashable {
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
     private let d = UserDefaults.standard
+    private static let languageMigrationKey = "appLanguageUsesLocaleEnvironment"
 
     @Published var startupBehavior: StartupBehavior {
         didSet { d.set(startupBehavior.rawValue, forKey: "startupBehavior") }
     }
-    // 覆盖 AppleLanguages，重启后生效（本地化在启动早期加载，无法热切换）。
+    /// App language is applied through SwiftUI's locale environment and explicit Foundation lookup.
+    /// This keeps language changes live and avoids mutating the undocumented AppleLanguages default.
     @Published var appLanguage: AppLanguage {
-        didSet { d.set(appLanguage.rawValue, forKey: "appLanguage"); Self.applyLanguageOverride(appLanguage) }
+        // Persist before @Published announces the change so legacy Foundation call sites that
+        // resolve through `activeLocale` cannot observe the previous language for one render.
+        willSet { d.set(newValue.rawValue, forKey: "appLanguage") }
+    }
+
+    /// Reactive locale used by SwiftUI views. Read this from the observed settings instance
+    /// instead of going back through UserDefaults during an `@Published` update.
+    var effectiveLocale: Locale {
+        Self.locale(for: appLanguage)
     }
     @Published var defaultShell: DefaultShell {
         didSet { d.set(defaultShell.rawValue, forKey: "defaultShell") }
@@ -116,8 +136,10 @@ final class AppSettings: ObservableObject {
         didSet { d.set(confirmHostDelete, forKey: "confirmHostDelete") }
     }
 
-    /// 永久隐藏监控面板的采集说明（在「设置 - 通用」中开启，持久化）。
-    /// 本次启动已点「我已知晓」临时收起采集说明（不持久化，重启后恢复显示）。
+    /// 永久隐藏监控面板的采集说明（持久化）。
+    @Published var monitorNoticeHidden: Bool {
+        didSet { d.set(monitorNoticeHidden, forKey: "monitorNoticeHidden") }
+    }
 
     // 代码片段点击运行的行为；默认「每次询问」：首次点击弹「插入/运行」选择，可勾选记住后不再询问。
     @Published var snippetAction: SnippetAction {
@@ -126,6 +148,7 @@ final class AppSettings: ObservableObject {
 
 
     private init() {
+        Self.migrateLegacyLanguageOverride(defaults: d)
         startupBehavior = StartupBehavior(rawValue: d.string(forKey: "startupBehavior") ?? "") ?? .welcome
         defaultShell = DefaultShell(rawValue: d.string(forKey: "defaultShell") ?? "") ?? .auto
         closeConfirm = d.object(forKey: "closeConfirm") as? Bool ?? true
@@ -142,19 +165,88 @@ final class AppSettings: ObservableObject {
         resourceAlerts = d.object(forKey: "resourceAlerts") as? Bool ?? true
         closeToTray = d.object(forKey: "closeToTray") as? Bool ?? false
         confirmHostDelete = d.object(forKey: "confirmHostDelete") as? Bool ?? true
+        monitorNoticeHidden = d.object(forKey: "monitorNoticeHidden") as? Bool ?? false
         snippetAction = SnippetAction(rawValue: d.string(forKey: "snippetAction") ?? "") ?? .ask
-        appLanguage = AppLanguage(rawValue: d.string(forKey: "appLanguage") ?? "") ?? .zh
-        Self.applyLanguageOverride(appLanguage)
+        appLanguage = Self.storedLanguage(defaults: d)
     }
 
-    /// 把界面语言写进 AppleLanguages（下次启动生效）；system 则移除覆盖、跟随系统。
-    static func applyLanguageOverride(_ lang: AppLanguage) {
-        let d = UserDefaults.standard
-        if let code = lang.appleCode {
-            d.set([code], forKey: "AppleLanguages")
-        } else {
-            d.removeObject(forKey: "AppleLanguages")
+    static func storedLanguage(defaults: UserDefaults = .standard) -> AppLanguage {
+        AppLanguage(rawValue: defaults.string(forKey: "appLanguage") ?? "") ?? .system
+    }
+
+    /// Older builds implemented the in-app picker by writing the private per-app AppleLanguages
+    /// preference. That value can keep forcing English even after the picker says "System".
+    /// Reset that legacy override once; subsequent explicit choices live only in appLanguage.
+    @discardableResult
+    static func migrateLegacyLanguageOverride(
+        defaults: UserDefaults = .standard,
+        appDomain: String? = Bundle.main.bundleIdentifier
+    ) -> Bool {
+        guard !defaults.bool(forKey: languageMigrationKey) else { return false }
+        defer { defaults.set(true, forKey: languageMigrationKey) }
+        guard let appDomain,
+              defaults.persistentDomain(forName: appDomain)?["AppleLanguages"] != nil else { return false }
+        defaults.removeObject(forKey: "AppleLanguages")
+        defaults.set(AppLanguage.system.rawValue, forKey: "appLanguage")
+        return true
+    }
+
+    /// Read the macOS language order from the global domain so a stale per-app override cannot
+    /// influence the System option during the migration launch.
+    static func systemPreferredLanguages(defaults: UserDefaults = .standard) -> [String] {
+        if let languages = defaults.persistentDomain(forName: UserDefaults.globalDomain)?["AppleLanguages"]
+            as? [String], !languages.isEmpty {
+            return languages
         }
+        return Locale.preferredLanguages
+    }
+
+    /// Locale for Foundation strings created outside a SwiftUI `Text` hierarchy.
+    static var activeLocale: Locale {
+        locale(for: storedLanguage())
+    }
+
+    static func locale(
+        for language: AppLanguage,
+        preferredLanguages: [String]? = nil
+    ) -> Locale {
+        guard language == .system,
+              let identifier = (preferredLanguages ?? systemPreferredLanguages()).first else {
+            return language.locale
+        }
+        return Locale(identifier: identifier)
+    }
+
+    /// Resource bundle used by Foundation-created strings. `String(localized:locale:)`
+    /// only uses `locale` for formatting; selecting an in-app language also requires
+    /// resolving that language's `.lproj` bundle explicitly.
+    static var localizationBundle: Bundle {
+        localizationBundle(for: storedLanguage())
+    }
+
+    static func localizationBundle(
+        for language: AppLanguage,
+        in bundle: Bundle = .main,
+        preferredLanguages: [String]? = nil
+    ) -> Bundle {
+        let identifier: String
+        switch language {
+        case .system:
+            let preferences = preferredLanguages ?? systemPreferredLanguages()
+            guard let preferred = Bundle.preferredLocalizations(
+                from: bundle.localizations, forPreferences: preferences).first else { return bundle }
+            identifier = preferred
+        case .zh:
+            identifier = "zh-Hans"
+        case .en:
+            identifier = "en"
+        }
+
+        guard let path = bundle.path(forResource: identifier, ofType: "lproj"),
+              let localizedBundle = Bundle(path: path) else {
+            return bundle
+        }
+        return localizedBundle
     }
 
     /// 实际下载目录：设置为空则用系统下载文件夹。

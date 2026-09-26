@@ -124,13 +124,13 @@ final class TrayController: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let show = NSMenuItem(title: String(localized: "显示 Termo"), action: #selector(showTapped), keyEquivalent: "")
+        let show = NSMenuItem(title: String(localized: "显示 Termo", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: #selector(showTapped), keyEquivalent: "")
         show.target = self
         menu.addItem(show)
         menu.addItem(.separator())
 
         let tasks = AppModel.shared.runningBackgroundSummaries
-        let header = NSMenuItem(title: tasks.isEmpty ? String(localized: "无后台任务") : String(localized: "后台任务（\(tasks.count)）"),
+        let header = NSMenuItem(title: tasks.isEmpty ? String(localized: "无后台任务", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "后台任务（\(tasks.count)）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                                 action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
@@ -142,14 +142,14 @@ final class TrayController: NSObject, NSMenuDelegate {
             menu.addItem(it)
         }
         if tasks.count > maxRows {
-            let more = NSMenuItem(title: String(localized: "  还有 \(tasks.count - maxRows) 项，打开应用查看"),
+            let more = NSMenuItem(title: String(localized: "  还有 \(tasks.count - maxRows) 项，打开应用查看", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                                   action: #selector(showTapped), keyEquivalent: "")
             more.target = self
             menu.addItem(more)
         }
 
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: String(localized: "退出 Termo"), action: #selector(quitTapped), keyEquivalent: "")
+        let quit = NSMenuItem(title: String(localized: "退出 Termo", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: #selector(quitTapped), keyEquivalent: "")
         quit.target = self
         menu.addItem(quit)
     }

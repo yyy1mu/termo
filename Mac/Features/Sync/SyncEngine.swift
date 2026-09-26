@@ -1,10 +1,11 @@
 import Foundation
+import TermoCore
 
 /// 主机存储已完成后，后续密钥保存失败；同步应用不是跨存储事务。
 struct SyncPartialApplyError: LocalizedError {
     let underlyingError: Error
     var errorDescription: String? {
-        String(localized: "同步尚未全部完成：主机配置与已保存密码已更新；密钥保存未完成，代码片段、端口转发和设置尚未应用。\(underlyingError.localizedDescription)")
+        String(localized: "同步尚未全部完成：主机配置与已保存密码已更新；密钥保存未完成，代码片段、端口转发和设置尚未应用。\(underlyingError.localizedDescription)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 }
 
@@ -27,7 +28,9 @@ enum SyncEngine {
             privateKeys: try KeyKeychain.loadAll(),
             snippets: model.snippets,
             forwards: model.forwards,
-            settings: SyncedSettings.capture())
+            settings: SyncedSettings.capture(),
+            ai: SyncedAI.capture(),
+            knownHosts: readKnownHosts())
     }
 
     // MARK: - 双向合并
@@ -156,6 +159,19 @@ enum SyncEngine {
             conflicts.append(SyncConflict(item: .settings(local: local.settings, remote: remote.settings)))
         }
 
+        // AI 配置：两边都存在且不同则记冲突（默认保留本机）；只有一边有配置时并入。
+        switch (local.ai, remote.ai) {
+        case let (la?, ra?) where la != ra:
+            conflicts.append(SyncConflict(item: .ai(local: la, remote: ra)))
+        case (nil, let ra?):
+            merged.ai = ra
+        default:
+            break
+        }
+
+        // 主机信任记录（known_hosts）：并集合并，去重保序（本机在前、远端在后），不产生冲突。
+        merged.knownHosts = mergeKnownHosts(local: local.knownHosts, remote: remote.knownHosts)
+
         return SyncMergeResult(
             merged: merged, conflicts: conflicts,
             localOnlyCount: localOnly, remoteOnlyCount: remoteOnly)
@@ -188,6 +204,8 @@ enum SyncEngine {
                 if let i = payload.forwards.firstIndex(where: { $0.id == rf.id }) { payload.forwards[i] = rf }
             case .settings(_, let rs):
                 payload.settings = rs
+            case .ai(_, let ra):
+                payload.ai = ra
             }
         }
         return payload
@@ -222,9 +240,43 @@ enum SyncEngine {
         HostStore.saveForwards(payload.forwards)
 
         payload.settings.apply()
+        appendKnownHosts(payload.knownHosts)
+        if let ai = payload.ai { try ai.apply() }
         model.refreshOpenHostMonitoring()
 
         for host in hosts { model.checkReachability(host) }
+    }
+
+    // MARK: - 主机信任记录（known_hosts）
+
+    /// 读取 App 自有的信任记录文件（~/.termo/session_known_hosts），过滤空行与注释行。
+    static func readKnownHosts(path: String = HostKeyVerifier.sessionKnownHosts) -> [String] {
+        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return [] }
+        return content.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("#") }
+    }
+
+    /// 并集合并：去重保序，本机在前、远端在后。
+    static func mergeKnownHosts(local: [String], remote: [String]) -> [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for line in local + remote where seen.insert(line).inserted { out.append(line) }
+        return out
+    }
+
+    /// 把缺失行追加到 session_known_hosts（只增不删；文件不存在则创建）。
+    static func appendKnownHosts(_ lines: [String], path: String = HostKeyVerifier.sessionKnownHosts) {
+        var existing = Set(readKnownHosts(path: path))
+        let missing = lines.filter { existing.insert($0).inserted }
+        guard !missing.isEmpty else { return }
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        if !content.isEmpty && !content.hasSuffix("\n") { content += "\n" }
+        content += missing.map { $0 + "\n" }.joined()
+        try? content.write(to: url, atomically: true, encoding: .utf8)
     }
 
     // MARK: - 主机身份与比较
@@ -304,6 +356,13 @@ extension SyncedSettings {
         out.termScrollback = s.termScrollback
         out.resourceAlerts = s.resourceAlerts
         out.snippetAction = s.snippetAction.rawValue
+        out.closeToTray = s.closeToTray
+        out.monitorNoticeHidden = s.monitorNoticeHidden
+        out.downloadDir = s.downloadDir
+        out.downloadAskEachTime = s.downloadAskEachTime
+        out.maxConcurrentTransfers = s.maxConcurrentTransfers
+        out.pausedReleasesSlot = s.pausedReleasesSlot
+        out.showDownloadDialog = s.showDownloadDialog
         return out
     }
 
@@ -311,7 +370,7 @@ extension SyncedSettings {
     @MainActor func apply() {
         let s = AppSettings.shared
         ThemeManager.shared.mode = AppearanceMode(rawValue: appearanceMode) ?? .system
-        s.appLanguage = AppLanguage(rawValue: appLanguage) ?? .zh
+        s.appLanguage = AppLanguage(rawValue: appLanguage) ?? .system
         s.startupBehavior = StartupBehavior(rawValue: startupBehavior) ?? .welcome
         s.defaultShell = DefaultShell(rawValue: defaultShell) ?? .auto
         s.closeConfirm = closeConfirm
@@ -323,5 +382,46 @@ extension SyncedSettings {
         s.termScrollback = termScrollback
         s.resourceAlerts = resourceAlerts
         s.snippetAction = SnippetAction(rawValue: snippetAction) ?? .ask
+        s.closeToTray = closeToTray
+        s.monitorNoticeHidden = monitorNoticeHidden
+        // 下载目录与设备相关：远端路径在本机不存在时跳过，不覆盖本机设置。
+        if downloadDir.isEmpty
+            || FileManager.default.fileExists(
+                atPath: (downloadDir as NSString).expandingTildeInPath)
+        {
+            s.downloadDir = downloadDir
+        }
+        s.downloadAskEachTime = downloadAskEachTime
+        s.maxConcurrentTransfers = maxConcurrentTransfers
+        s.pausedReleasesSlot = pausedReleasesSlot
+        s.showDownloadDialog = showDownloadDialog
+    }
+}
+
+// MARK: - AI 配置快照
+
+extension SyncedAI {
+    /// 从当前 AI 配置捕获快照（apiKey 从 Keychain 读入内存，随后只进加密信封）。
+    @MainActor static func capture() -> SyncedAI {
+        let p = LLMSettingsStore.load()
+        var out = SyncedAI()
+        out.baseURL = p.baseURL
+        out.model = p.model
+        out.temperature = p.temperature
+        out.contextWindow = p.contextWindow
+        out.systemPrompt = p.systemPrompt
+        out.apiKey = LLMSettingsStore.apiKey
+        return out
+    }
+
+    /// 应用到本机 AI 配置；apiKey 经 Keychain 写回（空值清除已保存的 Key）。
+    @MainActor func apply() throws {
+        var p = LLMProfile()
+        p.baseURL = baseURL
+        p.model = model
+        p.temperature = temperature
+        p.contextWindow = contextWindow
+        p.systemPrompt = systemPrompt
+        try LLMSettingsStore.save(p, apiKey: apiKey)
     }
 }

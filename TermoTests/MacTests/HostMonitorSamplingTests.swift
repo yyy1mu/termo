@@ -1,5 +1,7 @@
 import XCTest
 @testable import Termo
+import TermoCore
+import TermoEngine
 
 @MainActor
 final class HostMonitorSamplingTests: XCTestCase {

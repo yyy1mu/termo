@@ -191,7 +191,7 @@ struct FileBrowser: View {
                 footer
             }
         }
-        .background(Pal.base)
+        // 不刷底色：主区标签由 Workspace 供 Pal.base，右栏由 CompanionPanel 供 Pal.mantle，随容器统一。
         .overlay { if dropTarget { dropOverlay } }
         .animation(.easeOut(duration: 0.12), value: dropTarget)
         .onDrop(of: [.fileURL], isTargeted: canUpload ? $dropTarget : nil) { providers in
@@ -242,7 +242,7 @@ struct FileBrowser: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "folder").foregroundStyle(Pal.mauve)
-                Text(state.path.isEmpty ? String(localized: "正在读取目录…") : state.path)
+                Text(state.path.isEmpty ? String(localized: "正在读取目录…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : state.path)
                     .font(.system(size: 12, design: .monospaced)).foregroundStyle(Pal.text)
                     .lineLimit(1).truncationMode(.head).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -382,8 +382,8 @@ struct FileBrowser: View {
             }
         case .error(let msg):
             PanelEmptyState(
-                symbol: "exclamationmark.triangle", title: String(localized: "无法读取目录"),
-                detail: msg, actionTitle: String(localized: "重试"), action: { state.reload() })
+                symbol: "exclamationmark.triangle", title: String(localized: "无法读取目录", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                detail: msg, actionTitle: String(localized: "重试", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: { state.reload() })
         case .loaded:
             // 整张列表的鼠标交互（单/双击、悬停、光标、橡皮筋框选、右键菜单）由统一的 AppKit 交互层接管，
             // 行只负责展示。用 GeometryReader 让内容至少铺满视口，空白区也参与命中。
@@ -402,9 +402,11 @@ struct FileBrowser: View {
                             VStack(spacing: 8) {
                                 Image(systemName: "folder").font(.system(size: 28)).foregroundStyle(
                                     Pal.overlay)
-                                Text(state.entries.isEmpty ? "目录为空" : "此目录只有隐藏文件")
+                                Text(state.entries.isEmpty ? String(localized: "目录为空", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "此目录只有隐藏文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                                     .font(.system(size: 13)).foregroundStyle(Pal.subtext)
-                                Text(state.entries.isEmpty ? "上传文件或从上方菜单新建" : "可从上方菜单显示隐藏文件")
+                                Text(state.entries.isEmpty
+                                     ? String(localized: "上传文件或从上方菜单新建", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                                     : String(localized: "可从上方菜单显示隐藏文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                                     .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                             }
                             .frame(maxWidth: .infinity).padding(.top, 50)
@@ -469,7 +471,7 @@ struct FileBrowser: View {
                 if !dl.isEmpty {
                     menu.addItem(
                         ClosureMenuItem(
-                            title: String(localized: "下载选中 (\(dl.count))"),
+                            title: String(localized: "下载选中 (\(dl.count))", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                             systemImage: "square.and.arrow.down"
                         ) {
                             model.downloadFiles(dl, host: host)
@@ -477,7 +479,7 @@ struct FileBrowser: View {
                     menu.addItem(.separator())
                 }
                 menu.addItem(
-                    ClosureMenuItem(title: String(localized: "删除选中 (\(sel.count))"), systemImage: "trash") {
+                    ClosureMenuItem(title: String(localized: "删除选中 (\(sel.count))", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "trash") {
                         model.requestBatchDelete(sel, host: host, target: state)
                     })
             } else {
@@ -492,66 +494,66 @@ struct FileBrowser: View {
     private func addSingleFileItems(to menu: NSMenu, file: RemoteFile) {
         if file.isDir {
             menu.addItem(
-                ClosureMenuItem(title: String(localized: "上传文件…"), systemImage: "square.and.arrow.up") {
+                ClosureMenuItem(title: String(localized: "上传文件…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "square.and.arrow.up") {
                     model.beginUpload(into: file, host: host)
                 })
             menu.addItem(
-                ClosureMenuItem(title: String(localized: "新建文件"), systemImage: "doc.badge.plus") {
+                ClosureMenuItem(title: String(localized: "新建文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "doc.badge.plus") {
                     model.fileMenuRequestCreate(isDir: false, inDir: file.path, host: host, target: state)
                 })
             menu.addItem(
-                ClosureMenuItem(title: String(localized: "新建文件夹"), systemImage: "folder.badge.plus") {
+                ClosureMenuItem(title: String(localized: "新建文件夹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "folder.badge.plus") {
                     model.fileMenuRequestCreate(isDir: true, inDir: file.path, host: host, target: state)
                 })
             menu.addItem(.separator())
         } else {
             menu.addItem(
-                ClosureMenuItem(title: String(localized: "下载"), systemImage: "square.and.arrow.down") {
+                ClosureMenuItem(title: String(localized: "下载", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "square.and.arrow.down") {
                     model.downloadFiles([file], host: host)
                 })
             if ArchiveKind.detect(file.name) != nil {
                 menu.addItem(
-                    ClosureMenuItem(title: String(localized: "解压"), systemImage: "doc.zipper") {
+                    ClosureMenuItem(title: String(localized: "解压", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "doc.zipper") {
                         model.requestExtract(file, host: host)
                     })
             }
             menu.addItem(.separator())
         }
         menu.addItem(
-            ClosureMenuItem(title: String(localized: "刷新"), systemImage: "arrow.clockwise") { state.reload() }
+            ClosureMenuItem(title: String(localized: "刷新", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "arrow.clockwise") { state.reload() }
         )
         menu.addItem(.separator())
         menu.addItem(
-            ClosureMenuItem(title: String(localized: "重命名"), systemImage: "pencil") {
+            ClosureMenuItem(title: String(localized: "重命名", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "pencil") {
                 model.fileMenuRequestRename(file, host: host, target: state)
             })
         menu.addItem(
-            ClosureMenuItem(title: String(localized: "权限"), systemImage: "lock") {
+            ClosureMenuItem(title: String(localized: "权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "lock") {
                 model.fileMenuRequestChmod(file, host: host, target: state)
             })
         menu.addItem(.separator())
         menu.addItem(
-            ClosureMenuItem(title: String(localized: "删除"), systemImage: "trash") {
+            ClosureMenuItem(title: String(localized: "删除", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "trash") {
                 model.fileMenuRequestDelete(file, host: host, target: state)
             })
     }
 
     private func addBlankItems(to menu: NSMenu) {
         menu.addItem(
-            ClosureMenuItem(title: String(localized: "上传文件到此处"), systemImage: "square.and.arrow.up") {
+            ClosureMenuItem(title: String(localized: "上传文件到此处", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "square.and.arrow.up") {
                 model.beginUpload(into: currentDir, host: host)
             })
         menu.addItem(
-            ClosureMenuItem(title: String(localized: "新建文件"), systemImage: "doc.badge.plus") {
+            ClosureMenuItem(title: String(localized: "新建文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "doc.badge.plus") {
                 model.fileMenuRequestCreate(isDir: false, inDir: state.path, host: host, target: state)
             })
         menu.addItem(
-            ClosureMenuItem(title: String(localized: "新建文件夹"), systemImage: "folder.badge.plus") {
+            ClosureMenuItem(title: String(localized: "新建文件夹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "folder.badge.plus") {
                 model.fileMenuRequestCreate(isDir: true, inDir: state.path, host: host, target: state)
             })
         menu.addItem(.separator())
         menu.addItem(
-            ClosureMenuItem(title: String(localized: "刷新"), systemImage: "arrow.clockwise") { state.reload() }
+            ClosureMenuItem(title: String(localized: "刷新", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "arrow.clockwise") { state.reload() }
         )
     }
 
@@ -575,7 +577,7 @@ private struct FileRow: View {
     }()
 
     private var metadata: String {
-        let size = file.isDir ? String(localized: "文件夹") : humanSize(file.size)
+        let size = file.isDir ? String(localized: "文件夹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : humanSize(file.size)
         return file.modified.map { size + " · " + Self.dateFmt.string(from: $0) } ?? size
     }
 

@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import SwiftTerm
 import SwiftUI
+import TermoEngine
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -110,7 +111,7 @@ final class AppModel: ObservableObject {
         onAlert: { [weak self] hostID, alert in
             guard let host = self?.host(hostID) else { return }
             Notifier.notify(
-                title: String(localized: "\(host.name) 资源告警"),
+                title: String(localized: "\(host.name) 资源告警", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                 body: String(
                     localized:
                         "\(alert.metric.label) \(Int(alert.percent))%，已持续约 \(alert.approximateDuration) 秒"))
@@ -233,15 +234,15 @@ final class AppModel: ObservableObject {
     var runningBackgroundSummaries: [String] {
         var out: [String] = []
         for rule in forwards where forwardManagers[rule.hostId]?.isEnabled(rule.id) == true {
-            let host = hosts.first(where: { $0.id == rule.hostId })?.name ?? String(localized: "主机")
-            out.append(String(localized: "端口转发 · \(host) · \(rule.summary)"))
+            let host = hosts.first(where: { $0.id == rule.hostId })?.name ?? String(localized: "主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            out.append(String(localized: "端口转发 · \(host) · \(rule.summary)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         for t in transfers where t.phase == .running || t.phase == .queued || t.phase == .paused {
-            let verb = t.direction == .upload ? String(localized: "上传") : String(localized: "下载")
-            out.append(String(localized: "\(verb) · \(t.hostName) · \(t.items.count) 项"))
+            let verb = t.direction == .upload ? String(localized: "上传", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "下载", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            out.append(String(localized: "\(verb) · \(t.hostName) · \(t.items.count) 项", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         if let e = extractTask, e.phase == .running {
-            out.append(String(localized: "解压 · \(e.hostName) · \(e.archive.name)"))
+            out.append(String(localized: "解压 · \(e.hostName) · \(e.archive.name)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         return out
     }

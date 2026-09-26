@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import TermoCore
 
 extension AppModel {
     func browserState(for tabId: Int, host: Host) -> BrowserState {
@@ -15,9 +16,12 @@ extension AppModel {
     }
 
     @discardableResult
-    func addTab(_ kind: TabKind, title: String, hostId: String?) -> Int {
+    func addTab(_ kind: TabKind, title: String, hostId: String?, terminalCommand: String? = nil) -> Int {
         let id = nextTabId
         nextTabId += 1
+        // A terminal view can be requested as soon as the published tab appears. Register its PTY+exec
+        // command first so tmux tabs can never fall back to an ordinary login shell during that update.
+        if kind == .terminal, let terminalCommand { terminalCommands[id] = terminalCommand }
         tabs.append(TabItem(id: id, kind: kind, title: title, hostId: hostId))
         activeTabId = id
         return id
@@ -83,7 +87,7 @@ extension AppModel {
             pendingFileDelete = nil
             if case .failure(let e) = r {
                 pendingFileInfo = FileInfoContext(
-                    title: String(localized: "删除失败"), message: e.message, hostId: ctx.host.id)
+                    title: String(localized: "删除失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), message: e.message, hostId: ctx.host.id)
             }
         }
     }
@@ -117,9 +121,9 @@ extension AppModel {
             if !failed.isEmpty {
                 let shown = failed.prefix(8).joined(separator: "、")
                 pendingFileInfo = FileInfoContext(
-                    title: String(localized: "部分删除失败"),
+                    title: String(localized: "部分删除失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                     message: String(
-                        localized: "未能删除：\(shown)\(failed.count > 8 ? String(localized: " 等") : "")"),
+                        localized: "未能删除：\(shown)\(failed.count > 8 ? String(localized: " 等", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : "")"),
                     hostId: ctx.host.id)
             }
         }
@@ -140,7 +144,7 @@ extension AppModel {
             trimmed != ".."
         else {
             pendingFileInfo = FileInfoContext(
-                title: String(localized: "名称无效"), message: String(localized: "名称不能为空、为「.」或「..」，也不能包含「/」。"),
+                title: String(localized: "名称无效", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), message: String(localized: "名称不能为空、为「.」或「..」，也不能包含「/」。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                 hostId: ctx.host.id)
             return
         }
@@ -151,7 +155,7 @@ extension AppModel {
                 break  // 操作目标负责刷新文件浏览器
             case .failure(let e):
                 pendingFileInfo = FileInfoContext(
-                    title: String(localized: "重命名失败"), message: e.message, hostId: ctx.host.id)
+                    title: String(localized: "重命名失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), message: e.message, hostId: ctx.host.id)
             }
         }
     }
@@ -171,7 +175,7 @@ extension AppModel {
         Task { @MainActor in
             if case .failure(let e) = await ctx.target.performChmod(ctx.file, mode: String(mode, radix: 8)) {
                 pendingFileInfo = FileInfoContext(
-                    title: String(localized: "修改权限失败"), message: e.message, hostId: ctx.host.id)
+                    title: String(localized: "修改权限失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), message: e.message, hostId: ctx.host.id)
             }
         }
     }
@@ -191,7 +195,7 @@ extension AppModel {
             trimmed != ".."
         else {
             pendingFileInfo = FileInfoContext(
-                title: String(localized: "名称无效"), message: String(localized: "名称不能为空、为「.」或「..」，也不能包含「/」。"),
+                title: String(localized: "名称无效", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), message: String(localized: "名称不能为空、为「.」或「..」，也不能包含「/」。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                 hostId: ctx.host.id)
             return
         }
@@ -200,7 +204,7 @@ extension AppModel {
                 trimmed, isDir: ctx.isDir, inDir: ctx.dir)
             {
                 pendingFileInfo = FileInfoContext(
-                    title: ctx.isDir ? String(localized: "新建文件夹失败") : String(localized: "新建文件失败"),
+                    title: ctx.isDir ? String(localized: "新建文件夹失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "新建文件失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                     message: e.message, hostId: ctx.host.id)
             }
         }

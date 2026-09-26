@@ -22,7 +22,7 @@ extension AppModel {
             addr: addr,
             group: draft.resolvedGroup,
             status: .unknown,
-            os: String(localized: "未知"),
+            os: String(localized: "未知", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
             port: conn.port,
             ssh: conn,
             notes: draft.notes.trimmingCharacters(in: .whitespaces)
@@ -30,7 +30,7 @@ extension AppModel {
         let saved = hosts + [newHost]
         guard persistHosts(saved) else { return false }
         hosts = saved
-        if !conn.password.isEmpty { hostCredentialNotice = String(localized: "主机和密码已保存，密码会随加密备份同步。") }
+        if !conn.password.isEmpty { hostCredentialNotice = String(localized: "主机和密码已保存，密码会随加密备份同步。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
         checkReachability(newHost)
         return true
     }
@@ -83,8 +83,8 @@ extension AppModel {
         if changedPassword {
             hostCredentialNotice =
                 conn.authMethod == .ask || conn.password.isEmpty
-                ? String(localized: "主机已保存，不保留登录密码。")
-                : String(localized: "主机和密码已保存，密码会随加密备份同步。")
+                ? String(localized: "主机已保存，不保留登录密码。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                : String(localized: "主机和密码已保存，密码会随加密备份同步。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
         if connectionChanged {
             checkReachability(hosts[idx])
@@ -118,7 +118,7 @@ extension AppModel {
             hostSaveError = nil
             return true
         case .failure(let error):
-            hostSaveError = String(localized: "主机未能完整保存：\(error.localizedDescription)")
+            hostSaveError = String(localized: "主机未能完整保存：\(error.localizedDescription)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             return false
         }
     }

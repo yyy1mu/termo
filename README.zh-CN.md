@@ -13,7 +13,7 @@ SSH · SFTP · 终端 · Windows 远程桌面 · 端口转发 · 主机监控
 [![最新版本](https://img.shields.io/github/v/release/icloudza/termo?style=flat-square&label=%E6%9C%80%E6%96%B0%E7%89%88&color=409EFF)](https://github.com/icloudza/termo/releases)
 [![下载量](https://img.shields.io/github/downloads/icloudza/termo/total?style=flat-square&label=%E4%B8%8B%E8%BD%BD&color=33C759)](https://github.com/icloudza/termo/releases)
 [![Stars](https://img.shields.io/github/stars/icloudza/termo?style=flat-square&color=f5a623)](https://github.com/icloudza/termo/stargazers)
-![平台](https://img.shields.io/badge/macOS-14%2B%20%C2%B7%20Apple%20Silicon-000000?style=flat-square&logo=apple)
+![平台](https://img.shields.io/badge/macOS-27%2B%20%C2%B7%20Apple%20Silicon-000000?style=flat-square&logo=apple)
 [![许可](https://img.shields.io/badge/license-PolyForm%20Noncommercial-8250df?style=flat-square)](LICENSE.md)
 
 **简体中文** · [English](README.md)
@@ -47,7 +47,7 @@ SSH · SFTP · 终端 · Windows 远程桌面 · 端口转发 · 主机监控
 
 ## 下载安装
 
-> 系统要求：macOS 14 (Sonoma) 及以上 · Apple Silicon（M 系列）
+> 系统要求：macOS 27 及以上 · Apple Silicon（M 系列）
 
 [![下载最新版](https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88-Termo.dmg-409EFF?style=for-the-badge)](https://termoi.app)
 

@@ -1,4 +1,7 @@
 import Foundation
+import CTermoSSH
+import TermoEngine
+import TermoCore
 
 /// 一台主机的密钥指纹信息（用于首次连接验证弹窗）。
 struct HostKeyInfo {
@@ -64,7 +67,7 @@ enum HostKeyVerifier {
         writeLock.lock(); defer { writeLock.unlock() }
         let line = info.keyLine.trimmingCharacters(in: .newlines)
         guard !line.isEmpty, !line.contains(where: \.isNewline) else {
-            throw SSHSession.SSHError(message: String(localized: "主机指纹记录无效，未保存信任。"))
+            throw SSHSession.SSHError(message: String(localized: "主机指纹记录无效，未保存信任。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         let url = URL(fileURLWithPath: persist ? realPath : sessionPath)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

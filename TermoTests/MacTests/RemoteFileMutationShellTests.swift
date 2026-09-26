@@ -48,7 +48,7 @@ final class RemoteFileMutationShellTests: XCTestCase {
             }
             let result = try await perform(.rename(from: fixture.url.path, to: target.path))
             guard case .failure(let error) = result else { return XCTFail("Overwrote target") }
-            XCTAssertEqual(error.message, String(localized: "目标名称已存在"))
+            XCTAssertEqual(error.message, String(localized: "目标名称已存在", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             XCTAssertEqual(try String(contentsOf: fixture.url), "abcdef")
             switch kind {
             case 0: XCTAssertEqual(try String(contentsOf: target), "keep")

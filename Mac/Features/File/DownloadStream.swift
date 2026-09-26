@@ -58,6 +58,6 @@ enum DownloadStream {
         return control.signal == .pause ? .paused : nil
     }
     private static func changed() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "远端文件在下载期间发生变化，请重新下载。"))
+        RemoteFSError(message: String(localized: "远端文件在下载期间发生变化，请重新下载。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 }

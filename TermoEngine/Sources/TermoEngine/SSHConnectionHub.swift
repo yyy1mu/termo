@@ -1,8 +1,10 @@
 import Foundation
+import TermoCore
 
 /// 一个认证身份共用一条 SSH 传输，每次借用得到独立可取消的操作句柄。
 /// 监控、终端、SFTP 与短命令都持有自己的引用，旧连接的迟到归还不影响新连接。
-final class SSHConnectionHub: @unchecked Sendable {
+public final class SSHConnectionHub: @unchecked Sendable {
+    private let environment: SSHConnectionEnvironment
     private let lock = NSLock()
     private let lifecycleLock = NSLock()
     private var retired = false
@@ -11,17 +13,21 @@ final class SSHConnectionHub: @unchecked Sendable {
     private var idleWork: DispatchWorkItem?
     private var idleEpoch = 0
 
+    public init(environment: SSHConnectionEnvironment) {
+        self.environment = environment
+    }
+
     private var isRetired: Bool {
         lifecycleLock.lock(); defer { lifecycleLock.unlock() }
         return retired
     }
 
     /// 网络切换时先同步作废入口，避免旧驱动在后台重建已移出注册表的连接。
-    func retire() {
+    public func retire() {
         lifecycleLock.lock(); retired = true; lifecycleLock.unlock()
     }
 
-    var hasLiveSession: Bool {
+    public var hasLiveSession: Bool {
         // 连接期间不能阻塞主线程的 UI 状态查询。
         guard lock.try() else { return false }
         defer { lock.unlock() }
@@ -29,7 +35,7 @@ final class SSHConnectionHub: @unchecked Sendable {
     }
 
     /// 同步建连，仅后台调用；同一身份的并发请求合并为一次认证。
-    func acquire(_ connection: SSHConnection) throws -> SSHSession {
+    public func acquire(_ connection: SSHConnection) throws -> SSHSession {
         lock.lock(); defer { lock.unlock() }
         guard !isRetired else { throw SSHSession.SSHError(message: String(localized: "SSH 连接已断开")) }
         idleEpoch &+= 1
@@ -38,7 +44,7 @@ final class SSHConnectionHub: @unchecked Sendable {
             session?.close()
             session = nil
             users = 0
-            session = try SSHSession.connect(connection)
+            session = try SSHSession.connect(connection, environment: environment)
         }
         guard let session else { throw SSHSession.SSHError(message: String(localized: "SSH 连接已断开")) }
         guard !isRetired else {
@@ -57,7 +63,7 @@ final class SSHConnectionHub: @unchecked Sendable {
     }
 
     /// 通道拒绝/命令失败不应破坏其他通道；只有真正断开的传输才失效。
-    func invalidate(_ operation: SSHSession) {
+    public func invalidate(_ operation: SSHSession) {
         guard operation.isDisconnected else { return }
         let identity = operation.transportID
         DispatchQueue.global(qos: .utility).async { [weak self] in
@@ -83,7 +89,7 @@ final class SSHConnectionHub: @unchecked Sendable {
     }
 
     /// 仅回收空闲缓存；有监控/终端/文件操作时保持共享传输。
-    func closeIfIdle(epoch: Int? = nil) {
+    public func closeIfIdle(epoch: Int? = nil) {
         lock.lock()
         guard users == 0, epoch == nil || epoch == idleEpoch else { lock.unlock(); return }
         let old = session
@@ -94,7 +100,7 @@ final class SSHConnectionHub: @unchecked Sendable {
         old?.close()
     }
 
-    func disconnect() {
+    public func disconnect() {
         lock.lock()
         let old = session
         session = nil; users = 0; idleEpoch &+= 1

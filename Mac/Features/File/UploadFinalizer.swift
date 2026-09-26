@@ -63,14 +63,14 @@ enum UploadFinalizer {
     }
 
     static func invalidPartial() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "上传残留文件大小或类型已变化，未提交，请重新检查后重试。"))
+        RemoteFSError(message: String(localized: "上传残留文件大小或类型已变化，未提交，请重新检查后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 
     static func invalidTarget() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "目标已变为目录、符号链接或未知类型，未覆盖。"))
+        RemoteFSError(message: String(localized: "目标已变为目录、符号链接或未知类型，未覆盖。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 
     static func targetExists() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "上传期间出现了同名文件，未获得覆盖批准，请重试并确认。"))
+        RemoteFSError(message: String(localized: "上传期间出现了同名文件，未获得覆盖批准，请重试并确认。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 }

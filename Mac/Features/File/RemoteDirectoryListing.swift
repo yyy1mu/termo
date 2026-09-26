@@ -107,7 +107,7 @@ enum RemoteDirectoryListing {
     }
 
     static func invalidResponse() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "目录返回的数据不完整或格式无效，请刷新后重试。"))
+        RemoteFSError(message: String(localized: "目录返回的数据不完整或格式无效，请刷新后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 
     /// GNU find keeps the fast metadata path; the BSD fallback passes names as arguments, never lines.

@@ -9,7 +9,7 @@ struct RenameDialog: View {
     @State private var name: String
     @ObservedObject private var theme = ThemeManager.shared
 
-    init(originalName: String, title: String = String(localized: "重命名"),
+    init(originalName: String, title: String = String(localized: "重命名", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
          onConfirm: @escaping (String) -> Void, onCancel: @escaping () -> Void) {
         self.originalName = originalName
         self.title = title
@@ -54,12 +54,12 @@ struct FileOperationShelf: View {
     var body: some View {
         Group {
             if let ctx = model.pendingFileRename, ctx.host.id == hostId {
-                FileNameEditor(title: String(localized: "重命名"), host: ctx.host.name,
+                FileNameEditor(title: String(localized: "重命名", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), host: ctx.host.name,
                     path: ctx.file.path, originalName: ctx.file.name,
                     onConfirm: { model.confirmFileRename(newName: $0) },
                     onCancel: { model.pendingFileRename = nil }).id(ctx.id)
             } else if let ctx = model.pendingFileCreate, ctx.host.id == hostId {
-                FileNameEditor(title: ctx.isDir ? String(localized: "新建文件夹") : String(localized: "新建文件"),
+                FileNameEditor(title: ctx.isDir ? String(localized: "新建文件夹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "新建文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                     host: ctx.host.name, path: ctx.dir, originalName: "",
                     onConfirm: { model.confirmFileCreate(name: $0) },
                     onCancel: { model.pendingFileCreate = nil }).id(ctx.id)
@@ -152,11 +152,11 @@ private struct FilePermissionEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            FileOperationHeading(title: String(localized: "修改权限"), host: host, detail: path)
+            FileOperationHeading(title: String(localized: "修改权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), host: host, detail: path)
             HStack(spacing: 12) {
                 Text("权限码").font(.system(size: 12)).foregroundStyle(Pal.subtext)
                 ThemedTextField(placeholder: "755", text: $octal).frame(width: 80)
-                Text(mode.map(Self.symbolic) ?? String(localized: "请输入 3 位八进制数"))
+                Text(mode.map(Self.symbolic) ?? String(localized: "请输入 3 位八进制数", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(mode == nil ? Pal.red : Pal.subtext)
                 Spacer(minLength: 0)
@@ -191,7 +191,7 @@ private struct FileDeleteEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            FileOperationHeading(title: String(localized: "删除 \(names.count) 个项目"), host: host,
+            FileOperationHeading(title: String(localized: "删除 \(names.count) 个项目", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), host: host,
                 detail: names.joined(separator: "、"))
             Text("项目及目录内的内容将被永久删除。")
                 .font(.system(size: 11)).foregroundStyle(Pal.subtext)

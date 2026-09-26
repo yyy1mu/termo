@@ -21,7 +21,7 @@ struct WorkbenchHeader: View {
                     .tracking(1.8)
                     .foregroundStyle(Pal.textBright)
                 Spacer(minLength: 0)
-                headerButton("sidebar.left", help: String(localized: "切换侧栏")) {
+                headerButton("sidebar.left", help: String(localized: "切换侧栏", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) {
                     layout.sidebarWidth = layout.sidebarWidth < 10 ? 252 : 0
                 }
             }
@@ -51,7 +51,7 @@ struct WorkbenchHeader: View {
                     .buttonStyle(.plain).pointerCursor()
                     .help("编辑当前主机")
                 }
-                headerButton("plus", help: String(localized: "添加主机")) { model.showAddHost = true }
+                headerButton("plus", help: String(localized: "添加主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { model.showAddHost = true }
             }
             .padding(.horizontal, 10)
         }

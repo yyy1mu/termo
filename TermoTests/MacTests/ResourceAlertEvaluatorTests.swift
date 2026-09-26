@@ -1,5 +1,6 @@
 import XCTest
 @testable import Termo
+import TermoCore
 
 final class ResourceAlertEvaluatorTests: XCTestCase {
     private let start = Date(timeIntervalSince1970: 1_000)

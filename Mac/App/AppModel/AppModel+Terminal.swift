@@ -1,6 +1,8 @@
 import AppKit
 import SwiftTerm
 import SwiftUI
+import TermoEngine
+import TermoCore
 
 extension AppModel {
     // ---------- 终端 ----------
@@ -86,9 +88,8 @@ extension AppModel {
     ) -> LocalProcessTerminalView {
         // PacedTerminalView：重写粘贴为分片限速 + 括号粘贴，根治粘贴长命令被远端 tty 灌爆而截断/错行。
         let tv = PacedTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 480))
-        // SwiftTerm 内建一个 legacy 风格 NSScroller（private 无公开开关，init 时已挂为子视图），
-        // 常显在右缘——从子视图里找出来隐藏；滚轮/触控板滚动不受影响。
-        tv.subviews.compactMap { $0 as? NSScroller }.forEach { $0.isHidden = true }
+        // SwiftTerm 内建 legacy 滚动条；改成覆盖式并在滚动停止后自动淡出。
+        tv.configureTransientScroller()
         tv.font = currentTerminalFont()
         applyTheme(to: tv)
         applyTerminalConfig(to: tv)
@@ -120,7 +121,8 @@ extension AppModel {
     }
 
     /// 在给定终端视图上（重新）发起 SSH 连接：驱动经该主机的 [[SSHConnectionHub]] 取共享会话
-    /// （已有存活连接则只开新 shell 通道，不再登录），注入 OSC 7 钩子与初始命令。
+    /// （已有存活连接则只开新 shell 通道，不再登录）。普通连接不向交互 shell 的 stdin 注入任何内容；
+    /// 用户配置的默认目录/初始命令通过 PTY+exec 执行，然后切换到交互式登录 shell。
     /// 重连复用同一终端视图，滚动历史得以保留——先关旧驱动（停 pump + 释放通道）再建新驱动。
     func startTerminalProcess(tv: LocalProcessTerminalView, ssh: SSHConnection, tabId: Int, hostId: String?) {
         startTerminalProcess(tv: tv, ssh: ssh, tabId: tabId, hostId: hostId, command: nil)
@@ -161,9 +163,8 @@ extension AppModel {
         }
         tv.terminalDelegate = driver  // 接管输入/resize/cwd（替代 LocalProcessTerminalView 自身）
         termDrivers[tabId] = driver
-        driver.connect(
-            cols: term.cols, rows: term.rows, initialLine: TerminalShellIntegration.initialLine(for: ssh),
-            command: command)
+        let startupCommand = command ?? TerminalShellIntegration.startupCommand(for: ssh)
+        driver.connect(cols: term.cols, rows: term.rows, command: startupCommand)
     }
 
     /// 视图层取某终端标签的连接态（断线覆盖层观察它）。

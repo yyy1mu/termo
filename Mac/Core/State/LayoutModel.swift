@@ -28,15 +28,15 @@ enum RightPanel: String, CaseIterable, Hashable {
 
     var shortTitle: String {
         switch self {
-        case .monitor: return String(localized: "监控")
-        case .ai: return String(localized: "助手")
-        case .sftp: return String(localized: "文件")
+        case .monitor: return String(localized: "监控", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .ai: return String(localized: "助手", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .sftp: return String(localized: "文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .tmux: return "tmux"
-        case .forward: return String(localized: "转发")
-        case .snippets: return String(localized: "片段")
-        case .services: return String(localized: "服务")
-        case .processes: return String(localized: "进程")
-        case .network: return String(localized: "网络")
+        case .forward: return String(localized: "转发", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .snippets: return String(localized: "片段", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .services: return String(localized: "服务", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .processes: return String(localized: "进程", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .network: return String(localized: "网络", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .docker: return "Docker"
         }
     }
@@ -58,16 +58,16 @@ enum RightPanel: String, CaseIterable, Hashable {
 
     var title: String {
         switch self {
-        case .sftp: return String(localized: "文件 (SFTP)")
-        case .ai: return String(localized: "AI 助手")
+        case .sftp: return String(localized: "文件 (SFTP)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .ai: return String(localized: "AI 助手", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .tmux: return "tmux"
-        case .services: return String(localized: "系统服务")
-        case .processes: return String(localized: "进程管理")
-        case .network: return String(localized: "网络连接")
-        case .monitor: return String(localized: "监控")
+        case .services: return String(localized: "系统服务", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .processes: return String(localized: "进程管理", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .network: return String(localized: "网络连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .monitor: return String(localized: "监控", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .docker: return "Docker"
-        case .forward: return String(localized: "端口转发")
-        case .snippets: return String(localized: "代码片段")
+        case .forward: return String(localized: "端口转发", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .snippets: return String(localized: "代码片段", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 

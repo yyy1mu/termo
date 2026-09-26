@@ -45,10 +45,28 @@ enum HostKeychain {
     }
 
     struct AccessError: LocalizedError {
-        let operation: String
+        enum Operation {
+            case read, save, restore, readPrivateKey, savePrivateKey
+        }
+
+        let operation: Operation
         let status: OSStatus
         var errorDescription: String? {
-            String(localized: "无法\(operation)系统钥匙串（错误 \(status)）。请确认已允许 Termo 访问钥匙串后重试。")
+            // Keychain status is an opaque diagnostic code, not a quantity. Interpolate its
+            // textual form so locale formatting never inserts thousands separators.
+            let code = String(status)
+            switch operation {
+            case .read:
+                return String(localized: "无法读取系统钥匙串（错误 \(code)）。请确认已允许 Termo 访问钥匙串后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            case .save:
+                return String(localized: "无法保存到系统钥匙串（错误 \(code)）。请确认已允许 Termo 访问钥匙串后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            case .restore:
+                return String(localized: "无法恢复系统钥匙串（错误 \(code)）。请确认已允许 Termo 访问钥匙串后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            case .readPrivateKey:
+                return String(localized: "无法从系统钥匙串读取私钥（错误 \(code)）。请确认已允许 Termo 访问钥匙串后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            case .savePrivateKey:
+                return String(localized: "无法将私钥保存到系统钥匙串（错误 \(code)）。请确认已允许 Termo 访问钥匙串后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            }
         }
     }
 
@@ -56,8 +74,8 @@ enum HostKeychain {
     static func loadAll(using storage: Storage = .live) throws -> [String: String]? {
         let (status, data) = storage.read(combinedService, combinedAccount)
         if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess else { throw AccessError(operation: "读取", status: status) }
-        guard let data else { throw AccessError(operation: "读取", status: errSecDecode) }
+        guard status == errSecSuccess else { throw AccessError(operation: .read, status: status) }
+        guard let data else { throw AccessError(operation: .read, status: errSecDecode) }
         return try JSONDecoder().decode([String: String].self, from: data)
     }
 
@@ -67,9 +85,9 @@ enum HostKeychain {
         let status = storage.update(combinedService, combinedAccount, data)
         if status == errSecItemNotFound {
             let added = storage.add(combinedService, combinedAccount, data)
-            guard added == errSecSuccess else { throw AccessError(operation: "保存到", status: added) }
+            guard added == errSecSuccess else { throw AccessError(operation: .save, status: added) }
         } else if status != errSecSuccess {
-            throw AccessError(operation: "保存到", status: status)
+            throw AccessError(operation: .save, status: status)
         }
     }
 
@@ -80,7 +98,7 @@ enum HostKeychain {
         } else {
             let status = storage.remove(combinedService, combinedAccount)
             guard status == errSecSuccess || status == errSecItemNotFound else {
-                throw AccessError(operation: "恢复", status: status)
+                throw AccessError(operation: .restore, status: status)
             }
         }
     }
@@ -88,9 +106,9 @@ enum HostKeychain {
     static func load(_ hostId: String, using storage: Storage = .live) throws -> String {
         let (status, data) = storage.read(service, hostId)
         if status == errSecItemNotFound { return "" }
-        guard status == errSecSuccess else { throw AccessError(operation: "读取", status: status) }
+        guard status == errSecSuccess else { throw AccessError(operation: .read, status: status) }
         guard let data, let value = String(data: data, encoding: .utf8) else {
-            throw AccessError(operation: "读取", status: errSecDecode)
+            throw AccessError(operation: .read, status: errSecDecode)
         }
         return value
     }
@@ -106,7 +124,7 @@ enum HostStore {
         let saveError: Error
         let recoveryError: Error
         var errorDescription: String? {
-            String(localized: "主机资料保存失败，原密码也未能恢复。保存错误：\(saveError.localizedDescription)；恢复错误：\(recoveryError.localizedDescription)")
+            String(localized: "主机资料保存失败，原密码也未能恢复。保存错误：\(saveError.localizedDescription)；恢复错误：\(recoveryError.localizedDescription)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
@@ -143,6 +161,11 @@ enum HostStore {
     static func loadHosts(at url: URL? = nil, credentials: HostKeychain.Storage = .live) -> [Host] {
         guard let data = try? Data(contentsOf: url ?? hostsURL),
               var hosts = try? JSONDecoder().decode([Host].self, from: data) else { return [] }
+        // 旧版本曾把本地化后的“未分组”占位文案写入 hosts.json。
+        // 读取时恢复为空值，让当前语言决定显示文案，并防止语言切换后残留中文。
+        for i in hosts.indices where hosts[i].group == "未分组" || hosts[i].group == "Ungrouped" {
+            hosts[i].group = ""
+        }
         // 配置仍可打开；凭证读取失败时不伪造密码，也不会在下一次保存时覆盖原钥匙串。
         if let saved = try? savedPasswords(for: hosts, credentials: credentials) {
             for i in hosts.indices {

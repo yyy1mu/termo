@@ -7,7 +7,7 @@ struct DownloadVersion: Equatable, Sendable {
 
     init(_ attributes: SFTPAttrs) throws {
         guard let size = attributes.size, size <= UInt64(Int64.max) else {
-            throw RemoteFSError(message: String(localized: "无法确认远端文件大小，下载已停止。"))
+            throw RemoteFSError(message: String(localized: "无法确认远端文件大小，下载已停止。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         self.size = size
         self.modified = attributes.mtime
@@ -88,7 +88,7 @@ final class DownloadDestination: DownloadSink, @unchecked Sendable {
         guard phase == .fresh || phase == .paused else { throw changed() }
         guard version.size <= UInt64(Int64.max) else { throw changed() }
         if let previous = self.version, previous != version {
-            throw RemoteFSError(message: String(localized: "远端文件已变化，请重新下载。"))
+            throw RemoteFSError(message: String(localized: "远端文件已变化，请重新下载。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         if directoryFD < 0 {
             directoryFD = Darwin.open(
@@ -254,13 +254,13 @@ final class DownloadDestination: DownloadSink, @unchecked Sendable {
         if directoryFD >= 0 { Darwin.close(directoryFD); directoryFD = -1 }
     }
     private func destinationExists() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "下载目标已存在，请重新选择保存位置。"))
+        RemoteFSError(message: String(localized: "下载目标已存在，请重新选择保存位置。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
     private func changed() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "下载临时文件或保存位置已变化，请重新下载。"))
+        RemoteFSError(message: String(localized: "下载临时文件或保存位置已变化，请重新下载。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
     private func ioError() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "本地文件操作失败：\(String(cString: strerror(errno)))"))
+        RemoteFSError(message: String(localized: "本地文件操作失败：\(String(cString: strerror(errno)))", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
     deinit { discard() }
 }

@@ -19,7 +19,7 @@ extension AppModel {
             }
             guard !Task.isCancelled else { return false }
             let key = SSHKey(
-                name: name.isEmpty ? String(localized: "未命名密钥") : name, type: type,
+                name: name.isEmpty ? String(localized: "未命名密钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : name, type: type,
                 publicKey: g.publicKey, fingerprint: g.fingerprint,
                 comment: comment, hasPassphrase: !passphrase.isEmpty)
             let saved = sshKeys + [key]
@@ -36,9 +36,9 @@ extension AppModel {
     /// 原生选择器支持查看完整路径；导入结果在密钥库显示，失败由设置页提示。
     func presentImportKey() {
         let panel = NSOpenPanel()
-        panel.title = String(localized: "导入私钥")
-        panel.message = String(localized: "选择一份私钥；加密私钥可按住 ⌘ 同时选中同名 .pub 文件。")
-        panel.prompt = String(localized: "导入私钥")
+        panel.title = String(localized: "导入私钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        panel.message = String(localized: "选择一份私钥；加密私钥可按住 ⌘ 同时选中同名 .pub 文件。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        panel.prompt = String(localized: "导入私钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
@@ -120,7 +120,7 @@ extension AppModel {
         guard sshKeys.contains(where: { $0.id == keyId }),
             let idx = hosts.firstIndex(where: { $0.id == hostId }), let connection = hosts[idx].ssh
         else {
-            keyOpError = String(localized: "目标主机或密钥已不存在，请重新选择。")
+            keyOpError = String(localized: "目标主机或密钥已不存在，请重新选择。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             return false
         }
         var saved = hosts
@@ -135,7 +135,7 @@ extension AppModel {
             persistHosts(
                 saved, clearingPasswordsFor: credentialsChanged ? [hostId] : [], temporary: temporary)
         else {
-            keyOpError = hostSaveError ?? String(localized: "主机的登录密钥未能保存，请重试。")
+            keyOpError = hostSaveError ?? String(localized: "主机的登录密钥未能保存，请重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             return false
         }
         hosts = saved

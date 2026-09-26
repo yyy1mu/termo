@@ -17,17 +17,17 @@ struct AboutContent: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Termo").font(.system(size: 18, weight: .semibold)).foregroundStyle(Pal.text)
                     Text(AppInfo.versionLine)
-                    Text(String(localized: "构建于 \(AppInfo.buildDate)"))
+                    Text(String(localized: "构建于 \(AppInfo.buildDate)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                         .font(.system(size: 10)).foregroundStyle(Pal.overlay)
                 }
                 Spacer()
             }
             Divider().background(Pal.fill(0.06)).padding(.vertical, 6)
             linkLine("GitHub", "github.com/icloudza/termo", url: "https://github.com/icloudza/termo")
-            infoLine(String(localized: "终端引擎"), value: "SwiftTerm 1.13")
-            infoLine(String(localized: "渲染"), value: "CoreText / AppKit")
-            infoLine(String(localized: "平台"), value: "macOS 14+")
-            infoLine(String(localized: "架构"), value: "Apple Silicon")
+            infoLine(String(localized: "终端引擎", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), value: "SwiftTerm 1.13")
+            infoLine(String(localized: "渲染", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), value: "CoreText / AppKit")
+            infoLine(String(localized: "平台", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), value: "macOS 27+")
+            infoLine(String(localized: "架构", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), value: "Apple Silicon")
             privacyLine
         }
         .padding(20)
@@ -38,7 +38,7 @@ struct AboutContent: View {
     private var privacyLine: some View {
         Button { showPrivacy = true } label: {
             HStack {
-                Text(String(localized: "隐私政策")).font(.system(size: 12)).foregroundStyle(Pal.overlay)
+                Text(String(localized: "隐私政策", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)).font(.system(size: 12)).foregroundStyle(Pal.overlay)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .semibold))
@@ -78,6 +78,7 @@ struct AboutContent: View {
 /// 独立「关于」窗口的根视图（菜单「关于 termo」打开）。
 struct AboutWindow: View {
     @ObservedObject private var theme = ThemeManager.shared
+    @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
         AboutContent()
@@ -85,5 +86,6 @@ struct AboutWindow: View {
             .frame(width: 460)
             .background(Pal.solidBase)
             .preferredColorScheme(theme.isDark ? .dark : .light)
+            .environment(\.locale, settings.effectiveLocale)
     }
 }

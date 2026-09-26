@@ -1,6 +1,9 @@
 import XCTest
+import Security
 
 @testable import Termo
+import TermoEngine
+import TermoCore
 
 final class SSHTransportOptionsTests: XCTestCase {
     func testParsesDirectAndProxyConnections() throws {
@@ -63,5 +66,32 @@ final class SSHTransportOptionsTests: XCTestCase {
         draft.proxyURL = "http://127.0.0.1:8080"
         XCTAssertNil(draft.connectionValidationMessage)
         XCTAssertFalse(draft.buildConnection().disableProxy)
+    }
+
+    @MainActor
+    func testDraftKeepsUngroupedHostsLanguageIndependent() {
+        let draft = HostDraft()
+        draft.group = "   "
+        XCTAssertEqual(draft.resolvedGroup, "")
+
+        draft.group = "Production"
+        XCTAssertEqual(draft.resolvedGroup, "Production")
+    }
+
+    func testLegacyLocalizedUngroupedValueIsNormalizedOnLoad() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("termo-hosts-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let legacyHost = Host(
+            id: "legacy", name: "Legacy", addr: "legacy.invalid", group: "未分组",
+            status: .unknown, os: "Linux")
+        try JSONEncoder().encode([legacyHost]).write(to: url)
+        let noCredentials = HostKeychain.Storage(
+            read: { _, _ in (errSecItemNotFound, nil) },
+            update: { _, _, _ in errSecSuccess },
+            add: { _, _, _ in errSecSuccess },
+            remove: { _, _ in errSecSuccess })
+
+        XCTAssertEqual(HostStore.loadHosts(at: url, credentials: noCredentials).first?.group, "")
     }
 }

@@ -53,12 +53,12 @@ enum RemoteFileMutation {
                     return .failure(
                         RemoteFSError(
                             message:
-                                String(localized: "文件操作时连接中断，结果尚未确认，请刷新目录后再决定是否重试。")))
+                                String(localized: "文件操作时连接中断，结果尚未确认，请刷新目录后再决定是否重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
                 }
                 let message =
                     error.isPermission
                     ? permissionError
-                    : (error.isNoSuchFile ? String(localized: "文件或目录不存在") : error.message)
+                    : (error.isNoSuchFile ? String(localized: "文件或目录不存在", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : error.message)
                 return .failure(RemoteFSError(message: message))
             } catch {
                 return .failure(RemoteFSError(message: error.localizedDescription))
@@ -125,24 +125,24 @@ enum RemoteFileMutation {
 
     private var permissionError: String {
         switch self {
-        case .createDirectory, .createFile: return String(localized: "没有创建权限")
-        case .remove: return String(localized: "没有删除权限")
-        case .rename: return String(localized: "没有重命名权限")
-        case .permissions: return String(localized: "没有修改权限的权限")
+        case .createDirectory, .createFile: return String(localized: "没有创建权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .remove: return String(localized: "没有删除权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .rename: return String(localized: "没有重命名权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .permissions: return String(localized: "没有修改权限的权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
     private var failureMessage: String {
         switch self {
-        case .createDirectory: return String(localized: "新建文件夹失败，请刷新目录确认结果。")
-        case .createFile: return String(localized: "新建文件失败，请刷新目录确认结果。")
-        case .remove: return String(localized: "删除未确认，请刷新目录检查结果。")
-        case .rename: return String(localized: "重命名未确认，请刷新目录检查结果。")
-        case .permissions: return String(localized: "修改权限未确认，请刷新目录检查结果。")
+        case .createDirectory: return String(localized: "新建文件夹失败，请刷新目录确认结果。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .createFile: return String(localized: "新建文件失败，请刷新目录确认结果。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .remove: return String(localized: "删除未确认，请刷新目录检查结果。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .rename: return String(localized: "重命名未确认，请刷新目录检查结果。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .permissions: return String(localized: "修改权限未确认，请刷新目录检查结果。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
     private static func targetExists() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "目标名称已存在"))
+        RemoteFSError(message: String(localized: "目标名称已存在", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 }

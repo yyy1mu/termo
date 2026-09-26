@@ -1,7 +1,14 @@
 import XCTest
 @testable import Termo
+import TermoEngine
+import TermoCore
 
 final class SSHConnectionBoundaryTests: XCTestCase {
+    /// 测试环境：路径/密钥落盘不参与断言（连接从未真正发起）。
+    private let testEnvironment = SSHConnectionEnvironment(
+        realKnownHosts: "/unused/known_hosts", sessionKnownHosts: "/unused/session_known_hosts",
+        materializeKey: { _ in nil })
+
     func testPasswordAuthenticationDoesNotResolveStaleKeyFields() throws {
         var connection = SSHConnection(host: "fixture.invalid")
         connection.password = "fixture-password"
@@ -13,7 +20,7 @@ final class SSHConnectionBoundaryTests: XCTestCase {
         }
         XCTAssertEqual(authentication, .password("fixture-password"))
         connection.password = ""
-        XCTAssertEqual(try SSHAuthentication(connection), .password(nil))
+        XCTAssertEqual(try SSHAuthentication(connection, materializeKey: { _ in nil }), .password(nil))
     }
 
     func testManagedKeyTakesPrecedenceAndUsesSecretOnlyAsPassphrase() throws {
@@ -38,12 +45,12 @@ final class SSHConnectionBoundaryTests: XCTestCase {
         XCTAssertThrowsError(try SSHAuthentication(connection, materializeKey: { _ in nil }))
         connection.keyId = ""
         connection.keyPath = "/explicit/key"
-        XCTAssertEqual(try SSHAuthentication(connection), .privateKey(path: "/explicit/key", passphrase: nil))
+        XCTAssertEqual(try SSHAuthentication(connection, materializeKey: { _ in nil }), .privateKey(path: "/explicit/key", passphrase: nil))
     }
 
     func testStatusQueriesAndIdleCleanupDoNotCreateConnectionEntries() {
         var creations = 0
-        let pool = SSHSessionPool(makeHub: { creations += 1; return SSHConnectionHub() })
+        let pool = SSHSessionPool(makeHub: { creations += 1; return SSHConnectionHub(environment: self.testEnvironment) })
         let connection = SSHConnection(host: "fixture.invalid")
         for _ in 0..<10 {
             XCTAssertFalse(pool.hasLiveSession(connection))
@@ -57,7 +64,7 @@ final class SSHConnectionBoundaryTests: XCTestCase {
     }
 
     func testRegistrySharesOnlyMatchingAuthenticationIdentity() {
-        let pool = SSHSessionPool()
+        let pool = SSHSessionPool(makeHub: { SSHConnectionHub(environment: self.testEnvironment) })
         var connection = SSHConnection(host: "fixture.invalid")
         connection.password = "first"
         let original = pool.connectionHub(for: connection)
@@ -70,7 +77,7 @@ final class SSHConnectionBoundaryTests: XCTestCase {
     }
 
     func testNetworkResetRetiresOldEntryBeforeItCanReconnect() {
-        let pool = SSHSessionPool()
+        let pool = SSHSessionPool(makeHub: { SSHConnectionHub(environment: self.testEnvironment) })
         let connection = SSHConnection(host: "fixture.invalid")
         let original = pool.connectionHub(for: connection)
         pool.closeAll()

@@ -1,9 +1,9 @@
 import Darwin
 import Foundation
 
-enum HostReachabilityProbe {
+public enum HostReachabilityProbe {
     /// 连接 SSH 端口后以协议首包测量真实链路延迟，避免只测到本地代理的 TCP 延迟。
-    static func measure(host: String, port: Int) -> (reachable: Bool, latencyMs: Int?) {
+    public static func measure(host: String, port: Int) -> (reachable: Bool, latencyMs: Int?) {
         var reachable = false
         var smallSample: Int?
         for _ in 0..<3 {

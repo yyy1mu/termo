@@ -55,25 +55,25 @@ struct UploadDialog: View {
         return min(1, max(0, Double(displayedSent) / Double(task.effectiveTotal)))
     }
     private var status: (text: String, color: Color) {
-        if isCancelling { return (String(localized: "正在取消"), Pal.overlay) }
+        if isCancelling { return (String(localized: "正在取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.overlay) }
         if let waiting = task.schedulingStatus { return (waiting, Pal.overlay) }
-        if task.pendingAsk != nil { return (String(localized: "等待确认"), Pal.yellow) }
+        if task.pendingAsk != nil { return (String(localized: "等待确认", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.yellow) }
         switch task.phase {
-        case .queued: return (String(localized: "排队中"), Pal.overlay)
-        case .running: return (task.direction == .upload ? String(localized: "上传中") : String(localized: "下载中"), Pal.mauve)
-        case .paused: return (task.awaitingSlot ? String(localized: "等待名额") : String(localized: "已暂停"), Pal.yellow)
+        case .queued: return (String(localized: "排队中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.overlay)
+        case .running: return (task.direction == .upload ? String(localized: "上传中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "下载中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.mauve)
+        case .paused: return (task.awaitingSlot ? String(localized: "等待名额", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "已暂停", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.yellow)
         case .done:
-            if failedCount == task.items.count && failedCount > 0 { return (String(localized: "传输失败"), Pal.red) }
-            if failedCount > 0 { return (String(localized: "部分失败"), Pal.yellow) }
-            return (String(localized: "已完成"), Pal.green)
-        case .cancelled: return (String(localized: "已取消"), Pal.overlay)
+            if failedCount == task.items.count && failedCount > 0 { return (String(localized: "传输失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.red) }
+            if failedCount > 0 { return (String(localized: "部分失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.yellow) }
+            return (String(localized: "已完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.green)
+        case .cancelled: return (String(localized: "已取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.overlay)
         }
     }
 
     var body: some View {
         FileTaskDetailSurface {
             FileTaskDetailHeader(
-                title: task.direction == .upload ? String(localized: "上传文件") : String(localized: "下载文件"),
+                title: task.direction == .upload ? String(localized: "上传文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "下载文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                 hostName: task.hostName, icon: task.direction == .upload ? "arrow.up.doc" : "arrow.down.doc",
                 status: status.text, color: status.color, onHide: onHide)
         } content: {
@@ -98,7 +98,7 @@ struct UploadDialog: View {
 
     private var transferSummary: some View {
         VStack(alignment: .leading, spacing: 12) {
-            FileTaskPathRow(title: task.direction == .upload ? String(localized: "远端目标") : String(localized: "保存到本机"), path: task.destDir)
+            FileTaskPathRow(title: task.direction == .upload ? String(localized: "远端目标", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "保存到本机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), path: task.destDir)
             summary
         }
     }
@@ -132,13 +132,13 @@ struct UploadDialog: View {
                 }
             }
             FileTaskProgressBar(value: progress, color: status.color)
-                .accessibilityLabel(String(localized: "总体传输进度"))
+                .accessibilityLabel(String(localized: "总体传输进度", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             if isActive {
                 Text("\(humanSize(min(displayedSent, task.effectiveTotal))) / \(humanSize(task.effectiveTotal))")
                     .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
                 if isTransferring {
                     HStack(spacing: 12) {
-                        Text(task.speed > 0 ? humanSize(Int64(task.speed)) + "/s" : String(localized: "正在计算速度…"))
+                        Text(task.speed > 0 ? humanSize(Int64(task.speed)) + "/s" : String(localized: "正在计算速度…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                         Spacer(minLength: 0)
                         if task.eta.isFinite, task.eta > 0, task.speed > 1 {
                             Text("预计剩余 \(formattedETA)")
@@ -157,17 +157,17 @@ struct UploadDialog: View {
     }
 
     private var waitingDescription: String {
-        if isCancelling { return String(localized: "正在结束当前文件传输，可收起后继续工作。") }
-        if task.pendingAsk != nil { return String(localized: "选择同名文件的处理方式后继续。") }
-        if task.phase == .queued || task.awaitingSlot { return String(localized: "其他传输结束后会自动开始。") }
-        return String(localized: "进度已保留，点击继续可恢复传输。")
+        if isCancelling { return String(localized: "正在结束当前文件传输，可收起后继续工作。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        if task.pendingAsk != nil { return String(localized: "选择同名文件的处理方式后继续。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        if task.phase == .queued || task.awaitingSlot { return String(localized: "其他传输结束后会自动开始。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        return String(localized: "进度已保留，点击继续可恢复传输。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 
     private var formattedETA: String {
         let seconds = Int(min(task.eta.rounded(), Double(Int.max - 1)))
-        if seconds >= 3600 { return String(localized: "\(seconds / 3600) 小时 \(seconds % 3600 / 60) 分钟") }
-        if seconds >= 60 { return String(localized: "\(seconds / 60) 分 \(seconds % 60) 秒") }
-        return String(localized: "\(seconds) 秒")
+        if seconds >= 3600 { return String(localized: "\(seconds / 3600) 小时 \(seconds % 3600 / 60) 分钟", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        if seconds >= 60 { return String(localized: "\(seconds / 60) 分 \(seconds % 60) 秒", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        return String(localized: "\(seconds) 秒", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 
     private func askPanel(_ ask: AskContext) -> some View {
@@ -191,8 +191,8 @@ struct UploadDialog: View {
     }
 
     @ViewBuilder private var conflictButtons: some View {
-        FileTaskAction(title: String(localized: "跳过")) { task.resolveAsk(.skip) }
-        FileTaskAction(title: String(localized: "覆盖"), prominent: true) { task.resolveAsk(.overwrite) }
+        FileTaskAction(title: String(localized: "跳过", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { task.resolveAsk(.skip) }
+        FileTaskAction(title: String(localized: "覆盖", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), prominent: true) { task.resolveAsk(.overwrite) }
         Menu {
             Button("全部跳过") { task.resolveAsk(.skipAll) }
             Button("全部覆盖") { task.resolveAsk(.overwriteAll) }
@@ -200,37 +200,37 @@ struct UploadDialog: View {
             Text("应用到全部").font(.system(size: 11))
         }
         .menuStyle(.borderlessButton).fixedSize()
-        .help(String(localized: "对本任务后续的同名文件使用相同处理方式"))
+        .help(String(localized: "对本任务后续的同名文件使用相同处理方式", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 
     @ViewBuilder private var buttons: some View {
         switch task.phase {
         case .queued, .running, .paused:
-            FileTaskAction(title: isCancelling ? String(localized: "正在取消…") : String(localized: "取消传输")) {
+            FileTaskAction(title: isCancelling ? String(localized: "正在取消…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "取消传输", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) {
                 task.cancel()
             }.disabled(isCancelling)
             if task.phase == .running, task.pendingAsk == nil {
-                FileTaskAction(title: String(localized: "暂停")) { AppModel.shared.pauseTransfer(task) }
+                FileTaskAction(title: String(localized: "暂停", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { AppModel.shared.pauseTransfer(task) }
                     .disabled(isCancelling)
             } else if task.phase == .paused {
-                FileTaskAction(title: task.awaitingSlot ? String(localized: "等待名额…") : String(localized: "继续传输"), prominent: true) {
+                FileTaskAction(title: task.awaitingSlot ? String(localized: "等待名额…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "继续传输", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), prominent: true) {
                     AppModel.shared.resumeTransfer(task)
                 }.disabled(task.awaitingSlot || isCancelling)
             }
-            FileTaskAction(title: String(localized: "收起"), prominent: task.phase != .paused, action: onHide)
+            FileTaskAction(title: String(localized: "收起", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), prominent: task.phase != .paused, action: onHide)
         case .done where task.hasFailures:
-            FileTaskAction(title: String(localized: "关闭详情"), action: onHide)
-            FileTaskAction(title: String(localized: "重传")) { AppModel.shared.retryTransfer(task, resume: false) }
-                .help(String(localized: "从头重新传输失败的文件"))
+            FileTaskAction(title: String(localized: "关闭详情", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onHide)
+            FileTaskAction(title: String(localized: "重传", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { AppModel.shared.retryTransfer(task, resume: false) }
+                .help(String(localized: "从头重新传输失败的文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             if task.direction == .upload {
-                FileTaskAction(title: String(localized: "续传失败项"), prominent: true) { AppModel.shared.retryTransfer(task, resume: true) }
+                FileTaskAction(title: String(localized: "续传失败项", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), prominent: true) { AppModel.shared.retryTransfer(task, resume: true) }
             }
         case .cancelled where task.hasPartials:
-            FileTaskAction(title: String(localized: "删除残留")) { task.cleanupPartials(); onClose() }
-            FileTaskAction(title: String(localized: "保留以便续传"), prominent: true, action: onClose)
+            FileTaskAction(title: String(localized: "删除残留", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { task.cleanupPartials(); onClose() }
+            FileTaskAction(title: String(localized: "保留以便续传", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), prominent: true, action: onClose)
         case .done, .cancelled:
-            FileTaskAction(title: String(localized: "清除记录"), action: onClose)
-            FileTaskAction(title: String(localized: "关闭详情"), prominent: true, action: onHide)
+            FileTaskAction(title: String(localized: "清除记录", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onClose)
+            FileTaskAction(title: String(localized: "关闭详情", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), prominent: true, action: onHide)
         }
     }
 }
@@ -255,7 +255,7 @@ struct UploadRow: View {
                 }.font(.system(size: 10.5)).monospacedDigit()
                 if item.state == .uploading {
                     FileTaskProgressBar(value: item.fraction, color: color)
-                        .accessibilityLabel(String(localized: "文件传输进度"))
+                        .accessibilityLabel(String(localized: "文件传输进度", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 }
                 if case .failed(let message) = item.state, !message.isEmpty {
                     Text(message).font(.system(size: 11)).foregroundStyle(Pal.red)
@@ -295,14 +295,14 @@ struct UploadRow: View {
     }
     private var label: String {
         switch item.state {
-        case .waiting: return phase == .cancelled ? String(localized: "已取消") : String(localized: "待传输")
-        case .checking: return String(localized: "检查目标文件")
-        case .asking: return String(localized: "等待确认")
-        case .uploading: return phase == .paused ? String(localized: "已暂停") : "\(Int(min(1, max(0, item.fraction)) * 100))%"
-        case .done: return String(localized: "完成")
-        case .skipped: return String(localized: "已跳过")
-        case .failed: return String(localized: "传输失败")
-        case .cancelled: return String(localized: "已取消")
+        case .waiting: return phase == .cancelled ? String(localized: "已取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "待传输", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .checking: return String(localized: "检查目标文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .asking: return String(localized: "等待确认", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .uploading: return phase == .paused ? String(localized: "已暂停", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : "\(Int(min(1, max(0, item.fraction)) * 100))%"
+        case .done: return String(localized: "完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .skipped: return String(localized: "已跳过", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .failed: return String(localized: "传输失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .cancelled: return String(localized: "已取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -366,7 +366,7 @@ struct FileTaskDetailHeader: View {
                     Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Pal.text)
                     Text(status).font(.system(size: 10, weight: .medium)).foregroundStyle(color)
                 }
-                Text(hostName.isEmpty ? String(localized: "远程主机") : hostName)
+                Text(hostName.isEmpty ? String(localized: "远程主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : hostName)
                     .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                     .lineLimit(1).truncationMode(.middle).help(hostName)
             }.frame(maxWidth: .infinity, alignment: .leading)
@@ -376,8 +376,8 @@ struct FileTaskDetailHeader: View {
                     .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 7))
                     .contentShape(Rectangle())
             }.buttonStyle(.plain).pointerCursor()
-                .help(String(localized: "收起详情，可在后台中心再次查看"))
-                .accessibilityLabel(String(localized: "收起任务详情"))
+                .help(String(localized: "收起详情，可在后台中心再次查看", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
+                .accessibilityLabel(String(localized: "收起任务详情", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
     }
 }

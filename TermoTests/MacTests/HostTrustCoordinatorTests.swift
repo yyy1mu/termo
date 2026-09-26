@@ -1,6 +1,8 @@
 import Combine
 import XCTest
 @testable import Termo
+import TermoEngine
+import TermoCore
 
 @MainActor
 final class HostTrustCoordinatorTests: XCTestCase {

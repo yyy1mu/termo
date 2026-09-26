@@ -15,7 +15,7 @@ extension AppModel {
 
     func addSnippet(name: String, content: String, group: String) {
         snippets.append(
-            Snippet(name: name.isEmpty ? String(localized: "未命名片段") : name, content: content, group: group))
+            Snippet(name: name.isEmpty ? String(localized: "未命名片段", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : name, content: content, group: group))
         SnippetStore.save(snippets)
     }
 
@@ -105,7 +105,7 @@ extension AppModel {
 
     func deliverSnippet(_ text: String, run: Bool) {
         guard let id = snippetTargetTabId(), let tv = terminals[id] else {
-            snippetNotice = String(localized: "请先打开并切到一个终端，再运行片段。")
+            snippetNotice = String(localized: "请先打开并切到一个终端，再运行片段。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             return
         }
         // run=末行自动回车；先归一化掉命令自带的尾部换行，保证恰好补一个 \n（防双回车空行）

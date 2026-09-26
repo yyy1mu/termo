@@ -1,4 +1,5 @@
 import SwiftUI
+import TermoCore
 
 /// 右侧监控按资源分类，分类导航固定，指标与进程在同一采样中更新。
 struct MonitorPanel: View {
@@ -134,13 +135,13 @@ struct MonitorPanel: View {
 
     private var statusText: String {
         switch monitor.phase {
-        case .stopped: return String(localized: "监控未运行")
-        case .live: return String(localized: "实时采集中")
+        case .stopped: return String(localized: "监控未运行", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .live: return String(localized: "实时采集中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .connecting:
-            return monitor.metrics == nil ? String(localized: "连接中") : String(localized: "重连中 · 上次数据")
+            return monitor.metrics == nil ? String(localized: "连接中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "重连中 · 上次数据", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .error:
-            return monitor.trustBlocked ? String(localized: "主机验证未通过") : String(localized: "连接中断")
-        case .unsupported: return String(localized: "暂不支持")
+            return monitor.trustBlocked ? String(localized: "主机验证未通过", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "连接中断", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .unsupported: return String(localized: "暂不支持", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
@@ -191,7 +192,7 @@ struct MonitorPanel: View {
                 .frame(maxWidth: .infinity).padding(.vertical, 5)
                 .background((cores[core] >= 90 ? Pal.red : Pal.green).opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(String(localized: "核心 \(core + 1)：\(Int(cores[core]))%"))
+                .accessibilityLabel(String(localized: "核心 \(core + 1)：\(Int(cores[core]))%", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
         }
     }
@@ -225,7 +226,7 @@ struct MonitorPanel: View {
     private func cpuCard(_ m: HostMetrics) -> some View {
         card {
             VStack(alignment: .leading, spacing: 12) {
-                cardTitle("cpu", "CPU", detail: m.perCore.isEmpty ? "" : String(localized: "\(m.perCore.count) 核"))
+                cardTitle("cpu", "CPU", detail: m.perCore.isEmpty ? "" : String(localized: "\(m.perCore.count) 核", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 HStack(spacing: 14) {
                     ring(m.cpuPercent, color: Pal.green, size: 72).fixedSize()
                     VStack(alignment: .leading, spacing: 6) {
@@ -239,7 +240,7 @@ struct MonitorPanel: View {
                     }
                     .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                 } else {
-                    detailText(String(localized: "CPU 使用率需要两次采样，正在等待。"))
+                    detailText(String(localized: "CPU 使用率需要两次采样，正在等待。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 }
             }
         }
@@ -252,7 +253,7 @@ struct MonitorPanel: View {
                 ring(m.memTotalKB > 0 ? m.memPercent : nil, color: Pal.mauve, size: 72)
                 detailText(
                     m.memTotalKB > 0
-                        ? String(localized: "已用 \(human(m.memUsedKB)) / \(human(m.memTotalKB))") : "—")
+                        ? String(localized: "已用 \(human(m.memUsedKB)) / \(human(m.memTotalKB))", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : "—")
                 if m.hasSwap {
                     detailText(
                         String(
@@ -278,9 +279,9 @@ struct MonitorPanel: View {
     private func diskSection(_ disks: [DiskUsage]) -> some View {
         card {
             VStack(alignment: .leading, spacing: 12) {
-                cardTitle("internaldrive", "磁盘", detail: String(localized: "\(disks.count) 个挂载点"))
+                cardTitle("internaldrive", "磁盘", detail: String(localized: "\(disks.count) 个挂载点", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 if disks.isEmpty {
-                    detailText(String(localized: "未检测到可监控的存储卷"))
+                    detailText(String(localized: "未检测到可监控的存储卷", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 }
                 ForEach(disks) { disk in
                     HStack(spacing: 10) {
@@ -293,7 +294,7 @@ struct MonitorPanel: View {
                                 Text(disk.device).font(.system(size: 10)).foregroundStyle(Pal.overlay)
                                     .lineLimit(1).truncationMode(.middle).help(disk.device)
                             }
-                            detailText(String(localized: "\(human(disk.usedKB)) / \(human(disk.totalKB))"))
+                            detailText(String(localized: "\(human(disk.usedKB)) / \(human(disk.totalKB))", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -306,7 +307,7 @@ struct MonitorPanel: View {
     private func gpuSection(_ m: HostMetrics) -> some View {
         card {
             VStack(alignment: .leading, spacing: 12) {
-                cardTitle("display", "GPU", detail: m.gpus.isEmpty ? String(localized: "未取得指标") : String(localized: "\(m.gpus.count) 张"))
+                cardTitle("display", "GPU", detail: m.gpus.isEmpty ? String(localized: "未取得指标", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "\(m.gpus.count) 张", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 if m.gpus.isEmpty {
                     Label(gpuStatusText(m.gpuStatus), systemImage: "info.circle")
                         .font(.system(size: 11)).foregroundStyle(Pal.subtext)
@@ -331,21 +332,21 @@ struct MonitorPanel: View {
             HStack(alignment: .top, spacing: 6) {
                 VStack(spacing: 3) {
                     ring(gpu.utilPercent, color: Pal.mauve, size: 62)
-                    detailText(String(localized: "GPU 使用率"))
+                    detailText(String(localized: "GPU 使用率", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 }
                 VStack(spacing: 3) {
                     ring(gpu.memPercent, color: Pal.yellow, size: 62)
-                    detailText(String(localized: "显存占用"))
+                    detailText(String(localized: "显存占用", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 }
             }
             detailText(gpuMemoryText(gpu))
             if gpu.utilPercent == nil {
                 detailText(gpu.vendor == "Intel"
-                    ? String(localized: "此驱动未提供可读取的 GPU 使用率")
-                    : String(localized: "驱动未返回 GPU 使用率"))
+                    ? String(localized: "此驱动未提供可读取的 GPU 使用率", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                    : String(localized: "驱动未返回 GPU 使用率", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
             HStack(spacing: 8) {
-                if let temp = gpu.tempC { detailText(String(localized: "温度 \(temp) °C")) }
+                if let temp = gpu.tempC { detailText(String(localized: "温度 \(temp) °C", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) }
                 if !gpu.source.isEmpty { detailText(gpu.source) }
             }
         }
@@ -357,19 +358,19 @@ struct MonitorPanel: View {
 
     private func gpuStatusText(_ status: GPUCollectionStatus) -> String {
         switch status {
-        case .available: return String(localized: "已连接 GPU 指标源")
-        case .noDevice: return String(localized: "远端未检测到可读取的 GPU；请检查驱动和设备是否对 SSH 用户可见。")
-        case .toolMissing: return String(localized: "检测到 NVIDIA 设备，但远端未找到 nvidia-smi。请检查驱动工具安装。")
-        case .queryFailed: return String(localized: "GPU 查询失败；请在该主机终端运行 nvidia-smi 检查驱动状态和权限。")
-        case .deviceUnavailable: return String(localized: "远端没有可读取的 DRM 设备目录；容器或权限设置可能隐藏了 GPU。")
+        case .available: return String(localized: "已连接 GPU 指标源", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .noDevice: return String(localized: "远端未检测到可读取的 GPU；请检查驱动和设备是否对 SSH 用户可见。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .toolMissing: return String(localized: "检测到 NVIDIA 设备，但远端未找到 nvidia-smi。请检查驱动工具安装。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .queryFailed: return String(localized: "GPU 查询失败；请在该主机终端运行 nvidia-smi 检查驱动状态和权限。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .deviceUnavailable: return String(localized: "远端没有可读取的 DRM 设备目录；容器或权限设置可能隐藏了 GPU。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
     private func gpuMemoryText(_ gpu: GPUInfo) -> String {
         if let used = gpu.memUsedMB, let total = gpu.memTotalMB, total > 0 {
-            return String(localized: "显存 \(human(used * 1024)) / \(human(total * 1024))")
+            return String(localized: "显存 \(human(used * 1024)) / \(human(total * 1024))", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
-        return gpu.vendor == "Intel" ? String(localized: "共享显存指标不可用") : String(localized: "显存指标不可用")
+        return gpu.vendor == "Intel" ? String(localized: "共享显存指标不可用", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "显存指标不可用", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 
     private func networkSection(_ m: HostMetrics) -> some View {
@@ -379,21 +380,21 @@ struct MonitorPanel: View {
         let history = selected.map { monitor.netHistoryByInterface[$0.name] ?? [] } ?? monitor.netHistory
         return card {
             VStack(alignment: .leading, spacing: 12) {
-                cardTitle("network", "网络吞吐", detail: String(localized: "\(m.interfaces.count) 张网卡"))
+                cardTitle("network", "网络吞吐", detail: String(localized: "\(m.interfaces.count) 张网卡", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 if m.interfaces.count > 1 {
                     ThemedDropdown(
-                        options: [(value: "", verbatim: String(localized: "全部网卡"))]
+                        options: [(value: "", verbatim: String(localized: "全部网卡", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))]
                             + m.interfaces.map { (value: $0.name, verbatim: $0.name) },
                         selection: $selectedInterface
                     )
                     .accessibilityLabel("查看网卡速率")
                     if selected == nil {
-                        detailText(String(localized: "各网卡速率相加；如有桥接或虚拟网卡，流量可能重复。"))
+                        detailText(String(localized: "各网卡速率相加；如有桥接或虚拟网卡，流量可能重复。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     }
                 } else if let only = m.interfaces.first {
                     detailText(only.name)
                 } else {
-                    detailText(String(localized: "未检测到可读取的非回环网卡"))
+                    detailText(String(localized: "未检测到可读取的非回环网卡", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 }
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 16) {
@@ -419,7 +420,7 @@ struct MonitorPanel: View {
                         HStack {
                             Text("最近 \(Int(Double(min(history.count, 40) - 1) * monitor.sampleInterval)) 秒")
                             Spacer()
-                            Text(monitor.phase == .live ? "现在" : "最后采样")
+                            Text(monitor.phase == .live ? String(localized: "现在", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "最后采样", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                         }
                         .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                     }
@@ -462,12 +463,12 @@ struct MonitorPanel: View {
         }.prefix(12))
         return card {
             VStack(alignment: .leading, spacing: 10) {
-                cardTitle("list.bullet", "进程占用", detail: String(localized: "前 12 项"))
-                detailText(memory ? String(localized: "按实际驻留内存排序")
-                           : String(localized: "按实时 CPU 排序 · 单核为 100%"))
+                cardTitle("list.bullet", "进程占用", detail: String(localized: "前 12 项", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
+                detailText(memory ? String(localized: "按实际驻留内存排序", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                           : String(localized: "按实时 CPU 排序 · 单核为 100%", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 if processes.isEmpty {
-                    detailText(m.processesAvailable ? String(localized: "暂无可见进程")
-                               : String(localized: "当前用户无法读取进程指标"))
+                    detailText(m.processesAvailable ? String(localized: "暂无可见进程", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                               : String(localized: "当前用户无法读取进程指标", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 }
                 ForEach(processes) { process in
                     processRow(name: process.name, pid: process.pid,
@@ -489,15 +490,15 @@ struct MonitorPanel: View {
             VStack(alignment: .leading, spacing: 10) {
                 cardTitle("list.bullet", "GPU 计算进程")
                 if processes.isEmpty {
-                    detailText(m.gpuProcessesAvailable ? String(localized: "未发现 GPU 计算进程")
-                               : String(localized: "当前驱动未提供进程显存数据"))
+                    detailText(m.gpuProcessesAvailable ? String(localized: "未发现 GPU 计算进程", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                               : String(localized: "当前驱动未提供进程显存数据", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 } else {
-                    detailText(String(localized: "按显存占用排序，显示各 GPU 上的计算进程。"))
+                    detailText(String(localized: "按显存占用排序，显示各 GPU 上的计算进程。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     ForEach(processes) { process in
                         let gpu = m.gpus.first { $0.uuid == process.gpuUUID }
                         processRow(name: process.name, pid: process.pid,
                                    value: process.memoryMB.map { human($0 * 1024) } ?? "—",
-                                   detail: gpu.map { "GPU \($0.index)" } ?? String(localized: "GPU 设备"),
+                                   detail: gpu.map { "GPU \($0.index)" } ?? String(localized: "GPU 设备", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                                    color: Pal.yellow)
                     }
                 }
@@ -509,14 +510,14 @@ struct MonitorPanel: View {
         card {
             VStack(alignment: .leading, spacing: 10) {
                 cardTitle("list.bullet", "进程网络连接")
-                detailText(String(localized: "仅显示当前用户可见的 TCP / UDP 连接；连接数不代表流量。"))
+                detailText(String(localized: "仅显示当前用户可见的 TCP / UDP 连接；连接数不代表流量。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 if m.networkProcesses.isEmpty {
-                    detailText(m.networkProcessesAvailable ? String(localized: "没有可见的进程连接")
-                               : String(localized: "远端未提供进程连接信息"))
+                    detailText(m.networkProcessesAvailable ? String(localized: "没有可见的进程连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                               : String(localized: "远端未提供进程连接信息", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 }
                 ForEach(m.networkProcesses.prefix(12)) { process in
                     processRow(name: process.name, pid: process.pid,
-                               value: String(localized: "\(process.connections) 个连接"), detail: nil, color: Pal.green)
+                               value: String(localized: "\(process.connections) 个连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), detail: nil, color: Pal.green)
                 }
             }
         }
@@ -574,7 +575,7 @@ struct MonitorPanel: View {
         .frame(width: size, height: size).padding(4)
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(value.map { String(localized: "使用率 \(Int($0))%") } ?? String(localized: "暂无数据"))
+        .accessibilityLabel(value.map { String(localized: "使用率 \(Int($0))%", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) } ?? String(localized: "暂无数据", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 
     private func meter(_ value: Double?, color: Color) -> some View {
@@ -624,8 +625,8 @@ struct MonitorPanel: View {
     private func uptimeText(_ secs: Double) -> String {
         let s = Int(max(0, secs))
         let days = s / 86400, hours = (s % 86400) / 3600, minutes = (s % 3600) / 60
-        if days > 0 { return String(localized: "已运行 \(days) 天 \(hours) 小时") }
-        return String(localized: "已运行 \(hours) 小时 \(minutes) 分钟")
+        if days > 0 { return String(localized: "已运行 \(days) 天 \(hours) 小时", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        return String(localized: "已运行 \(hours) 小时 \(minutes) 分钟", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 }
 

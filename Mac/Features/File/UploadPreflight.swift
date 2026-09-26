@@ -18,7 +18,7 @@ enum UploadWritePlan: Equatable {
         guard let partial = probe.partSize else { return .write(offset: 0) }
         guard partial >= 0 else { throw UploadPreflight.invalidMetadata() }
         guard partial <= localSize else {
-            throw RemoteFSError(message: String(localized: "远端残留文件大于本地文件，请选择从头重传。"))
+            throw RemoteFSError(message: String(localized: "远端残留文件大于本地文件，请选择从头重传。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         if policy == .resume {
             return partial == localSize && localSize > 0 ? .finalize : .write(offset: partial)
@@ -44,7 +44,7 @@ enum UploadPreflight {
             return nil
         }
         guard let permissions = attributes.permissions, permissions & 0o170000 == 0o100000 else {
-            throw RemoteFSError(message: String(localized: "上传目标或残留文件不是可确认的普通文件。"))
+            throw RemoteFSError(message: String(localized: "上传目标或残留文件不是可确认的普通文件。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         guard let rawSize = attributes.size, let size = Int64(exactly: rawSize) else {
             throw invalidMetadata()
@@ -93,6 +93,6 @@ enum UploadPreflight {
     }
 
     static func invalidMetadata() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "无法确认远端文件大小，上传已停止。"))
+        RemoteFSError(message: String(localized: "无法确认远端文件大小，上传已停止。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 }

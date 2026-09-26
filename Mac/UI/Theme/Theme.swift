@@ -6,11 +6,11 @@ enum AppearanceMode: String, CaseIterable {
     case dark = "深色"
     case light = "浅色"
 
-    var label: String {
+    var label: LocalizedStringKey {
         switch self {
-        case .system: return String(localized: "跟随系统")
-        case .dark: return String(localized: "深色")
-        case .light: return String(localized: "浅色")
+        case .system: return "跟随系统"
+        case .dark: return "深色"
+        case .light: return "浅色"
         }
     }
 }
@@ -42,46 +42,46 @@ struct ThemeColors {
 }
 
 extension ThemeColors {
-    // 深色工作台：石墨蓝底、柔和薄荷强调色，压低大面积背景亮度。
+    // 深色工作台：青蓝石墨底、薄荷强调色。色相统一在 H≈200 蓝灰家族（与浅色主题同族），
+    // 表面层级等距提亮（L: 8.5 → 11.5 → 15 → 20 → 25），强调色与语义色同族协调。
     static let dark = ThemeColors(
-        // 层级微调：crust 最暗、逐档提亮；base 与 mantle 拉开半档，层级更清晰
-        crust: Color(hex: 0x0F161D),
-        mantle: Color(hex: 0x1A2530),
-        base: Color(hex: 0x141D24),
-        surface0: Color(hex: 0x2E3E4A),
-        card: Color(hex: 0x22323C),
-        text: Color(hex: 0xD5E0E3),
-        textBright: Color(hex: 0xF4F8F7),
-        subtext: Color(hex: 0xA2B6BA),
-        overlay: Color(hex: 0x7E949B),   // 提亮：原 0x72868D 过暗难读
-        mauve: Color(hex: 0x1BA894),     // 提亮强调色：深色底上原色偏沉
-        green: Color(hex: 0x68D3A1),
-        yellow: Color(hex: 0xE7BD77),
-        red: Color(hex: 0xF08080),
-        termBg: 0x141D24, termFg: 0xD5E0E3,
-        termCaret: 0x79D6C2, termSelection: 0x28584F,
-        baseHex: 0x141D24
+        crust: Color(hex: 0x0F171D),
+        mantle: Color(hex: 0x1D2830),
+        base: Color(hex: 0x151F25),
+        surface0: Color(hex: 0x33434C),
+        card: Color(hex: 0x27363F),
+        text: Color(hex: 0xD5DFE2),
+        textBright: Color(hex: 0xF4F8F8),
+        subtext: Color(hex: 0x9FB1B7),
+        overlay: Color(hex: 0x7C9098),
+        mauve: Color(hex: 0x20B69D),     // 品牌青：比旧色亮半档，小图标/文字在深底上更清晰
+        green: Color(hex: 0x6CD0A1),
+        yellow: Color(hex: 0xE2B66F),
+        red: Color(hex: 0xEA7F7B),
+        termBg: 0x151F25, termFg: 0xD5DFE2,
+        termCaret: 0x79D8C3, termSelection: 0x2B5F55,
+        baseHex: 0x151F25
     )
 
-    // 浅色工作台：暖白工作面、灰绿导航与深青色强调。
+    // 浅色工作台：冷灰蓝白（与深色主题同 H≈200 色族；旧版偏绿灰，两主题身份不一致）。
+    // base 略沉至 L=97，让纯白卡片自然浮起；文字/语义色加深提对比。
     static let light = ThemeColors(
-        // 层级微调：crust/mantle 再沉半档，与近白 base 拉开；次级文字加深提高可读性
-        crust: Color(hex: 0xE3ECE9),
-        mantle: Color(hex: 0xECF2EF),
-        base: Color(hex: 0xFAFCFA),
-        surface0: Color(hex: 0xD5E2DD),
+        crust: Color(hex: 0xDDE5E9),
+        mantle: Color(hex: 0xE8EDF0),
+        base: Color(hex: 0xF6F8F9),
+        surface0: Color(hex: 0xD3DBDF),
         card: Color(hex: 0xFFFFFF),
-        text: Color(hex: 0x2D4242),
-        textBright: Color(hex: 0x162C2C),
-        subtext: Color(hex: 0x55706F),
-        overlay: Color(hex: 0x6E8884),   // 加深：原 0x809693 在白底上发灰看不清
-        mauve: Color(hex: 0x087E72),
-        green: Color(hex: 0x168B62),
-        yellow: Color(hex: 0xAB741D),
-        red: Color(hex: 0xBD4B4B),
-        termBg: 0xFAFCFA, termFg: 0x2D4242,
-        termCaret: 0x087E72, termSelection: 0xBFE8DC,
-        baseHex: 0xFAFCFA
+        text: Color(hex: 0x28373E),
+        textBright: Color(hex: 0x141F24),
+        subtext: Color(hex: 0x50646D),
+        overlay: Color(hex: 0x6B7E85),
+        mauve: Color(hex: 0x0E7C6D),
+        green: Color(hex: 0x178255),
+        yellow: Color(hex: 0x9E691A),
+        red: Color(hex: 0xC13833),
+        termBg: 0xF6F8F9, termFg: 0x28373E,
+        termCaret: 0x0E7C6D, termSelection: 0xC4E9E1,
+        baseHex: 0xF6F8F9
     )
 }
 
@@ -204,10 +204,10 @@ enum LatencyLevel {
 
     var title: String {
         switch self {
-        case .unknown: return String(localized: "未探测")
-        case .good:    return String(localized: "流畅")
-        case .warning: return String(localized: "延迟较高")
-        case .poor:    return String(localized: "延迟很高")
+        case .unknown: return String(localized: "未探测", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .good:    return String(localized: "流畅", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .warning: return String(localized: "延迟较高", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .poor:    return String(localized: "延迟很高", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }

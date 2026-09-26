@@ -38,11 +38,11 @@ enum AppPasswordError: LocalizedError {
     case invalidPassword, wrongCurrentPassword, sessionChanged, keychain(OSStatus), readKeychain(OSStatus)
     var errorDescription: String? {
         switch self {
-        case .invalidPassword: return String(localized: "主密码至少 8 个字符，可包含文字、数字和符号")
-        case .wrongCurrentPassword: return String(localized: "当前密码不正确")
-        case .sessionChanged: return String(localized: "应用已锁定，请解锁后重试")
-        case .keychain(let status): return String(localized: "无法保存主密码，原密码未更改（\(status)）")
-        case .readKeychain(let status): return String(localized: "无法读取主密码校验记录，请允许 Termo 访问系统钥匙串后重试（\(status)）")
+        case .invalidPassword: return String(localized: "主密码至少 8 个字符，可包含文字、数字和符号", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .wrongCurrentPassword: return String(localized: "当前密码不正确", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .sessionChanged: return String(localized: "应用已锁定，请解锁后重试", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .keychain(let status): return String(localized: "无法保存主密码，原密码未更改（\(status)）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .readKeychain(let status): return String(localized: "无法读取主密码校验记录，请允许 Termo 访问系统钥匙串后重试（\(status)）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -108,7 +108,10 @@ final class AppLockManager: ObservableObject {
         self.credentials = credentials
         isEnabled = defaults.bool(forKey: "applock.enabled")
         do { cachedRecord = try credentials.read() }
-        catch { recordReadFailed = true; credentialError = error.localizedDescription }
+        catch {
+            recordReadFailed = true
+            credentialError = Self.userFacingCredentialError(error)
+        }
         // 钥匙串读取被拒绝时保持锁定，不能把失败当作未设置密码。
         isLocked = isEnabled && (cachedRecord != nil || recordReadFailed)
     }
@@ -147,17 +150,26 @@ final class AppLockManager: ObservableObject {
     func verifyPassword(_ password: String) async -> Bool {
         let generation = sessionGeneration
         let record: String
+        credentialError = nil
         do {
             guard let stored = try authenticationRecord() else { return false }
             record = stored
         } catch {
-            credentialError = error.localizedDescription
+            credentialError = Self.userFacingCredentialError(error)
             return false
         }
         let valid = await Task.detached { AppPasswordRecord.verify(password, record: record) }.value
         guard generation == sessionGeneration else { return false }
         if valid && !AppPasswordRecord.isLegacy(record) { masterPassword = password }
         return valid
+    }
+
+    /// 锁屏只显示可操作的产品提示，不把 Keychain / LocalAuthentication 的内部错误原样暴露给用户。
+    static func userFacingCredentialError(_ error: Error) -> String {
+        if let error = error as? AppPasswordError {
+            return error.localizedDescription
+        }
+        return String(localized: "无法访问主密码，请检查系统钥匙串后重试", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 
     /// 解锁（锁定屏/触摸成功后调用）。
@@ -194,7 +206,7 @@ final class AppLockManager: ObservableObject {
     }
 
     private func checkIdleLock() {
-        guard isEnabled, hasPin, !isLocked else { return }
+        guard isEnabled, hasPin, !isLocked, idleMinutes > 0 else { return }  // 0 = 从不自动锁定
         if Date().timeIntervalSince(lastActivity) >= TimeInterval(idleMinutes * 60) {
             lock()
         }
@@ -220,7 +232,7 @@ final class AppLockManager: ObservableObject {
         do {
             return try await ctx.evaluatePolicy(
                 .deviceOwnerAuthenticationWithBiometrics,
-                localizedReason: "解锁 Termo"
+                localizedReason: String(localized: "解锁", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) + " Termo"
             )
         } catch {
             return false  // 用户取消/失败 → 走锁定码输入

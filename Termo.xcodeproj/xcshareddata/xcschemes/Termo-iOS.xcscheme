@@ -21,6 +21,20 @@
                ReferencedContainer = "container:Termo.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "65203F3995452C72F271D2A3"
+               BuildableName = "Termo-iOS-UITests.xctest"
+               BlueprintName = "Termo-iOS-UITests"
+               ReferencedContainer = "container:Termo.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -39,7 +53,20 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "65203F3995452C72F271D2A3"
+               BuildableName = "Termo-iOS-UITests.xctest"
+               BlueprintName = "Termo-iOS-UITests"
+               ReferencedContainer = "container:Termo.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
+      <CommandLineArguments>
+      </CommandLineArguments>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

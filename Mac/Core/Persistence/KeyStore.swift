@@ -46,7 +46,7 @@ enum KeyStore {
         let saveError: Error
         let rollbackError: Error
         var errorDescription: String? {
-            String(localized: "密钥列表未能保存：\(saveError.localizedDescription)；恢复原私钥记录也失败：\(rollbackError.localizedDescription)。请检查存储权限后重试。")
+            String(localized: "密钥列表未能保存：\(saveError.localizedDescription)；恢复原私钥记录也失败：\(rollbackError.localizedDescription)。请检查存储权限后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -60,9 +60,9 @@ enum KeyKeychain {
     static func loadAll(using storage: Storage = .live) throws -> [String: String] {
         let (status, data) = storage.read(service, account)
         if status == errSecItemNotFound { return [:] }
-        guard status == errSecSuccess else { throw HostKeychain.AccessError(operation: "读取私钥", status: status) }
+        guard status == errSecSuccess else { throw HostKeychain.AccessError(operation: .readPrivateKey, status: status) }
         guard let data, let map = try? JSONDecoder().decode([String: String].self, from: data) else {
-            throw HostKeychain.AccessError(operation: "读取私钥", status: errSecDecode)
+            throw HostKeychain.AccessError(operation: .readPrivateKey, status: errSecDecode)
         }
         return map
     }
@@ -72,9 +72,9 @@ enum KeyKeychain {
         let status = storage.update(service, account, data)
         if status == errSecItemNotFound {
             let added = storage.add(service, account, data)
-            guard added == errSecSuccess else { throw HostKeychain.AccessError(operation: "保存私钥到", status: added) }
+            guard added == errSecSuccess else { throw HostKeychain.AccessError(operation: .savePrivateKey, status: added) }
         } else if status != errSecSuccess {
-            throw HostKeychain.AccessError(operation: "保存私钥到", status: status)
+            throw HostKeychain.AccessError(operation: .savePrivateKey, status: status)
         }
     }
 

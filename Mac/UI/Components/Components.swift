@@ -36,7 +36,7 @@ struct TruncatableText: View {
             .contentShape(Rectangle())
             .onTapGesture { if isTruncated { showPreview = true } }
             .pointerCursor(isTruncated)
-            .help(isTruncated ? "点击查看完整内容（可复制）" : "")
+            .help(isTruncated ? String(localized: "点击查看完整内容（可复制）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : "")
             .popover(isPresented: $showPreview, arrowEdge: .bottom) { preview }
     }
 
@@ -57,7 +57,7 @@ struct TruncatableText: View {
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 11))
-                        Text(copied ? "已复制" : "复制").font(.system(size: 12))
+                        Text(copied ? String(localized: "已复制", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "复制", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)).font(.system(size: 12))
                     }
                     .foregroundStyle(copied ? Pal.green : Pal.mauve)
                     .padding(.horizontal, 10).padding(.vertical, 5)
@@ -80,7 +80,7 @@ struct SegmentedControl<T: Hashable>: View {
 
     // 静态 UI 文案：LocalizedStringKey，字面量自动进 String Catalog。
     init(options: [(value: T, label: LocalizedStringKey)], selection: Binding<T>) {
-        self.options = options.map { ($0.value, Text($0.label)) }
+        self.options = options.map { ($0.value, Text($0.label, bundle: AppSettings.localizationBundle)) }
         self._selection = selection
     }
     // 动态数据（枚举 rawValue/title 等）：verbatim，不本地化。
@@ -154,7 +154,8 @@ struct ThemedTextField: View {
 
     // 静态 UI 文案：LocalizedStringKey，字面量自动进 String Catalog。
     init(placeholder: LocalizedStringKey, text: Binding<String>, autofocus: Bool = false, onSubmit: (() -> Void)? = nil) {
-        self.prompt = Text(placeholder); self._text = text; self.autofocus = autofocus; self.onSubmit = onSubmit
+        self.prompt = Text(placeholder, bundle: AppSettings.localizationBundle)
+        self._text = text; self.autofocus = autofocus; self.onSubmit = onSubmit
     }
     // 动态数据（片段变量名等）：verbatim，不本地化。
     init(verbatim placeholder: String, text: Binding<String>, autofocus: Bool = false, onSubmit: (() -> Void)? = nil) {
@@ -193,7 +194,7 @@ struct ThemedTextEditor: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             if text.isEmpty {
-                Text(placeholder)
+                Text(placeholder, bundle: AppSettings.localizationBundle)
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundStyle(Pal.overlay)
                     .padding(.horizontal, 13)
@@ -221,7 +222,7 @@ struct ThemedTextEditor: View {
 
 /// 密码输入框（带显示/隐藏小眼睛）。
 struct ThemedSecureField: View {
-    let placeholder: LocalizedStringKey
+    private let prompt: Text
     @Binding var text: String
     @State private var reveal = false
     @FocusState private var focusedField: Field?
@@ -230,15 +231,25 @@ struct ThemedSecureField: View {
     private enum Field { case secure, plain }
     private var isFocused: Bool { focusedField != nil }
 
+    init(placeholder: LocalizedStringKey, text: Binding<String>) {
+        prompt = Text(placeholder, bundle: AppSettings.localizationBundle)
+        _text = text
+    }
+
+    init(verbatim placeholder: String, text: Binding<String>) {
+        prompt = Text(verbatim: placeholder)
+        _text = text
+    }
+
     var body: some View {
         HStack(spacing: 6) {
             // 两个字段都常驻、仅切 opacity；切换显示/隐藏时不重建视图，焦点不丢失
             ZStack {
-                SecureField(placeholder, text: $text.singleLine)
+                SecureField(text: $text.singleLine, prompt: prompt) { EmptyView() }
                     .focused($focusedField, equals: .secure)
                     .opacity(reveal ? 0 : 1)
                     .allowsHitTesting(!reveal)
-                TextField(placeholder, text: $text.singleLine)
+                TextField(text: $text.singleLine, prompt: prompt) { EmptyView() }
                     .focused($focusedField, equals: .plain)
                     .opacity(reveal ? 1 : 0)
                     .allowsHitTesting(reveal)
@@ -265,7 +276,7 @@ struct ThemedSecureField: View {
             }
             .buttonStyle(.plain)
             .pointerCursor()
-            .help(reveal ? "隐藏密码" : "显示密码")
+            .help(reveal ? String(localized: "隐藏密码", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "显示密码", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 8)
@@ -287,12 +298,17 @@ struct ThemedDropdown<T: Hashable>: View {
 
     // 静态 UI 文案：LocalizedStringKey，字面量自动进 String Catalog。
     init(options: [(value: T, label: LocalizedStringKey)], selection: Binding<T>) {
-        self.options = options.map { ($0.value, Text($0.label)) }
+        self.options = options.map { ($0.value, Text($0.label, bundle: AppSettings.localizationBundle)) }
         self._selection = selection
     }
     // 动态数据（编码/算法/枚举 rawValue 等）：verbatim，不本地化。
     init(options: [(value: T, verbatim: String)], selection: Binding<T>) {
         self.options = options.map { ($0.value, Text(verbatim: $0.verbatim)) }
+        self._selection = selection
+    }
+    /// Mixed localizable labels and verbatim technical values.
+    init(options: [(value: T, text: Text)], selection: Binding<T>) {
+        self.options = options.map { ($0.value, $0.text) }
         self._selection = selection
     }
 
@@ -355,7 +371,8 @@ private struct DropdownOption: View {
 
     // 静态 UI 文案：走 LocalizedStringKey，字面量自动进 String Catalog。
     init(label: LocalizedStringKey, selected: Bool, leadingSymbol: String? = nil, action: @escaping () -> Void) {
-        self.label = Text(label); self.selected = selected; self.leadingSymbol = leadingSymbol; self.action = action
+        self.label = Text(label, bundle: AppSettings.localizationBundle)
+        self.selected = selected; self.leadingSymbol = leadingSymbol; self.action = action
     }
     // 动态数据（分组名/用户输入）：verbatim，不本地化。
     init(verbatim label: String, selected: Bool, leadingSymbol: String? = nil, action: @escaping () -> Void) {
@@ -406,8 +423,8 @@ private struct DropdownOption: View {
 struct SearchableSelect: View {
     let options: [String]
     @Binding var text: String
-    var placeholder: String = "搜索或输入新分组…"
-    var emptyLabel: String = "未分组"      // text 为空时按钮显示的占位文案
+    var placeholder: String = String(localized: "搜索或输入新分组…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+    var emptyLabel: String = String(localized: "未分组", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)      // text 为空时按钮显示的占位文案
     var allowsCreate: Bool = true
 
     @State private var open = false
@@ -468,7 +485,7 @@ struct SearchableSelect: View {
                 ScrollView {
                     VStack(spacing: 1) {
                         if canCreate {
-                            DropdownOption(verbatim: "新建「\(trimmedQuery)」", selected: false, leadingSymbol: "plus") {
+                            DropdownOption(text: Text("新建「\(trimmedQuery)」"), selected: false, leadingSymbol: "plus") {
                                 select(trimmedQuery)
                             }
                         }

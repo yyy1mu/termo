@@ -6,7 +6,7 @@ name: Termo
 options:
   bundleIdPrefix: com.cloudza
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "27.0"
   createIntermediateGroups: true        # 子目录(App/Core/Features/UI/System)映射为分组
   defaultConfig: Debug
   groupSortPosition: top
@@ -52,6 +52,9 @@ packages:
   # 三端共享的纯 Foundation 数据契约；平台实现留在各 App target。
   TermoCore:
     path: TermoCore
+  # SSH 引擎（russh）的 Swift/C 封装层，macOS/iOS 共用；Rust 静态库仍在各 App target 层链接。
+  TermoEngine:
+    path: TermoEngine
 
 targets:
   Termo:
@@ -71,6 +74,10 @@ targets:
         product: SwiftTerm
       - package: TermoCore
         product: TermoCore
+      - package: TermoEngine
+        product: TermoEngine
+      - package: TermoEngine
+        product: CTermoSSH
       - sdk: Security.framework
       - sdk: CoreFoundation.framework
     settings:
@@ -80,13 +87,12 @@ targets:
         # Cargo 会读取 Rust 源码及用户级依赖缓存；Xcode 的脚本沙盒无法用静态输入列表覆盖。
         # 仅对含 Rust 预构建脚本的 macOS target 关闭，其他 target 仍使用默认设置。
         ENABLE_USER_SCRIPT_SANDBOXING: NO
-        # SSH 引擎 C 接口经桥接头暴露给 Swift（Engine 目录在搜索路径中）。
+        # 终端转码器 C 接口经桥接头暴露给 Swift；SSH 引擎 C 接口由 TermoEngine 包的 CTermoSSH 模块提供。
         SWIFT_OBJC_BRIDGING_HEADER: Mac/Config/TermoMac-Bridging-Header.h
         HEADER_SEARCH_PATHS:
-          - $(SRCROOT)/TermoSSH/include                           # TermoSSHCore.h / TermoRusshCore.h
           - $(SRCROOT)/Mac/Features/Terminal                             # TermoTextTranscoder.h
         LIBRARY_SEARCH_PATHS:
-          - $(SRCROOT)/build/russh/universal   # libtermo_ssh.a（russh 通用静态库，见 scripts/build-russh.sh）
+          - $(SRCROOT)/build/russh/aarch64-apple-darwin   # libtermo_ssh.a（russh 静态库，仅 arm64，见 scripts/build-russh.sh）
         OTHER_LDFLAGS:
           - -ltermo_ssh  # Rust SSH 引擎（russh 0.63.3 + ring；符号 termo_russh_*）
           - -liconv      # ring/系统层依赖
@@ -97,7 +103,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Mac/Config/TermoMac.entitlements
         DEVELOPMENT_TEAM: 93D9T7Y56M  # 沿用现有 macOS target 的本机开发签名覆盖
         ENABLE_HARDENED_RUNTIME: NO       # 上架/公证阶段再打开
-        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        MACOSX_DEPLOYMENT_TARGET: "27.0"
         COMBINE_HIDPI_IMAGES: YES
       configs:
         Release:
@@ -122,7 +128,7 @@ targets:
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"   # Xcode 脚本环境默认不含 Homebrew
           "$SRCROOT/scripts/build-russh.sh"
 
-  # iOS 先落地无凭证的主机资料；SSH 引擎与认证按平台能力逐步接入。
+  # iOS 先落地无凭证的主机资料；SSH 引擎（TermoEngine）已接通，认证与连接功能按平台能力逐步接入。
   Termo-iOS:
     type: application
     platform: iOS
@@ -131,6 +137,15 @@ targets:
     dependencies:
       - package: TermoCore
         product: TermoCore
+      - package: TermoEngine
+        product: TermoEngine
+      - package: TermoEngine
+        product: CTermoSSH
+      - package: SwiftTerm
+        product: SwiftTerm
+      # russh 静态库 XCFramework（device arm64 + 模拟器 arm64），由 preBuildScript 产出；静态链接不嵌入。
+      - framework: build/russh/ios/TermoSSH.xcframework
+        embed: false
       - target: Termo-Watch
         embed: true
     settings:
@@ -143,6 +158,17 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         MARKETING_VERSION: "1.0"
         TARGETED_DEVICE_FAMILY: "1,2"
+        ARCHS: arm64  # russh XCFramework 仅含 arm64 切片（真机 + 模拟器），见 scripts/build-russh-ios.sh
+        # Cargo 需读 Rust 源码与用户级依赖缓存；仅对含 Rust 预构建脚本的 target 关闭脚本沙盒。
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    # 编译前先产出 iOS 用 russh XCFramework（cargo 增量构建；产物 build/ 不入库）。
+    preBuildScripts:
+      - name: "Build Rust SSH XCFramework"
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"   # Xcode 脚本环境默认不含 Homebrew
+          "$SRCROOT/scripts/build-russh-ios.sh"
 
   # Watch 是 iPhone 的伴侣应用，只接收无凭证的主机名称快照。
   Termo-Watch:
@@ -169,22 +195,40 @@ targets:
   TermoTests:
     type: bundle.unit-test
     platform: macOS
-    sources: [TermoTests]
+    sources:
+      - path: TermoTests
+        excludes: [iOSUITests]
     dependencies:
       - target: Termo
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo.tests
-        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        MACOSX_DEPLOYMENT_TARGET: "27.0"
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGN_IDENTITY: "-"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Termo.app/Contents/MacOS/Termo"
         BUNDLE_LOADER: "$(TEST_HOST)"
-        # 托管测试会依赖扫描 App 的桥接头（引用了引擎 C 头文件）；头文件在 TermoSSH/include，
-        # 已不属于任何 target 的 sources，不在跨 target VFS 里——测试 target 需自带搜索路径。
+        # 托管测试会依赖扫描 App 的桥接头（引用终端转码器 C 头文件）；头文件不属于任何 target 的
+        # sources，不在跨 target VFS 里——测试 target 需自带搜索路径。引擎 C 头文件经 CTermoSSH 模块导入。
         HEADER_SEARCH_PATHS:
-          - $(SRCROOT)/TermoSSH/include
           - $(SRCROOT)/Mac/Features/Terminal
+
+  # iOS 运行时冒烟：黑盒 UI 测试（XCUIApplication），驱动模拟器里的真实 App 连容器 SSH。
+  Termo-iOS-UITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [TermoTests/iOSUITests]
+    dependencies:
+      - target: Termo-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cloudza.termo.ios.uitests
+        IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_IDENTITY: "-"
+        TEST_TARGET_NAME: Termo-iOS
 
 schemes:
   Termo:
@@ -212,8 +256,12 @@ schemes:
     build:
       targets:
         Termo-iOS: all
+        Termo-iOS-UITests: [test]
     run:
       config: Debug
+    test:
+      config: Debug
+      targets: [Termo-iOS-UITests]
     archive:
       config: Release
   Termo-Watch:

@@ -1,9 +1,14 @@
 import SwiftUI
 
+private func keySheetString(_ key: String.LocalizationValue) -> String {
+    String(localized: key, bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+}
+
 /// 生成新密钥；失败保留表单，成功才关闭。
 struct GenerateKeyView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var theme = ThemeManager.shared
+    @ObservedObject private var settings = AppSettings.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var name = ""
@@ -18,30 +23,30 @@ struct GenerateKeyView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            KeySheetHeader(title: "生成 SSH 密钥", subtitle: "创建一对用于服务器登录的公钥和私钥", symbol: "key.fill")
+            KeySheetHeader(title: keySheetString("生成 SSH 密钥"), subtitle: keySheetString("创建一对用于服务器登录的公钥和私钥"), symbol: "key.fill")
             Divider().overlay(Pal.border)
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        KeyFormField(title: "密钥名称", hint: "必填 · 用于在 Termo 中识别这把密钥") {
-                            ThemedTextField(placeholder: "例如：工作服务器", text: $name, autofocus: true)
-                                .accessibilityLabel("密钥名称，必填")
+                        KeyFormField(title: keySheetString("密钥名称"), hint: keySheetString("必填 · 用于在 Termo 中识别这把密钥")) {
+                            ThemedTextField(verbatim: keySheetString("例如：工作服务器"), text: $name, autofocus: true)
+                                .accessibilityLabel(keySheetString("密钥名称，必填"))
                         }
-                        KeyFormField(title: "密钥类型", hint: "Ed25519 适用于多数服务器；旧服务器可选 RSA 4096。") {
+                        KeyFormField(title: keySheetString("密钥类型"), hint: keySheetString("Ed25519 适用于多数服务器；旧服务器可选 RSA 4096。")) {
                             ThemedDropdown(options: SSHKeyType.allCases.map { (value: $0, verbatim: $0.label) }, selection: $type)
-                                .accessibilityLabel("密钥类型")
+                                .accessibilityLabel(keySheetString("密钥类型"))
                         }
-                        KeyFormField(title: "公钥注释", hint: "可选 · 会写入公钥尾部，可填写邮箱或设备名称") {
-                            ThemedTextField(placeholder: "例如：work@macbook", text: $comment)
-                                .accessibilityLabel("公钥注释，可选")
+                        KeyFormField(title: keySheetString("公钥注释"), hint: keySheetString("可选 · 会写入公钥尾部，可填写邮箱或设备名称")) {
+                            ThemedTextField(verbatim: keySheetString("例如：work@macbook"), text: $comment)
+                                .accessibilityLabel(keySheetString("公钥注释，可选"))
                         }
-                        KeyFormField(title: "私钥口令", hint: "可选 · 用于加密这把私钥，与应用锁定密码无关。请妥善保管。") {
-                            ThemedSecureField(placeholder: "留空则不设置口令", text: $passphrase)
-                                .accessibilityLabel("私钥口令，可选")
+                        KeyFormField(title: keySheetString("私钥口令"), hint: keySheetString("可选 · 用于加密这把私钥，与应用锁定密码无关。请妥善保管。")) {
+                            ThemedSecureField(verbatim: keySheetString("留空则不设置口令"), text: $passphrase)
+                                .accessibilityLabel(keySheetString("私钥口令，可选"))
                         }
-                        KeySheetNote(symbol: "lock.shield", text: "私钥保存在系统钥匙串中。生成后可复制公钥，或部署到服务器。")
+                        KeySheetNote(symbol: "lock.shield", text: keySheetString("私钥保存在系统钥匙串中。生成后可复制公钥，或部署到服务器。"))
                         if let generationError {
-                            KeySheetNotice(success: false, title: "未能生成密钥", detail: generationError)
+                            KeySheetNotice(success: false, title: keySheetString("未能生成密钥"), detail: generationError)
                                 .id("generation-error")
                         }
                     }
@@ -56,27 +61,28 @@ struct GenerateKeyView: View {
             KeySheetFooter {
                 if isGenerating {
                     ProgressView().controlSize(.small)
-                    Text("正在生成密钥…")
+                    Text(verbatim: keySheetString("正在生成密钥…"))
                         .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                 }
                 Spacer()
-                Button("取消") {
+                Button(keySheetString("取消")) {
                     generationTask?.cancel()
                     dismiss()
                 }
                     .buttonStyle(KeySheetButtonStyle())
                     .keyboardShortcut(.cancelAction)
-                Button("生成密钥", action: generate)
+                Button(keySheetString("生成密钥"), action: generate)
                     .buttonStyle(KeySheetButtonStyle(primary: true))
                     .keyboardShortcut(.return, modifiers: .command)
                     .disabled(trimmedName.isEmpty || isGenerating)
-                    .help("生成密钥（⌘↩）")
+                    .help(keySheetString("生成密钥（⌘↩）"))
             }
         }
         .frame(minWidth: 340, idealWidth: 480, maxWidth: 560, minHeight: 360, idealHeight: 580, maxHeight: 680)
         .background(Pal.solidBase)
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .onDisappear { generationTask?.cancel() }
+        .environment(\.locale, settings.effectiveLocale)
     }
 
     private func generate() {
@@ -96,7 +102,7 @@ struct GenerateKeyView: View {
             if saved {
                 dismiss()
             } else {
-                generationError = model.keyOpError ?? String(localized: "未能保存密钥，请重试。")
+                generationError = model.keyOpError ?? String(localized: "未能保存密钥，请重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                 model.keyOpError = nil
             }
         }
@@ -108,6 +114,7 @@ struct KeyDetailView: View {
     @ObservedObject var model: AppModel
     let key: SSHKey
     @ObservedObject private var theme = ThemeManager.shared
+    @ObservedObject private var settings = AppSettings.shared
     @Environment(\.dismiss) private var dismiss
     @State private var copied = false
     @State private var showDeploy = false
@@ -117,7 +124,7 @@ struct KeyDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            KeySheetHeader(title: "密钥详情", subtitle: "核对身份信息，复制或部署公钥", symbol: "key.fill")
+            KeySheetHeader(title: keySheetString("密钥详情"), subtitle: keySheetString("核对身份信息，复制或部署公钥"), symbol: "key.fill")
             Divider().overlay(Pal.border)
             ScrollViewReader { proxy in
                 ScrollView {
@@ -127,40 +134,45 @@ struct KeyDetailView: View {
                             .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         VStack(alignment: .leading, spacing: 14) {
-                            info("密钥类型", key.type.label)
-                            info("私钥口令", key.hasPassphrase ? String(localized: "已设置") : String(localized: "未设置"))
-                            info("创建时间", key.createdAt.formatted(date: .abbreviated, time: .shortened))
-                            if !key.comment.isEmpty { info("公钥注释", key.comment) }
+                            info(keySheetString("密钥类型"), key.type.label)
+                            info(keySheetString("私钥口令"), key.hasPassphrase ? String(localized: "已设置", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "未设置", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
+                            info(
+                                keySheetString("创建时间"),
+                                key.createdAt.formatted(
+                                    Date.FormatStyle(date: .abbreviated, time: .shortened)
+                                        .locale(settings.effectiveLocale)))
+                            if !key.comment.isEmpty { info(keySheetString("公钥注释"), key.comment) }
                         }
-                        KeyFormField(title: "指纹", hint: "用于核对密钥身份") {
-                            Text(key.fingerprint.isEmpty ? String(localized: "暂无指纹") : key.fingerprint)
+                        KeyFormField(title: keySheetString("指纹"), hint: keySheetString("用于核对密钥身份")) {
+                            Text(key.fingerprint.isEmpty ? String(localized: "暂无指纹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : key.fingerprint)
                                 .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.text)
                                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text("公钥").font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.text)
+                                Text(verbatim: keySheetString("公钥")).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.text)
                                 Spacer()
                                 Button(action: copyPublicKey) {
-                                    Label(copied ? "已复制" : "复制公钥", systemImage: copied ? "checkmark" : "doc.on.doc")
+                                    Label(copied ? String(localized: "已复制", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "复制公钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                                          systemImage: copied ? "checkmark" : "doc.on.doc")
                                 }
                                 .font(.system(size: 11)).buttonStyle(.plain).foregroundStyle(Pal.mauve)
                                 .pointerCursor().disabled(key.publicKey.isEmpty)
-                                .accessibilityLabel(copied ? "公钥已复制" : "复制完整公钥")
+                                .accessibilityLabel(copied ? String(localized: "公钥已复制", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "复制完整公钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                             }
-                            Text(key.publicKey.isEmpty ? String(localized: "暂无可用公钥") : key.publicKey)
+                            Text(key.publicKey.isEmpty ? String(localized: "暂无可用公钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : key.publicKey)
                                 .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.text)
                                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(12)
                                 .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
-                            Text("将完整公钥添加到服务器的 ~/.ssh/authorized_keys，即可授权对应私钥登录。")
+                            Text(verbatim: keySheetString("将完整公钥添加到服务器的 ~/.ssh/authorized_keys，即可授权对应私钥登录。"))
                                 .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         if let deletionError {
-                            KeySheetNotice(success: false, title: "未能删除密钥", detail: deletionError)
+                            KeySheetNotice(success: false, title: keySheetString("未能删除密钥"), detail: deletionError)
                                 .id("deletion-error")
                         }
                     }
@@ -175,11 +187,11 @@ struct KeyDetailView: View {
                     Image(systemName: "trash").frame(width: 20)
                 }
                 .buttonStyle(KeySheetButtonStyle(destructive: true))
-                .help("删除密钥…").accessibilityLabel("删除密钥，需要确认")
+                .help(keySheetString("删除密钥…")).accessibilityLabel(keySheetString("删除密钥，需要确认"))
                 Spacer(minLength: 4)
-                Button("关闭") { dismiss() }
+                Button(keySheetString("关闭")) { dismiss() }
                     .buttonStyle(KeySheetButtonStyle()).keyboardShortcut(.cancelAction)
-                Button("部署公钥…") { showDeploy = true }
+                Button(keySheetString("部署公钥…")) { showDeploy = true }
                     .buttonStyle(KeySheetButtonStyle(primary: true))
                     .disabled(key.publicKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -188,19 +200,20 @@ struct KeyDetailView: View {
         .background(Pal.solidBase)
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .sheet(isPresented: $showDeploy) { KeyDeploySheet(model: model, key: key) }
-        .alert("删除这把密钥？", isPresented: $confirmDelete) {
-            Button("取消", role: .cancel) { }
-            Button("删除密钥", role: .destructive) {
+        .alert(keySheetString("删除这把密钥？"), isPresented: $confirmDelete) {
+            Button(keySheetString("取消"), role: .cancel) { }
+            Button(keySheetString("删除密钥"), role: .destructive) {
                 if model.deleteKey(key) { dismiss() }
                 else {
-                    deletionError = model.keyOpError ?? String(localized: "密钥未能删除，请重试。")
+                    deletionError = model.keyOpError ?? String(localized: "密钥未能删除，请重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                     model.keyOpError = nil
                 }
             }
         } message: {
-            Text("将从此设备的密钥库删除“\(key.name)”及其私钥。使用它的主机需要重新选择登录凭据，服务器上的公钥不会被移除。此操作无法撤销。")
+            Text(verbatim: String(localized: "将从此设备的密钥库删除“\(key.name)”及其私钥。使用它的主机需要重新选择登录凭据，服务器上的公钥不会被移除。此操作无法撤销。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         .onDisappear { copyResetTask?.cancel() }
+        .environment(\.locale, settings.effectiveLocale)
     }
 
     private func copyPublicKey() {
@@ -213,9 +226,9 @@ struct KeyDetailView: View {
         }
     }
 
-    private func info(_ label: LocalizedStringKey, _ value: String) -> some View {
+    private func info(_ label: String, _ value: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            Text(label).font(.system(size: 12)).foregroundStyle(Pal.subtext).frame(width: 64, alignment: .leading)
+            Text(verbatim: label).font(.system(size: 12)).foregroundStyle(Pal.subtext).frame(width: 64, alignment: .leading)
             Text(value).font(.system(size: 12)).foregroundStyle(Pal.text)
                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -229,6 +242,7 @@ struct KeyDeploySheet: View {
     let key: SSHKey
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var theme = ThemeManager.shared
+    @ObservedObject private var settings = AppSettings.shared
     @State private var hostId = ""
     @State private var setAsLoginKey = true
     @State private var busy = false
@@ -242,7 +256,7 @@ struct KeyDeploySheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            KeySheetHeader(title: "部署公钥", subtitle: "将公钥添加到所选主机，授权密钥登录", symbol: "arrow.up.to.line")
+            KeySheetHeader(title: keySheetString("部署公钥"), subtitle: keySheetString("将公钥添加到所选主机，授权密钥登录"), symbol: "arrow.up.to.line")
             Divider().overlay(Pal.border)
             ScrollViewReader { proxy in
                 ScrollView {
@@ -250,7 +264,7 @@ struct KeyDeploySheet: View {
                         VStack(alignment: .leading, spacing: 7) {
                             Text(key.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Pal.text)
                             Text(key.type.label).font(.system(size: 11)).foregroundStyle(Pal.subtext)
-                            Text(key.fingerprint.isEmpty ? String(localized: "暂无指纹") : key.fingerprint)
+                            Text(key.fingerprint.isEmpty ? String(localized: "暂无指纹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : key.fingerprint)
                                 .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
                                 .textSelection(.enabled)
                         }
@@ -258,14 +272,14 @@ struct KeyDeploySheet: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12).background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
 
-                        KeyFormField(title: "目标主机", hint: "必选 · 使用该主机已保存的 SSH 登录凭据连接") {
+                        KeyFormField(title: keySheetString("目标主机"), hint: keySheetString("必选 · 使用该主机已保存的 SSH 登录凭据连接")) {
                             if eligibleHosts.isEmpty {
-                                KeySheetNote(symbol: "server.rack", text: "暂无可用的 SSH 主机，请先添加并配置主机连接。")
+                                KeySheetNote(symbol: "server.rack", text: keySheetString("暂无可用的 SSH 主机，请先添加并配置主机连接。"))
                             } else {
-                                ThemedDropdown(options: [(value: "", verbatim: String(localized: "选择目标主机"))] + eligibleHosts.map {
+                                ThemedDropdown(options: [(value: "", verbatim: String(localized: "选择目标主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))] + eligibleHosts.map {
                                     (value: $0.id, verbatim: "\($0.name) · \($0.ipOrHost)")
                                 }, selection: $hostId)
-                                .disabled(busy).accessibilityLabel("部署目标主机")
+                                .disabled(busy).accessibilityLabel(keySheetString("部署目标主机"))
                                 if let host = selectedHost, let ssh = host.ssh {
                                     Text("\(host.name)\n\(ssh.user)@\(host.ipOrHost):\(ssh.port)")
                                         .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
@@ -276,19 +290,19 @@ struct KeyDeploySheet: View {
 
                         Toggle(isOn: $setAsLoginKey) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("设为该主机的登录密钥").font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
-                                Text("仅在部署成功后更新主机配置，下一次连接生效。")
+                                Text(verbatim: keySheetString("设为该主机的登录密钥")).font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
+                                Text(verbatim: keySheetString("仅在部署成功后更新主机配置，下一次连接生效。"))
                                     .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                         .toggleStyle(.checkbox).tint(Pal.mauve).disabled(busy || eligibleHosts.isEmpty)
                         if setAsLoginKey && key.hasPassphrase {
-                            KeySheetNote(symbol: "lock", text: "这把私钥设有口令。部署后请在主机的连接设置中填写私钥口令，再连接验证。")
+                            KeySheetNote(symbol: "lock", text: keySheetString("这把私钥设有口令。部署后请在主机的连接设置中填写私钥口令，再连接验证。"))
                         }
-                        KeySheetNote(symbol: "info.circle", text: "仅添加公钥，不上传私钥。服务器现有的授权公钥会保留；部署后仍需实际连接验证登录。")
+                        KeySheetNote(symbol: "info.circle", text: keySheetString("仅添加公钥，不上传私钥。服务器现有的授权公钥会保留；部署后仍需实际连接验证登录。"))
                         if let result {
-                            KeySheetNotice(success: result.ok, title: result.ok ? "公钥已部署" : "部署未完成", detail: result.text)
+                            KeySheetNotice(success: result.ok, title: result.ok ? keySheetString("公钥已部署") : keySheetString("部署未完成"), detail: result.text)
                                 .id("deploy-result")
                         }
                     }
@@ -301,18 +315,19 @@ struct KeyDeploySheet: View {
             if busy {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.mini)
-                    Text("正在连接并部署，请等待结果…").font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                    Text(verbatim: keySheetString("正在连接并部署，请等待结果…")).font(.system(size: 11)).foregroundStyle(Pal.subtext)
                     Spacer()
                 }
                 .padding(.horizontal, 20).padding(.vertical, 10)
             }
             KeySheetFooter {
                 Spacer()
-                Button(result?.ok == true ? "完成" : "关闭") { dismiss() }
+                Button(result?.ok == true ? String(localized: "完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "关闭", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { dismiss() }
                     .buttonStyle(KeySheetButtonStyle())
                     .keyboardShortcut(.cancelAction).disabled(busy)
-                    .help(busy ? "部署完成后可关闭" : "关闭部署窗口")
-                Button(result?.ok == true ? "已部署" : result == nil ? "部署公钥" : "重试部署", action: deploy)
+                    .help(busy ? String(localized: "部署完成后可关闭", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "关闭部署窗口", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
+                Button(result?.ok == true ? String(localized: "已部署", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                       : result == nil ? String(localized: "部署公钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "重试部署", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: deploy)
                     .buttonStyle(KeySheetButtonStyle(primary: true)).disabled(!canDeploy)
             }
         }
@@ -327,6 +342,7 @@ struct KeyDeploySheet: View {
         }
         .onChange(of: hostId) { if !busy { result = nil } }
         .onChange(of: setAsLoginKey) { if !busy { result = nil } }
+        .environment(\.locale, settings.effectiveLocale)
     }
 
     /// 建目录与权限成功后才执行去重追加；公钥内容作为单引号参数。
@@ -349,20 +365,29 @@ struct KeyDeploySheet: View {
                 busy = false
                 if response.code == 0 {
                     if setKey && !model.associateKey(key.id, hostId: host.id) {
-                        let error = model.keyOpError ?? String(localized: "登录密钥配置未能保存。")
+                        let error = model.keyOpError ?? String(localized: "登录密钥配置未能保存。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                         model.keyOpError = nil
-                        result = (false, String(localized: "公钥已添加到 \(host.name)，但本机登录配置未保存：\(error)"))
+                        result = (false, String(localized: "公钥已添加到 \(host.name)，但本机登录配置未保存：\(error)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                         return
                     }
                     let detail = setKey
-                        ? String(localized: "已添加到 \(host.name) 的 authorized_keys，并设为该主机的登录密钥。")
-                        : String(localized: "已添加到 \(host.name) 的 authorized_keys，登录配置未更改。")
-                    result = (true, detail + (setKey && key.hasPassphrase ? String(localized: "\n请在该主机的连接设置中填写私钥口令后再连接。") : ""))
+                        ? String(localized: "已添加到 \(host.name) 的 authorized_keys，并设为该主机的登录密钥。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                        : String(localized: "已添加到 \(host.name) 的 authorized_keys，登录配置未更改。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                    result = (true, detail + (setKey && key.hasPassphrase ? String(localized: "\n请在该主机的连接设置中填写私钥口令后再连接。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : ""))
                 } else {
                     let err = String(decoding: response.stderr, as: UTF8.self)
                     let out = String(decoding: response.data, as: UTF8.self)
                     let detail = (err.isEmpty ? out : err).trimmingCharacters(in: .whitespacesAndNewlines)
-                    result = (false, String(localized: "目标：\(host.name)\n退出状态：\(response.code)\n\(detail.isEmpty ? String(localized: "服务器未返回错误说明，请检查连接凭据和远端权限。") : detail)"))
+                    let fallback = String(
+                        localized: "服务器未返回错误说明，请检查连接凭据和远端权限。",
+                        bundle: AppSettings.localizationBundle,
+                        locale: AppSettings.activeLocale
+                    )
+                    result = (false, String(
+                        localized: "目标：\(host.name)\n退出状态：\(response.code)\n\(detail.isEmpty ? fallback : detail)",
+                        bundle: AppSettings.localizationBundle,
+                        locale: AppSettings.activeLocale
+                    ))
                 }
             }
         }
@@ -370,8 +395,8 @@ struct KeyDeploySheet: View {
 }
 
 private struct KeySheetHeader: View {
-    let title: LocalizedStringKey
-    let subtitle: LocalizedStringKey
+    let title: String
+    let subtitle: String
     let symbol: String
 
     var body: some View {
@@ -380,8 +405,8 @@ private struct KeySheetHeader: View {
                 .frame(width: 38, height: 38)
                 .background(Pal.mauve.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 5) {
-                Text(title).font(.system(size: 17, weight: .semibold)).foregroundStyle(Pal.textBright)
-                Text(subtitle).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                Text(verbatim: title).font(.system(size: 17, weight: .semibold)).foregroundStyle(Pal.textBright)
+                Text(verbatim: subtitle).font(.system(size: 11)).foregroundStyle(Pal.subtext)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -391,15 +416,15 @@ private struct KeySheetHeader: View {
 }
 
 private struct KeyFormField<Content: View>: View {
-    let title: LocalizedStringKey
-    let hint: LocalizedStringKey
+    let title: String
+    let hint: String
     @ViewBuilder var content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.text)
+            Text(verbatim: title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.text)
             content
-            Text(hint).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+            Text(verbatim: hint).font(.system(size: 11)).foregroundStyle(Pal.subtext)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -407,12 +432,12 @@ private struct KeyFormField<Content: View>: View {
 
 private struct KeySheetNote: View {
     let symbol: String
-    let text: LocalizedStringKey
+    let text: String
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbol).font(.system(size: 12)).foregroundStyle(Pal.overlay)
-            Text(text).font(.system(size: 11)).foregroundStyle(Pal.subtext)
+            Text(verbatim: text).font(.system(size: 11)).foregroundStyle(Pal.subtext)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -420,12 +445,16 @@ private struct KeySheetNote: View {
 
 private struct KeySheetNotice: View {
     let success: Bool
-    let title: LocalizedStringKey
+    let title: String
     let detail: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Label(title, systemImage: success ? "checkmark.circle.fill" : "exclamationmark.circle")
+            Label {
+                Text(verbatim: title)
+            } icon: {
+                Image(systemName: success ? "checkmark.circle.fill" : "exclamationmark.circle")
+            }
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(success ? Pal.green : Pal.red)
             Text(detail).font(.system(size: 11)).foregroundStyle(Pal.text)

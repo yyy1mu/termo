@@ -48,7 +48,7 @@ struct PortForwardView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Pal.base)
+        // 不刷底色：右栏容器已是 Pal.mantle（CompanionPanel 统一供给），再盖 base 会比相邻面板暗半档。
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .overlay {
             // 无弹窗时整层不吃点击：避免 .transition 淡出期间残留的全屏命中层短暂挡住下方点击。
@@ -75,7 +75,7 @@ struct PortForwardView: View {
     /// 删除确认弹窗（含「不再询问」复用设置里的自定义 checkbox；勾选只在本次运行生效）。
     @ViewBuilder
     private func deleteConfirm(_ rule: ForwardRule) -> some View {
-        let name = rule.name.isEmpty ? (rule.kind.title + String(localized: "转发")) : rule.name
+        let name = rule.name.isEmpty ? (rule.kind.title + String(localized: "转发", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) : rule.name
         ZStack {
             Color.black.opacity(0.35).ignoresSafeArea()
                 .onTapGesture { pendingDelete = nil }
@@ -133,7 +133,7 @@ struct PortForwardView: View {
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                Text(isNew ? "新建规则" : "编辑规则")
+                Text(isNew ? String(localized: "新建规则", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "编辑规则", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.text)
             } else {
                 HStack(spacing: 6) {
@@ -170,9 +170,9 @@ struct PortForwardView: View {
             emptyState
         } else if filteredRules.isEmpty {
             PanelEmptyState(
-                symbol: "magnifyingglass", title: String(localized: "没有匹配的规则"),
-                detail: String(localized: "可以按名称、地址或端口搜索。"),
-                actionTitle: String(localized: "清除搜索"), action: { query = "" })
+                symbol: "magnifyingglass", title: String(localized: "没有匹配的规则", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                detail: String(localized: "可以按名称、地址或端口搜索。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                actionTitle: String(localized: "清除搜索", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: { query = "" })
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
@@ -196,9 +196,9 @@ struct PortForwardView: View {
     private var emptyState: some View {
         PanelEmptyState(
             symbol: "arrow.left.arrow.right",
-            title: String(localized: "还没有转发规则"),
-            detail: String(localized: "通过 SSH 隧道安全访问服务器内网服务，无需在服务器安装任何东西。"),
-            actionTitle: String(localized: "新建规则"),
+            title: String(localized: "还没有转发规则", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+            detail: String(localized: "通过 SSH 隧道安全访问服务器内网服务，无需在服务器安装任何东西。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+            actionTitle: String(localized: "新建规则", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
             action: startNew
         )
     }
@@ -228,7 +228,7 @@ private struct ForwardRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 8) {
-                Text(rule.name.isEmpty ? rule.kind.title + String(localized: "转发") : rule.name)
+                Text(rule.name.isEmpty ? rule.kind.title + String(localized: "转发", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : rule.name)
                     .font(.system(size: 13, weight: .semibold)).foregroundStyle(Pal.text)
                     .lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
                 Menu {
@@ -256,7 +256,7 @@ private struct ForwardRow: View {
                 Spacer(minLength: 4)
                 Button(action: onToggle) {
                     Label(
-                        enabled ? "停止" : "启动",
+                        enabled ? String(localized: "停止", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "启动", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                         systemImage: enabled ? "stop.fill" : "play.fill"
                     )
                     .font(.system(size: 11, weight: .medium))
@@ -285,10 +285,10 @@ private struct ForwardRow: View {
     }
     private var statusText: String {
         switch status {
-        case .stopped: return String(localized: "已停止")
-        case .starting: return String(localized: "正在连接")
-        case .active: return String(localized: "运行中")
-        case .failed: return enabled ? String(localized: "等待重连") : String(localized: "连接失败")
+        case .stopped: return String(localized: "已停止", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .starting: return String(localized: "正在连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .active: return String(localized: "运行中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .failed: return enabled ? String(localized: "等待重连", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "连接失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -302,16 +302,18 @@ private struct ForwardRoute: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             endpoint(
-                kind == .remote ? String(localized: "服务器监听") : String(localized: "本机监听"),
+                kind == .remote ? String(localized: "服务器监听", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "本机监听", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                 address: listener, symbol: kind == .remote ? "server.rack" : "laptopcomputer")
             HStack(spacing: 8) {
                 Image(systemName: "arrow.down").frame(width: 16)
-                Text(kind == .dynamic ? "SOCKS5 · 通过服务器访问网络" : "通过 SSH 隧道")
+                Text(kind == .dynamic
+                     ? String(localized: "SOCKS5 · 通过服务器访问网络", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                     : String(localized: "通过 SSH 隧道", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
             .font(.system(size: 10)).foregroundStyle(Pal.overlay)
             if kind != .dynamic {
                 endpoint(
-                    kind == .remote ? String(localized: "本机侧目标") : String(localized: "服务器侧目标"),
+                    kind == .remote ? String(localized: "本机侧目标", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "服务器侧目标", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                     address: destination, symbol: "arrow.turn.down.right")
             }
         }
@@ -366,7 +368,7 @@ private struct ForwardRuleForm: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                labeled(String(localized: "类型"), hint: kind.hint) {
+                labeled(String(localized: "类型", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), hint: kind.hint) {
                     SegmentedControl(
                         options: ForwardKind.allCases.map { (value: $0, verbatim: $0.title) },
                         selection: $kind
@@ -376,20 +378,20 @@ private struct ForwardRuleForm: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                labeled(String(localized: "别名（可选）"), hint: String(localized: "便于识别，如「生产库」。留空则显示类型。")) {
+                labeled(String(localized: "别名（可选）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), hint: String(localized: "便于识别，如「生产库」。留空则显示类型。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) {
                     ThemedTextField(placeholder: "可选", text: $name).frame(maxWidth: .infinity)
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
                     labeled(
-                        kind == .remote ? String(localized: "服务器监听地址") : String(localized: "本机监听地址"),
-                        hint: String(localized: "监听端绑定的网卡地址。仅本机访问填 127.0.0.1；开放给局域网填 0.0.0.0。")
+                        kind == .remote ? String(localized: "服务器监听地址", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "本机监听地址", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                        hint: String(localized: "监听端绑定的网卡地址。仅本机访问填 127.0.0.1；开放给局域网填 0.0.0.0。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                     ) {
                         ThemedTextField(placeholder: "127.0.0.1", text: $bind).frame(maxWidth: .infinity)
                     }
                     labeled(
-                        kind == .dynamic ? String(localized: "代理端口") : String(localized: "监听端口"),
-                        hint: String(localized: "在监听端开放的端口，连接它的流量进入隧道。")
+                        kind == .dynamic ? String(localized: "代理端口", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "监听端口", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                        hint: String(localized: "在监听端开放的端口，连接它的流量进入隧道。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                     ) {
                         ThemedTextField(placeholder: "如 8080", text: $listen).frame(maxWidth: .infinity)
                     }
@@ -398,13 +400,13 @@ private struct ForwardRuleForm: View {
                 if kind != .dynamic {
                     VStack(alignment: .leading, spacing: 12) {
                         labeled(
-                            kind == .remote ? String(localized: "本机侧目标主机") : String(localized: "服务器侧目标主机"),
+                            kind == .remote ? String(localized: "本机侧目标主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "服务器侧目标主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                             hint: destHostHint
                         ) {
                             ThemedTextField(placeholder: "localhost", text: $destHost).frame(
                                 maxWidth: .infinity)
                         }
-                        labeled(String(localized: "目标端口"), hint: String(localized: "目标服务监听的端口。")) {
+                        labeled(String(localized: "目标端口", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), hint: String(localized: "目标服务监听的端口。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) {
                             ThemedTextField(placeholder: "如 3306", text: $destPort).frame(maxWidth: .infinity)
                         }
                     }
@@ -431,22 +433,22 @@ private struct ForwardRuleForm: View {
                 }
                 .padding(12)
             }
-            .background(Pal.solidBase)
+            .background(Pal.solidMantle)
         }
     }
 
     private var directionHint: String {
         switch kind {
-        case .local: return String(localized: "通过本机端口访问服务器侧的服务。")
-        case .remote: return String(localized: "通过服务器端口访问本机侧的服务。")
-        case .dynamic: return String(localized: "在本机建立 SOCKS5 代理，流量从服务器转出。")
+        case .local: return String(localized: "通过本机端口访问服务器侧的服务。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .remote: return String(localized: "通过服务器端口访问本机侧的服务。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .dynamic: return String(localized: "在本机建立 SOCKS5 代理，流量从服务器转出。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
     private var destHostHint: String {
         kind == .remote
-            ? String(localized: "从本机视角解析的地址。localhost 指本机自身。")
-            : String(localized: "从服务器视角解析的地址。localhost 指服务器自身——这正是访问只监听内网的远程数据库的用法。")
+            ? String(localized: "从本机视角解析的地址。localhost 指本机自身。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            : String(localized: "从服务器视角解析的地址。localhost 指服务器自身——这正是访问只监听内网的远程数据库的用法。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     }
 
     private var previewLine: some View {

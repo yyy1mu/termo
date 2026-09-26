@@ -1,6 +1,7 @@
 import XCTest
 
 @testable import Termo
+import TermoCore
 
 @MainActor
 final class TransferCoordinatorTests: XCTestCase {

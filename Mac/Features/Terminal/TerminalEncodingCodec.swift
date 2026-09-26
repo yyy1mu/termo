@@ -4,7 +4,7 @@ import Foundation
 final class TerminalEncodingCodec: @unchecked Sendable {
     struct UnsupportedEncoding: LocalizedError {
         let name: String
-        var errorDescription: String? { String(localized: "当前系统不支持终端编码：\(name)") }
+        var errorDescription: String? { String(localized: "当前系统不支持终端编码：\(name)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
     }
 
     private let decoder: OpaquePointer?

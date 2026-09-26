@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import TermoCore
 
 struct PendingHostKey: Identifiable {
     let id: UUID

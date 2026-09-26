@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import TermoCore
 
 extension AppModel {
     /// 取得（或惰性创建）某主机的端口转发管理器。

@@ -115,7 +115,7 @@ final class AIChatState: ObservableObject {
         self.hostId = hostId
         if let hostId, AICommandService.shared.interruptedHostIDs.contains(hostId) {
             messages.append(AIMessage(role: .system, content: String(localized:
-                "上次运行有命令未确认结束。Termo 不会自动恢复或重试，请先核对远端状态。")))
+                "上次运行有命令未确认结束。Termo 不会自动恢复或重试，请先核对远端状态。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
         }
     }
 
@@ -201,11 +201,17 @@ final class AIChatState: ObservableObject {
             .suffix(max(1, min(lines, 100))).joined(separator: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !selected.isEmpty else {
-            errorText = "此终端还没有可截取的输出。"
+            errorText = String(
+                localized: "此终端还没有可截取的输出。",
+                bundle: AppSettings.localizationBundle,
+                locale: AppSettings.activeLocale)
             return
         }
         capturedContext = selected
-        capturedSource = "\(tab.title) · 最近 \(min(lines, 100)) 行"
+        capturedSource = String(
+            localized: "\(tab.title) · 最近 \(min(lines, 100)) 行",
+            bundle: AppSettings.localizationBundle,
+            locale: AppSettings.activeLocale)
         errorText = nil
     }
 
@@ -278,12 +284,12 @@ final class AIChatState: ObservableObject {
     private func configuredConnection() -> (LLMProfile, String)? {
         let profile = LLMSettingsStore.load()
         guard LLMSettingsStore.hasEndpoint(profile) else {
-            errorText = String(localized: "请先在「设置 → AI 助手」里完成 LLM 配置（Base URL / API Key / 模型）。")
+            errorText = String(localized: "请先在「设置 → AI 助手」里完成 LLM 配置（Base URL / API Key / 模型）。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             return nil
         }
         let key = LLMSettingsStore.apiKey
         guard !key.isEmpty else {
-            errorText = String(localized: "未取得 AI API Key，请在「设置 → AI 助手」中检查钥匙串授权或重新保存。")
+            errorText = String(localized: "未取得 AI API Key，请在「设置 → AI 助手」中检查钥匙串授权或重新保存。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             return nil
         }
         return (profile, key)
@@ -355,7 +361,7 @@ final class AIChatState: ObservableObject {
                         let tool = AIToolRequest(id: UUID(), version: 1,
                             callID: UUID().uuidString, command: proposal.command,
                             purpose: proposal.description?.isEmpty == false
-                                ? proposal.description! : String(localized: "执行建议的主机命令"),
+                                ? proposal.description! : String(localized: "执行建议的主机命令", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                             target: target, timeout: 60, expiresAt: Date().addingTimeInterval(600))
                         commandService.register(tool)
                         messages[index].toolRequest = tool
@@ -363,7 +369,7 @@ final class AIChatState: ObservableObject {
                 }
                 if let result = messages.first(where: { $0.id == request.responseID }),
                    result.content.isEmpty && result.toolRequest == nil && result.responseError == nil {
-                    failResponse(id: request.responseID, message: String(localized: "模型未返回内容，请重试。"))
+                    failResponse(id: request.responseID, message: String(localized: "模型未返回内容，请重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 }
             } catch is CancellationError {
                 guard operationID == token else { return }

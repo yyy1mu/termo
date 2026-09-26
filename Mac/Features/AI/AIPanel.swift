@@ -48,10 +48,11 @@ struct AIPanel: View {
     private var emptyHint: some View {
         PanelEmptyState(
             symbol: "sparkles",
-            title: chat.mode == .general ? "直接提问" : "描述要完成的任务",
-            detail: chat.mode == .general ? "直接提问，或主动附带终端输出进行分析；不会执行命令。"
-                : "先提出命令，经你确认后独立执行，再分析结果。",
-            actionTitle: String(localized: "AI 设置"),
+            title: chat.mode == .general ? String(localized: "直接提问", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "描述要完成的任务", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+            detail: chat.mode == .general
+                ? String(localized: "直接提问，或主动附带终端输出进行分析；不会执行命令。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                : String(localized: "先提出命令，经你确认后独立执行，再分析结果。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+            actionTitle: String(localized: "AI 设置", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
             action: {
                 model.showSettings = true; model.settingsTab = .ai
             },
@@ -123,7 +124,7 @@ struct AIPanel: View {
             if chat.mode == .agent {
                 HStack(spacing: 6) {
                     Image(systemName: "server.rack").foregroundStyle(Pal.mauve)
-                    Text(chat.hostId.flatMap { model.host($0)?.name } ?? "未选择 SSH 主机")
+                    Text(chat.hostId.flatMap { model.host($0)?.name } ?? String(localized: "未选择 SSH 主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                         .lineLimit(1).truncationMode(.middle)
                     Spacer(minLength: 4)
                     Text("逐条确认").foregroundStyle(Pal.overlay)
@@ -156,7 +157,9 @@ struct AIPanel: View {
                     HStack(spacing: 6) {
                         Text("待发送 · \(source)").lineLimit(1).truncationMode(.middle)
                         Spacer(minLength: 0)
-                        Button(showsContextPreview ? "收起" : "预览") { showsContextPreview.toggle() }
+                        Button(showsContextPreview ? String(localized: "收起", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "预览", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) {
+                            showsContextPreview.toggle()
+                        }
                         Button("移除") { chat.removeCapturedContext(); showsContextPreview = false }
                     }
                     .buttonStyle(.plain)
@@ -182,8 +185,10 @@ struct AIPanel: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles").font(.system(size: 10)).foregroundStyle(Pal.mauve)
-                Text(msg.streaming ? (msg.content.isEmpty ? "等待回复" : "正在生成")
-                    : (msg.responseError != nil ? "回复未完成" : (msg.interrupted ? "已停止回复" : "AI 助手")))
+                Text(msg.streaming
+                     ? (msg.content.isEmpty ? String(localized: "等待回复", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "正在生成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
+                     : (msg.responseError != nil ? String(localized: "回复未完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                        : (msg.interrupted ? String(localized: "已停止回复", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "AI 助手", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))))
                     .font(.system(size: 10, weight: .medium)).foregroundStyle(Pal.overlay)
                 if msg.streaming { ProgressView().controlSize(.mini) }
                 Spacer(minLength: 4)
@@ -205,7 +210,7 @@ struct AIPanel: View {
                     .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
             }
             if !msg.streaming, chat.retryableResponseID == msg.id {
-                miniAction("arrow.clockwise", msg.interrupted ? String(localized: "重新生成") : String(localized: "重试回复")) {
+                miniAction("arrow.clockwise", msg.interrupted ? String(localized: "重新生成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "重试回复", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) {
                     chat.retryResponse(model: model)
                     if chat.sending { latestMessageRequest = UUID() }
                 }
@@ -303,22 +308,22 @@ struct AIPanel: View {
     private func executionStatus(_ msg: AIMessage) -> (title: String, detail: String, color: Color) {
         switch msg.executionState {
         case .connecting:
-            return (String(localized: "正在连接"), String(localized: "准备独立 SSH 通道，命令尚未发送。"), Pal.mauve)
+            return (String(localized: "正在连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), String(localized: "准备独立 SSH 通道，命令尚未发送。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.mauve)
         case .waiting:
-            return (String(localized: "执行中"), String(localized: "收起面板或关闭终端，任务仍会继续。"), Pal.mauve)
+            return (String(localized: "执行中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), String(localized: "收起面板或关闭终端，任务仍会继续。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.mauve)
         case .completed:
             let code = msg.exitCode ?? -1
-            return (String(localized: "已结束 · 退出码 \(code)"), String(localized: "已收到远端退出状态，输出将交给 AI 分析。"), code == 0 ? Pal.green : Pal.red)
+            return (String(localized: "已结束 · 退出码 \(code)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), String(localized: "已收到远端退出状态，输出将交给 AI 分析。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), code == 0 ? Pal.green : Pal.red)
         case .unknown:
-            return (String(localized: "结果未确认"), String(localized: "连接结束但未确认退出状态；不会自动重试。"), Pal.yellow)
+            return (String(localized: "结果未确认", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), String(localized: "连接结束但未确认退出状态；不会自动重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.yellow)
         case .timedOut:
-            return (String(localized: "执行超时"), String(localized: "已关闭本次通道；远端副作用可能已经发生，不会自动重试。"), Pal.yellow)
+            return (String(localized: "执行超时", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), String(localized: "已关闭本次通道；远端副作用可能已经发生，不会自动重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.yellow)
         case .stopped:
-            return (String(localized: "已请求停止"), String(localized: "仅取消本次操作，已发生的远端改动不会撤销。"), Pal.overlay)
+            return (String(localized: "已请求停止", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), String(localized: "仅取消本次操作，已发生的远端改动不会撤销。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.overlay)
         case .failed:
-            return (String(localized: "未执行"), String(localized: "连接或执行前校验失败，需要重新申请命令。"), Pal.red)
+            return (String(localized: "未执行", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), String(localized: "连接或执行前校验失败，需要重新申请命令。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.red)
         case nil:
-            return (String(localized: "主机命令"), "", Pal.overlay)
+            return (String(localized: "主机命令", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), "", Pal.overlay)
         }
     }
 
@@ -347,8 +352,9 @@ struct AIPanel: View {
                     .padding(.horizontal, 6).padding(.vertical, 3)
                 }
                 HStack(spacing: 8) {
-                    Text(chat.phase == .waitingForCommand ? "命令执行中…"
-                        : (chat.compactingContext ? "正在整理历史上下文…" : chat.sending ? "AI 正在回复…" : "↵ 发送 · ⇧↵ 换行"))
+                    Text(chat.phase == .waitingForCommand ? String(localized: "命令执行中…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                        : (chat.compactingContext ? String(localized: "正在整理历史上下文…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                           : chat.sending ? String(localized: "AI 正在回复…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "↵ 发送 · ⇧↵ 换行", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
                         .font(.system(size: 10)).foregroundStyle(Pal.overlay)
                     Spacer(minLength: 0)
                     if chat.compactedContextCount > 0 {
@@ -361,12 +367,12 @@ struct AIPanel: View {
                         iconBarButton(
                             "stop.fill", active: true, tint: Pal.red,
                             help: chat.phase == .waitingForCommand
-                                ? String(localized: "停止本次命令") : String(localized: "停止回复")
+                                ? String(localized: "停止本次命令", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "停止回复", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                         ) { chat.cancel() }
                     } else {
                         iconBarButton(
                             "arrow.up", active: chat.canSend, tint: Pal.mauve,
-                            help: String(localized: "发送")
+                            help: String(localized: "发送", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                         ) { sendMessage() }
                         .disabled(!chat.canSend)
                     }
@@ -403,7 +409,7 @@ struct AIPanel: View {
                     .onEnded { _ in dragBaseHeight = nil }
             )
             .onTapGesture(count: 2) { manualInputHeight = nil }
-            .help(String(localized: "拖动调整输入区高度（双击恢复自动）"))
+            .help(String(localized: "拖动调整输入区高度（双击恢复自动）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 
     /// 输入区统一规格的图标按钮（30x30）：active 时高亮主色。
@@ -429,9 +435,9 @@ struct AIPanel: View {
 
     private func contextLabel(_ attachment: AIMessage.ContextAttachment) -> String {
         switch attachment {
-        case .terminalOutput: String(localized: "已附带终端输出")
-        case .hostInfo: String(localized: "已附带主机信息 · 暂无终端输出")
-        case .none: String(localized: "未附带终端上下文")
+        case .terminalOutput: String(localized: "已附带终端输出", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .hostInfo: String(localized: "已附带主机信息 · 暂无终端输出", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .none: String(localized: "未附带终端上下文", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
@@ -460,7 +466,7 @@ struct AICopyButton: View {
                 Image(systemName: copied == true ? "checkmark" : "doc.on.doc")
                     .font(.system(size: 10))
                 if let copied {
-                    Text(copied ? "已复制" : "复制失败").font(.system(size: 11))
+                    Text(copied ? String(localized: "已复制", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "复制失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)).font(.system(size: 11))
                 } else {
                     Text(title).font(.system(size: 11))
                 }
@@ -690,7 +696,9 @@ private struct AIApprovalCard: View {
                     Label("执行申请", systemImage: "checkmark.shield")
                         .font(.system(size: 11, weight: .semibold)).foregroundStyle(Pal.textBright)
                     Spacer(minLength: 2)
-                    Text(request.decision == .pending ? (expired ? "已失效" : "等待你确认") : decisionTitle)
+                    Text(request.decision == .pending
+                         ? (expired ? String(localized: "已失效", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "等待你确认", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
+                         : decisionTitle)
                         .font(.system(size: 10)).foregroundStyle(Pal.mauve)
                 }
                 Text(request.purpose).font(.system(size: 12)).foregroundStyle(Pal.text)
@@ -749,10 +757,10 @@ private struct AIApprovalCard: View {
 
     private var decisionTitle: String {
         switch request.decision {
-        case .pending: String(localized: "等待你确认")
-        case .approved: String(localized: "已批准一次")
-        case .rejected: String(localized: "已拒绝")
-        case .expired: String(localized: "已失效")
+        case .pending: String(localized: "等待你确认", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .approved: String(localized: "已批准一次", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .rejected: String(localized: "已拒绝", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .expired: String(localized: "已失效", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }

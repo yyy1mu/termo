@@ -23,8 +23,8 @@ struct Sidebar: View {
         }
         var label: String {
             switch self {
-            case .servers: return String(localized: "服务器")
-            case .sessions: return String(localized: "会话")
+            case .servers: return String(localized: "服务器", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            case .sessions: return String(localized: "会话", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
         }
     }
@@ -68,9 +68,9 @@ struct Sidebar: View {
                 } else {
                     ScrollView { hostList }.padding(.top, 6)
                 }
-                // 服务器段底部固定入口：新建服务器 + 本地终端（本地在服务器之下）
+                // 服务器段底部固定入口：添加主机 + 本地终端（本地在服务器之下）
                 VStack(alignment: .leading, spacing: 2) {
-                    sidebarActionRow("plus.square", "新建服务器") { model.showAddHost = true }
+                    sidebarActionRow("plus.square", "添加主机") { model.showAddHost = true }
                     if AppEnv.localTerminalEnabled {
                         sidebarActionRow("terminal", "本地终端") { model.openLocalTerminal() }
                     }
@@ -91,7 +91,7 @@ struct Sidebar: View {
     }
 
     /// 侧栏动作行：图标 + 文字，主机列表同款行高。
-    private func sidebarActionRow(_ symbol: String, _ title: String, action: @escaping () -> Void) -> some View {
+    private func sidebarActionRow(_ symbol: String, _ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 9) {
                 Image(systemName: symbol)
@@ -130,9 +130,9 @@ struct Sidebar: View {
     private var segmentSubtitle: String {
         switch segment {
         case .servers:
-            return hostQuery.isEmpty ? String(localized: "\(model.hosts.count) 台主机")
-                : String(localized: "找到 \(filteredHosts.count) / \(model.hosts.count) 台主机")
-        case .sessions: return String(localized: "\(workspaceTabs.count) 个已打开的工作区")
+            return hostQuery.isEmpty ? String(localized: "\(model.hosts.count) 台主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                : String(localized: "找到 \(filteredHosts.count) / \(model.hosts.count) 台主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .sessions: return String(localized: "\(workspaceTabs.count) 个已打开的工作区", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 
@@ -145,7 +145,7 @@ struct Sidebar: View {
         guard !query.isEmpty else { return workspaceTabs }
         return workspaceTabs.filter { tab in
             let host = model.host(tab.hostId)
-            return [tab.title, host?.name ?? (tab.hostId == nil ? String(localized: "本地终端") : ""), host?.addr ?? ""]
+            return [tab.title, host?.name ?? (tab.hostId == nil ? String(localized: "本地终端", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : ""), host?.addr ?? ""]
                 .contains { $0.localizedStandardContains(query) }
         }
     }
@@ -156,12 +156,14 @@ struct Sidebar: View {
                 VStack(spacing: 10) {
                     Spacer().frame(height: 40)
                     Image(systemName: "terminal").font(.system(size: 26)).foregroundStyle(Pal.overlay)
-                    Text(workspaceTabs.isEmpty ? "还没有打开的会话" : "无匹配会话")
+                    Text(workspaceTabs.isEmpty ? String(localized: "还没有打开的会话", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "无匹配会话", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                         .font(.system(size: 13)).foregroundStyle(Pal.subtext)
-                    Text(workspaceTabs.isEmpty ? "终端和文件工作区都会出现在这里" : "试试会话名称、主机名或地址")
+                    Text(workspaceTabs.isEmpty
+                         ? String(localized: "终端和文件工作区都会出现在这里", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                         : String(localized: "试试会话名称、主机名或地址", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                         .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                         .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
-                    Button(workspaceTabs.isEmpty ? "查看服务器" : "清除搜索") {
+                    Button(workspaceTabs.isEmpty ? String(localized: "查看服务器", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "清除搜索", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) {
                         if workspaceTabs.isEmpty { segment = .servers } else { sessionQuery = "" }
                     }
                     .buttonStyle(.plain).foregroundStyle(Pal.mauve).font(.system(size: 11))
@@ -182,16 +184,11 @@ struct Sidebar: View {
         }
     }
 
-    /// 远程会话显示主机与连接状态，本地会话标明设备；点击切换到对应标签。
+    /// 远程会话显示主机名，本地会话只留标题；点击切换到对应标签。
     private func sessionRow(_ tab: TabItem) -> some View {
         let isActive = model.activeTabId == tab.id
         let isLocal = tab.hostId == nil
-        let hostName = model.host(tab.hostId)?.name ?? String(localized: "主机不可用")
-        // 连接状态：live 绿 / dropped 黄 / 无记录灰
-        let phase = model.terminalConn(for: tab.id)?.phase
-        let statusColor: Color = phase == .live ? Pal.green : (phase == .dropped ? Pal.yellow : Pal.overlay)
-        let status = tab.kind == .files ? String(localized: "文件工作区") : isLocal ? String(localized: "此 Mac") : phase == .live ? String(localized: "已连接")
-            : phase == .dropped ? String(localized: "已断开") : String(localized: "等待连接")
+        let hostName = model.host(tab.hostId)?.name ?? String(localized: "主机不可用", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         return Button {
             model.selectTab(tab.id)
         } label: {
@@ -209,7 +206,6 @@ struct Sidebar: View {
                             .lineLimit(1).privacyBlur(model.privacyMode && !isLocal)
                             .help(model.privacyMode ? "" : hostName)
                     }
-                    Text(status).font(.system(size: 10)).foregroundStyle(isLocal ? Pal.overlay : statusColor)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -245,12 +241,12 @@ struct Sidebar: View {
     /// 主机面板底部角标行（对齐 Termark 底栏）：设置 / 主题切换 / 脱敏。
     private var hostsBottomBar: some View {
         HStack(spacing: 8) {
-            cornerIcon("gearshape", help: String(localized: "设置")) { model.showSettings = true }
-            cornerIcon(theme.isDark ? "sun.max" : "moon", help: String(localized: "切换主题")) {
+            cornerIcon("gearshape", help: String(localized: "设置", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { model.showSettings = true }
+            cornerIcon(theme.isDark ? "sun.max" : "moon", help: String(localized: "切换主题", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) {
                 theme.mode = theme.isDark ? .light : .dark
             }
             cornerIcon(model.privacyMode ? "eye.slash" : "eye", help: model.privacyMode
-                ? String(localized: "显示主机信息") : String(localized: "隐藏主机名称和地址")) {
+                ? String(localized: "显示主机信息", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "隐藏主机名称和地址", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) {
                 model.privacyMode.toggle()
             }
             Spacer()
@@ -279,7 +275,7 @@ struct Sidebar: View {
         let query = segment == .servers ? $model.query : $sessionQuery
         return HStack(spacing: 7) {
             Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(Pal.overlay)
-            TextField(segment == .servers ? "搜索主机或分组…" : "搜索会话…", text: query)
+            TextField(segment == .servers ? String(localized: "搜索主机或分组…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "搜索会话…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), text: query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundStyle(Pal.text)
@@ -306,7 +302,7 @@ struct Sidebar: View {
             Spacer().frame(height: 40)
             Image(systemName: model.hosts.isEmpty ? "server.rack" : "magnifyingglass")
                 .font(.system(size: 26)).foregroundStyle(Pal.overlay)
-            Text(model.hosts.isEmpty ? "还没有主机" : "无匹配主机")
+            Text(model.hosts.isEmpty ? String(localized: "还没有主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "无匹配主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 .font(.system(size: 13)).foregroundStyle(Pal.subtext)
             if model.hosts.isEmpty {
                 Button { model.showAddHost = true } label: {
@@ -356,7 +352,7 @@ struct Sidebar: View {
                     .foregroundStyle(Pal.overlay)
                     .frame(width: 11)
                     .rotationEffect(.degrees(collapsed ? -90 : 0))
-                Text(group.isEmpty ? String(localized: "未分组") : group)
+                Text(verbatim: group.isEmpty ? String(localized: "未分组", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : group)
                     .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                     .lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 0)
@@ -392,14 +388,11 @@ struct HostRow: View {
                     Text(host.name).font(.system(size: 13)).foregroundStyle(Pal.text)
                         .lineLimit(2).truncationMode(.middle)
                         .privacyBlur(model.privacyMode)
-                    Text(host.ipOrHost)
-                        .font(.system(size: 11)).foregroundStyle(Pal.subtext)
-                        .lineLimit(1).truncationMode(.middle)
-                        .privacyBlur(model.privacyMode)
                     HStack(spacing: 6) {
-                        Text(host.status == .online ? "可达" : host.status == .offline ? "不可达" : "待检测")
-                            .font(.system(size: 10))
-                            .foregroundStyle(host.status == .online ? Pal.green : host.status == .offline ? Pal.red : Pal.overlay)
+                        Text(host.ipOrHost)
+                            .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+                            .lineLimit(1).truncationMode(.middle)
+                            .privacyBlur(model.privacyMode)
                         Spacer(minLength: 0)
                         if host.status == .online, let ms = host.latencyMs {
                             Text("\(ms) ms").font(.system(size: 10, design: .monospaced))

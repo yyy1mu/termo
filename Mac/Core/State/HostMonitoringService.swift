@@ -1,4 +1,5 @@
 import Foundation
+import TermoCore
 
 /// The lifecycle surface needed by the owner; tests substitute an in-memory sampler without SSH.
 @MainActor

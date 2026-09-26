@@ -94,11 +94,11 @@ struct WelcomeView: View {
                 .foregroundStyle(Pal.subtext)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 10) {
-                welcomeButton("plus", String(localized: "添加主机"), primary: true) {
+                welcomeButton("plus", String(localized: "添加主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), primary: true) {
                     model.showAddHost = true
                 }
                 if AppEnv.localTerminalEnabled {   // MAS 沙盒下隐藏本地终端入口
-                    welcomeButton("terminal", String(localized: "新建本地终端"), primary: false) {
+                    welcomeButton("terminal", String(localized: "新建本地终端", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), primary: false) {
                         model.openLocalTerminal()
                     }
                 }

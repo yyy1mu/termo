@@ -47,7 +47,7 @@ struct AIMessageMarkdown: View, Equatable {
     private func codeBlock(_ configuration: CodeBlockConfiguration) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
-                Text(configuration.language?.uppercased() ?? String(localized: "代码"))
+                Text(configuration.language?.uppercased() ?? String(localized: "代码", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     .font(.system(size: 9, weight: .medium)).foregroundStyle(Pal.overlay)
                     .lineLimit(1)
                 Spacer(minLength: 4)

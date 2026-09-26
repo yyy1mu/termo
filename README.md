@@ -13,7 +13,7 @@ SSH · SFTP · Terminal · Windows Remote Desktop · Port forwarding · Host mon
 [![Release](https://img.shields.io/github/v/release/icloudza/termo?style=flat-square&color=409EFF)](https://github.com/icloudza/termo/releases)
 [![Downloads](https://img.shields.io/github/downloads/icloudza/termo/total?style=flat-square&color=33C759)](https://github.com/icloudza/termo/releases)
 [![Stars](https://img.shields.io/github/stars/icloudza/termo?style=flat-square&color=f5a623)](https://github.com/icloudza/termo/stargazers)
-![Platform](https://img.shields.io/badge/macOS-14%2B%20%C2%B7%20Apple%20Silicon-000000?style=flat-square&logo=apple)
+![Platform](https://img.shields.io/badge/macOS-27%2B%20%C2%B7%20Apple%20Silicon-000000?style=flat-square&logo=apple)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-8250df?style=flat-square)](LICENSE.md)
 
 [简体中文](README.zh-CN.md) · **English**
@@ -47,7 +47,7 @@ Under the hood, Termo runs its SSH / SFTP / terminal / port forwarding / keys en
 
 ## Download & install
 
-> Requirements: macOS 14 (Sonoma) or later · Apple Silicon (M-series)
+> Requirements: macOS 27 or later · Apple Silicon (M-series)
 
 [![Download](https://img.shields.io/badge/Download-Termo.dmg-409EFF?style=for-the-badge)](https://termoi.app)
 

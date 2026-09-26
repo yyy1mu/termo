@@ -1,5 +1,7 @@
 import AppKit
 import Foundation
+import TermoEngine
+import TermoCore
 
 extension AppModel {
     func applyStartupIfNeeded() {
@@ -25,12 +27,11 @@ extension AppModel {
 
     func addTmuxSessionTab(host: Host, sessionName: String) {
         let title = "tmux: \(sessionName)"
-        addTab(.terminal, title: title, hostId: host.id)
-        guard let id = tabs.last?.id else { return }
-        // 注册 per-tab 命令：Workspace 懒创建终端视图（terminalView(for:)）时经
-        // makeTerminal → startTerminalProcess 自动以 PTY+exec 启动；
-        // 「=name」为 tmux 精确匹配（防前缀撞名）；掉线重连沿用同一命令（重进同一会话）。
-        terminalCommands[id] = "tmux attach -t '=\(Self.shellEscape(sessionName))'"
+        // 命令必须先于标签发布：Workspace 看到标签后会立即懒创建终端视图。
+        // 「=name」为 tmux 精确匹配；掉线重连沿用同一 PTY+exec 命令。
+        addTab(
+            .terminal, title: title, hostId: host.id,
+            terminalCommand: "tmux attach -t \(Self.shellEscape("=" + sessionName))")
         recordSession(hostId: host.id, kind: .terminal, detail: "tmux: \(sessionName)")
     }
 
@@ -46,7 +47,7 @@ extension AppModel {
 
     // ---------- 标签操作 ----------
     func openLocalTerminal() {
-        let title = uniqueTabTitle(String(localized: "终端")) { $0.kind == .terminal && $0.hostId == nil }
+        let title = uniqueTabTitle(String(localized: "终端", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { $0.kind == .terminal && $0.hostId == nil }
         addTab(.terminal, title: title, hostId: nil)
     }
 
@@ -83,7 +84,7 @@ extension AppModel {
             return
         }
         requireAuth(host) { [weak self] in
-            self?.connectThen(host.id, hint: String(localized: "正在进入终端…")) { self?.openTerminalTab(host.id) }
+            self?.connectThen(host.id, hint: String(localized: "正在进入终端…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { self?.openTerminalTab(host.id) }
         }
     }
 
@@ -102,7 +103,7 @@ extension AppModel {
                     sessionOnlyHostPasswords.remove(host.id)
                 }
             } catch {
-                errorMessage = String(localized: "已保存的密码暂时无法读取：\(error.localizedDescription)")
+                errorMessage = String(localized: "已保存的密码暂时无法读取：\(error.localizedDescription)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
         }
         let live = hosts[idx]
@@ -122,7 +123,7 @@ extension AppModel {
     /// Assistant execution never opens a terminal and never sends credentials to the LLM.
     func aiExecutionConnection(hostID: String) throws -> SSHConnection {
         guard let index = hosts.firstIndex(where: { $0.id == hostID }), var ssh = hosts[index].ssh else {
-            throw AICommandService.ApprovalError(message: String(localized: "主机已删除。"))
+            throw AICommandService.ApprovalError(message: String(localized: "主机已删除。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         if ssh.authMethod != .key, ssh.password.isEmpty {
             if let saved = try HostStore.savedPasswords(for: [hosts[index]])[hostID] {
@@ -131,7 +132,7 @@ extension AppModel {
             }
             guard !ssh.password.isEmpty else {
                 throw AICommandService.ApprovalError(
-                    message: String(localized: "请先在主机设置中保存登录凭证，或连接一次主机后再确认。"))
+                    message: String(localized: "请先在主机设置中保存登录凭证，或连接一次主机后再确认。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
         }
         return ssh
@@ -153,12 +154,12 @@ extension AppModel {
                 }
                 hosts = saved
                 sessionOnlyHostPasswords = temporary
-                hostCredentialNotice = String(localized: "密码已保存，下次自动登录，并随加密备份同步。")
+                hostCredentialNotice = String(localized: "密码已保存，下次自动登录，并随加密备份同步。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             } else {
                 hosts[idx].ssh?.password = password
                 sessionOnlyHostPasswords.insert(host.id)
                 hostSaveError = nil
-                hostCredentialNotice = String(localized: "密码仅用于本次会话，不会保存或同步。")
+                hostCredentialNotice = String(localized: "密码仅用于本次会话，不会保存或同步。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
             return true
         }
@@ -166,7 +167,7 @@ extension AppModel {
 
     /// ConnectionTester owns fingerprint verification and authentication; one request owns the dialog.
     func connectThen(
-        _ hostId: String, hint: String = String(localized: "正在进入终端…"), _ then: @escaping () -> Void
+        _ hostId: String, hint: String = String(localized: "正在进入终端…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), _ then: @escaping () -> Void
     ) {
         guard let host = host(hostId) else { return }
         connectionFlow.connect(to: host, hint: hint, then: then)
@@ -177,7 +178,7 @@ extension AppModel {
         guard let host = hosts.first(where: { $0.id == hostId }) else { return }
         let title = uniqueTabTitle(host.name) { $0.kind == .terminal && $0.hostId == host.id }
         addTab(.terminal, title: title, hostId: host.id)
-        recordSession(hostId: host.id, kind: .terminal, detail: String(localized: "终端会话"))
+        recordSession(hostId: host.id, kind: .terminal, detail: String(localized: "终端会话", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 
     /// 清掉「每次询问」主机的本会话密码（连接失败/取消时）：下次操作重新询问，并停掉用错误密码的监控。
@@ -207,7 +208,7 @@ extension AppModel {
     /// 首次连接验证主机指纹：已知 → 直接放行；未知 → 弹窗让用户核对后决定。返回是否继续连接。
     func verifyHostKey(_ host: Host) async -> Bool {
         do { return try await hostTrust.verify(host) } catch {
-            hostSaveError = String(localized: "主机信任记录未能保存：\(error.localizedDescription)")
+            hostSaveError = String(localized: "主机信任记录未能保存：\(error.localizedDescription)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             return false
         }
     }

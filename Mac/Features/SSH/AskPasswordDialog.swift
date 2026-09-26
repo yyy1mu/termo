@@ -52,7 +52,9 @@ struct AskPasswordDialog: View {
                                 VStack(alignment: .leading, spacing: 7) {
                                     Toggle("保存密码，下次自动登录", isOn: $remember)
                                         .toggleStyle(.checkbox).font(.system(size: 12)).foregroundStyle(Pal.text)
-                                    Text(remember ? "保存在系统钥匙串，并随 WebDAV 加密备份同步。" : "仅本次会话使用，不写入钥匙串或同步备份。")
+                                    Text(remember
+                                         ? String(localized: "保存在系统钥匙串，并随 WebDAV 加密备份同步。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                                         : String(localized: "仅本次会话使用，不写入钥匙串或同步备份。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                                         .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }

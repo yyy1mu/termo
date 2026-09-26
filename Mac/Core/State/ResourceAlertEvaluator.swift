@@ -1,4 +1,5 @@
 import Foundation
+import TermoCore
 
 struct ResourceAlert: Equatable {
     enum Metric: CaseIterable {
@@ -6,9 +7,9 @@ struct ResourceAlert: Equatable {
 
         var label: String {
             switch self {
-            case .cpu: String(localized: "CPU 使用率")
-            case .memory: String(localized: "内存占用")
-            case .disk: String(localized: "磁盘占用")
+            case .cpu: String(localized: "CPU 使用率", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            case .memory: String(localized: "内存占用", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            case .disk: String(localized: "磁盘占用", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
         }
     }

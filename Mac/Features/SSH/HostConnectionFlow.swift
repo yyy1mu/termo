@@ -46,7 +46,7 @@ final class HostConnectionFlow: ObservableObject {
     func submitPassword(id: UUID, password: String, store: (Host) -> Bool) -> Bool {
         guard let request = validated(id, kind: .password) else { return false }
         guard !password.isEmpty else {
-            passwordError = String(localized: "请输入登录密码。")
+            passwordError = String(localized: "请输入登录密码。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             return false
         }
         guard store(request.host) else { return false }

@@ -1,4 +1,4 @@
-//  进程内 SSH 引擎的 C 接口（基于 libssh2）。SSH 迁移 J1：先只做链接自检，后续扩展为
+//  进程内 SSH 引擎的 C 接口（russh 后端）。SSH 迁移 J1：先只做链接自检，后续扩展为
 //  连接/认证/exec/SFTP/PTY/端口转发的完整引擎，替换现有 spawn /usr/bin/ssh 的实现。
 //
 #ifndef TERMO_SSH_CORE_H
@@ -11,8 +11,8 @@ extern "C" {
 #endif
 
 // ── 持久会话 ────────────────────────────────────────────────────────────────
-// 一个会话 = 一条已认证的 libssh2 连接，其上可反复开 channel（exec / 后续 SFTP / PTY / 转发）。
-// libssh2 单会话非线程安全：上层须用一个串行队列序列化对同一句柄的所有调用。
+// 一个会话 = 一条已认证的 SSH 连接，其上可反复开 channel（exec / 后续 SFTP / PTY / 转发）。
+// 单会话非线程安全：上层须用一个串行队列序列化对同一句柄的所有调用。
 typedef struct TermoSSHSession TermoSSHSession;
 
 /// 连接 + 握手 + 认证，成功返回会话句柄，失败返回 NULL 并写 err。key_path 非空走公钥认证。
@@ -108,7 +108,7 @@ void termo_ssh_cancel(TermoSSHSession *s);
 void termo_ssh_close(TermoSSHSession *s);
 
 // ── 交互式 shell（终端 PTY，替代 spawn /usr/bin/ssh + LocalProcessTerminalView 子进程）──────
-// 在一条 dedicated 会话上开 PTY + shell，由一个独立 pump 线程做全部 libssh2 读/写/resize（杜绝并发），
+// 在一条 dedicated 会话上开 PTY + shell，由一个独立 pump 线程做全部引擎读/写/resize（杜绝并发），
 // 用自管道唤醒以零延迟响应输入。on_data 在 pump 线程回调（增量 stdout）；on_closed 结束时回调一次
 // （exit_code：远端 shell 退出码；掉线=255，与 ssh 对齐以触发上层重连）。
 typedef struct TermoSSHShell TermoSSHShell;
@@ -148,9 +148,9 @@ TermoSSHForward *termo_ssh_forward_open(TermoSSHSession *s, int kind,
 /// 停 pump 线程 + 关闭监听与所有活动连接（不关底层会话，调用方另行 close）。
 void termo_ssh_forward_close(TermoSSHForward *f);
 
-// ── SFTP 子系统（libssh2_sftp_*，替代手写 FXP）──────────────────────────────
+// ── SFTP 子系统（russh_sftp，替代手写 FXP）──────────────────────────────
 // 全部非线程安全：上层须在该会话的同一串行队列上调用（SFTP 用独占 dedicated 会话）。
-// 返回 int 的函数约定：0=成功；>0 且 <0xF000 = SFTP 状态码(LIBSSH2_FX_*，如 2=无此文件)；
+// 返回 int 的函数约定：0=成功；>0 且 <0xF000 = SFTP 状态码（FX_*，如 2=无此文件）；
 // ≥0xF000 = 传输/底层错误（连接断、协议错）。open/opendir/init 失败返回 NULL（用 last_errno 取因）。
 
 /// SFTP 文件属性（仅本端用到的字段；has_* 标识该字段是否有效）。
@@ -161,11 +161,11 @@ typedef struct {
     unsigned int mtime;
 } TermoSFTPAttrs;
 
-/// 在已认证会话上初始化 SFTP 子系统，返回 LIBSSH2_SFTP*（void*）或 NULL。
+/// 在已认证会话上初始化 SFTP 子系统，返回 SFTP 句柄（void*）或 NULL。
 void *termo_sftp_init(TermoSSHSession *s);
 /// 关闭 SFTP 子系统（不关底层会话）。
 void  termo_sftp_shutdown(void *sftp);
-/// 取最近一次 SFTP 操作的协议状态码（LIBSSH2_FX_*）。
+/// 取最近一次 SFTP 操作的协议状态码（FX_*）。
 int   termo_sftp_last_errno(void *sftp);
 
 /// stat（follow=1 跟随符号链接 / 0 = lstat）。
@@ -180,7 +180,7 @@ int   termo_sftp_rename(TermoSSHSession *s, void *sftp, const char *from, const 
 /// 解析为绝对路径，写入 out（截断到 out_cap-1，NUL 结尾）。
 int   termo_sftp_realpath(TermoSSHSession *s, void *sftp, const char *path, char *out, int out_cap);
 
-/// 打开文件，pflags 直接透传 LIBSSH2_FXF_*（与 SFTPFlag 同值）。返回句柄（void*）或 NULL。
+/// 打开文件，pflags 直接透传 SFTP 协议 SSH_FXF_*（与 SFTPFlag 同值）。返回句柄（void*）或 NULL。
 void *termo_sftp_open(TermoSSHSession *s, void *sftp, const char *path, unsigned int pflags);
 /// 打开目录。返回句柄或 NULL。
 void *termo_sftp_opendir(TermoSSHSession *s, void *sftp, const char *path);

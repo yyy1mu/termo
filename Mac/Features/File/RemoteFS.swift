@@ -1,4 +1,6 @@
 import Foundation
+import TermoEngine
+import TermoCore
 
 struct RemoteFSError: LocalizedError {
     let message: String
@@ -91,7 +93,7 @@ final class RemoteFS {
                 let s: SSHSession
                 do { s = try pool.acquireOperation(for: conn) }      // 独立操作句柄，共享已认证传输
                 catch {
-                    let msg = (error as? SSHSession.SSHError)?.message ?? String(localized: "连接失败")
+                    let msg = (error as? SSHSession.SSHError)?.message ?? String(localized: "连接失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                     cont.resume(returning: OpResult(data: Data(), stderr: Data(msg.utf8), code: -1))
                     return
                 }
@@ -102,7 +104,7 @@ final class RemoteFS {
                     let code = (r.timedOut || r.cancelled) ? -1 : r.exitCode
                     cont.resume(returning: OpResult(data: r.stdout, stderr: r.stderr, code: code))
                 } catch {
-                    let msg = (error as? SSHSession.SSHError)?.message ?? String(localized: "执行失败")
+                    let msg = (error as? SSHSession.SSHError)?.message ?? String(localized: "执行失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                     cont.resume(returning: OpResult(data: Data(), stderr: Data(msg.utf8), code: -1))
                 }
             }
@@ -119,12 +121,12 @@ final class RemoteFS {
             } catch let error as SFTPError where error.isTransport {
                 sftpStore.markUnavailable(ifCurrent: sftp)
             } catch let error as SFTPError {
-                throw RemoteFSError(message: error.isPermission ? String(localized: "没有读取目标文件状态的权限。") : error.message)
+                throw RemoteFSError(message: error.isPermission ? String(localized: "没有读取目标文件状态的权限。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : error.message)
             }
         }
         let result = await run(UploadPreflight.shellCommand(path: remotePath), timeout: 20)
         guard result.code == 0 else {
-            throw Self.shellErr(result, String(localized: "无法确认远端文件状态，上传已停止。"))
+            throw Self.shellErr(result, String(localized: "无法确认远端文件状态，上传已停止。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         return try UploadPreflight.parse(result.data)
     }
@@ -142,7 +144,7 @@ final class RemoteFS {
             } catch let error as SFTPError {
                 if error.isTransport { sftpStore.markUnavailable(ifCurrent: sftp) }
                 return .failure(RemoteFSError(message: error.isTransport
-                    ? String(localized: "提交时连接中断，结果尚未确认，请检查远端文件后重试。")
+                    ? String(localized: "提交时连接中断，结果尚未确认，请检查远端文件后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                     : error.message))
             } catch {
                 return .failure(RemoteFSError(message: error.localizedDescription))
@@ -155,7 +157,7 @@ final class RemoteFS {
         case 10: return .failure(UploadFinalizer.invalidTarget())
         case 11: return .failure(UploadFinalizer.targetExists())
         default: return .failure(Self.shellErr(result,
-            String(localized: "文件提交未确认，请检查远端文件后重试。")))
+            String(localized: "文件提交未确认，请检查远端文件后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
         }
     }
 
@@ -177,17 +179,17 @@ final class RemoteFS {
     /// Streams into a task-owned destination; the task retains it across pause and discards it on failure.
     /// Each operation captures its SFTP session once so handle cleanup always uses the session that opened it.
     func download(_ remotePath: String, to destination: DownloadDestination, control: UploadControl) async -> UploadOutcome {
-        guard let sftp = sftpStore.acquire() else { return .failed(String(localized: "需要 SFTP 连接")) }
+        guard let sftp = sftpStore.acquire() else { return .failed(String(localized: "需要 SFTP 连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) }
         do {
             return try await DownloadStream.run(path: remotePath, source: sftp, sink: destination, control: control)
         } catch let error as SFTPError where error.isTransport {
-            sftpStore.markUnavailable(ifCurrent: sftp); return .failed(String(localized: "连接中断"))
+            sftpStore.markUnavailable(ifCurrent: sftp); return .failed(String(localized: "连接中断", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         } catch let error as SFTPError {
-            return .failed(error.isPermission ? String(localized: "没有读取权限") : error.message)
+            return .failed(error.isPermission ? String(localized: "没有读取权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : error.message)
         } catch let error as RemoteFSError {
             return .failed(error.message)
         } catch {
-            return .failed(String(localized: "下载失败：\(error.localizedDescription)"))
+            return .failed(String(localized: "下载失败：\(error.localizedDescription)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
     }
 
@@ -204,13 +206,13 @@ final class RemoteFS {
                 return try await UploadStream.run(source: source, destination: sftp, path: remotePath,
                                                   startOffset: startOffset, control: control)
             } catch let error as SFTPError where error.isTransport {
-                sftpStore.markUnavailable(ifCurrent: sftp); return .failed(String(localized: "连接中断"))
+                sftpStore.markUnavailable(ifCurrent: sftp); return .failed(String(localized: "连接中断", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             } catch let error as SFTPError {
-                return .failed(error.isPermission ? String(localized: "没有写入权限") : error.message)
+                return .failed(error.isPermission ? String(localized: "没有写入权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : error.message)
             } catch let error as RemoteFSError {
                 return .failed(error.message)
             } catch {
-                return .failed(String(localized: "上传失败：\(error.localizedDescription)"))
+                return .failed(String(localized: "上传失败：\(error.localizedDescription)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
         }
         if let stopped = UploadStream.interruption(control) { return stopped }
@@ -227,7 +229,7 @@ final class RemoteFS {
                     continuation.resume(returning: outcome)
                 } catch {
                     continuation.resume(returning: .failed(
-                        (error as? SSHSession.SSHError)?.message ?? String(localized: "无法连接")))
+                        (error as? SSHSession.SSHError)?.message ?? String(localized: "无法连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
                 }
             }
         }
@@ -238,7 +240,7 @@ final class RemoteFS {
     /// Recursive deletion uses a cancellable exec channel; other mutations prefer SFTP.
     private func mutate(_ operation: RemoteFileMutation, handle: CommandHandle? = nil) async -> Result<Void, RemoteFSError> {
         guard handle?.isCancelled != true else {
-            return .failure(RemoteFSError(message: String(localized: "已取消")))
+            return .failure(RemoteFSError(message: String(localized: "已取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
         }
         let sftp = operation.usesSFTP ? sftpStore.acquire() : nil
         return await operation.perform(
@@ -259,7 +261,7 @@ final class RemoteFS {
 
     func chmod(_ path: String, mode: String) async -> Result<Void, RemoteFSError> {
         guard let permissions = FilePermissionMode(mode) else {
-            return .failure(RemoteFSError(message: String(localized: "权限值无效")))
+            return .failure(RemoteFSError(message: String(localized: "权限值无效", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
         }
         return await mutate(.permissions(path, permissions))
     }
@@ -269,12 +271,12 @@ final class RemoteFS {
         if let sftp = sftpStore.acquire() {
             do {
                 guard let p = (try await sftp.stat(path)).permissions else {
-                    return .failure(RemoteFSError(message: String(localized: "无法读取权限")))
+                    return .failure(RemoteFSError(message: String(localized: "无法读取权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
                 }
                 return .success(Int(p & 0o7777))
             }
             catch let e as SFTPError where e.isTransport { sftpStore.markUnavailable(ifCurrent: sftp) }
-            catch { return .failure(RemoteFSError(message: String(localized: "无法读取权限"))) }
+            catch { return .failure(RemoteFSError(message: String(localized: "无法读取权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))) }
         }
         return await statPermsViaShell(path)
     }
@@ -283,7 +285,7 @@ final class RemoteFS {
         let r = await run(cmd)
         let s = String(data: r.data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard r.code == 0, let v = Int(s, radix: 8) else {
-            return .failure(RemoteFSError(message: String(localized: "无法读取权限")))
+            return .failure(RemoteFSError(message: String(localized: "无法读取权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
         }
         return .success(v)
     }
@@ -308,11 +310,11 @@ final class RemoteFS {
             do { return .success(try await RemoteDirectoryListing.read(path, using: sftp)) }
             catch let e as SFTPError where e.isTransport { sftpStore.markUnavailable(ifCurrent: sftp) }
             catch let e as SFTPError {
-                return .failure(RemoteFSError(message: e.isNoSuchFile ? String(localized: "目录不存在")
-                    : (e.isPermission ? String(localized: "没有访问权限") : e.message)))
+                return .failure(RemoteFSError(message: e.isNoSuchFile ? String(localized: "目录不存在", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                    : (e.isPermission ? String(localized: "没有访问权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : e.message)))
             }
             catch let error as RemoteFSError { return .failure(error) }
-            catch { return .failure(RemoteFSError(message: String(localized: "列目录失败"))) }
+            catch { return .failure(RemoteFSError(message: String(localized: "列目录失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))) }
         }
         return await listViaShell(path)
     }
@@ -320,7 +322,7 @@ final class RemoteFS {
     private func listViaShell(_ path: String) async -> Result<[RemoteFile], RemoteFSError> {
         let result = await run(RemoteDirectoryListing.shellCommand(path: path))
         guard result.code == 0 else {
-            return .failure(Self.shellErr(result, String(localized: "无法列出目录，请刷新后重试。")))
+            return .failure(Self.shellErr(result, String(localized: "无法列出目录，请刷新后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
         }
         do { return .success(try RemoteDirectoryListing.parse(result.data, directory: path)) }
         catch let error as RemoteFSError { return .failure(error) }

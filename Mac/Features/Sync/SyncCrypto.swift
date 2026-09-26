@@ -11,10 +11,10 @@ enum SyncCryptoError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unsupportedFormat: return String(localized: "不是有效的 Termo 备份文件")
-        case .wrongPasswordOrCorrupt: return String(localized: "主密码错误，或备份文件已损坏")
-        case .randomFailed: return String(localized: "随机数生成失败")
-        case .deriveFailed: return String(localized: "密钥派生失败")
+        case .unsupportedFormat: return String(localized: "不是有效的 Termo 备份文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .wrongPasswordOrCorrupt: return String(localized: "主密码错误，或备份文件已损坏", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .randomFailed: return String(localized: "随机数生成失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .deriveFailed: return String(localized: "密钥派生失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }

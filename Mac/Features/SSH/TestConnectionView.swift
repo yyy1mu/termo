@@ -1,4 +1,5 @@
 import SwiftUI
+import TermoCore
 
 struct TestConnectionView: View {
     @ObservedObject var draft: HostDraft
@@ -265,7 +266,7 @@ private struct ConnectionLogFrameKey: PreferenceKey {
 /// 连接主机时的进度弹窗（复用 ConnectionProgressView），成功后回调进入终端。
 struct ConnectingDialog: View {
     let host: Host
-    var successHint: String = String(localized: "正在进入终端…")   // 成功后的提示，按动作变化（终端/文件/转发/监控）
+    var successHint: String = String(localized: "正在进入终端…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)   // 成功后的提示，按动作变化（终端/文件/转发/监控）
     let onConnected: () -> Void
     let onCancel: () -> Void
     @StateObject private var tester = ConnectionTester()

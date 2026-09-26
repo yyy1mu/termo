@@ -1,4 +1,5 @@
 import Foundation
+import TermoEngine
 
 // 在线探测的并发队列与上限（最多 6 个并发 TCP 探测，控制线程/CPU，主机多时不会线程爆炸）。
 // 置于文件作用域而非 @MainActor 的 AppModel 内：DispatchQueue/Semaphore 本身线程安全且非 actor 隔离，

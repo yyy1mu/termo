@@ -7,7 +7,6 @@ struct AppLockScreen: View {
     @State private var password = ""
     @State private var error = ""
     @State private var busy = false
-    @State private var biometryPrompted = false
     @FocusState private var passwordFocused: Bool
 
     var body: some View {
@@ -30,6 +29,7 @@ struct AppLockScreen: View {
                         .padding(13).background(Pal.card, in: RoundedRectangle(cornerRadius: 10))
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Pal.border, lineWidth: 1))
                         .focused($passwordFocused).onSubmit { verify() }
+                        .onChange(of: password) { _, _ in error = "" }
                         .disabled(busy)
                     if !error.isEmpty { Text(error).font(.system(size: 11)).foregroundStyle(Pal.red) }
                     Button(action: verify) {
@@ -61,9 +61,6 @@ struct AppLockScreen: View {
         }
         .onAppear {
             passwordFocused = true
-            guard !biometryPrompted, lock.biometryAvailable else { return }
-            biometryPrompted = true
-            biometricUnlock()
         }
         .onDisappear { password = "" }
     }
@@ -77,7 +74,7 @@ struct AppLockScreen: View {
             if await lock.verifyPassword(candidate) {
                 lock.unlock()
             } else {
-                error = lock.credentialError ?? String(localized: "密码不正确，请重试")
+                error = lock.credentialError ?? String(localized: "密码不正确，请重试", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
             password = ""
             busy = false
@@ -111,7 +108,7 @@ struct AppLockSetupSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label(lock.hasMasterPassword ? "修改主密码" : "设置主密码", systemImage: "key.horizontal")
+            Label(lock.hasMasterPassword ? String(localized: "修改主密码", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "设置主密码", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "key.horizontal")
                 .font(.system(size: 19, weight: .semibold)).foregroundStyle(Pal.textBright)
             Text("一个密码，用于应用解锁和 WebDAV 备份加密。至少 8 个字符，支持文字、数字和符号。")
                 .font(.system(size: 12)).foregroundStyle(Pal.subtext)
@@ -140,7 +137,7 @@ struct AppLockSetupSheet: View {
                 Button("取消") { dismiss() }.keyboardShortcut(.cancelAction).disabled(busy)
                 Spacer()
                 if busy { ProgressView().controlSize(.small) }
-                Button(busy ? "保存中…" : "保存主密码") { save() }
+                Button(busy ? String(localized: "保存中…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "保存主密码", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) { save() }
                     .buttonStyle(.borderedProminent).tint(Pal.mauve)
                     .disabled(!canSave || busy || sync.busy).keyboardShortcut(.defaultAction)
             }

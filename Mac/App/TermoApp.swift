@@ -1,21 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// 进程入口：必须在 `NSApplication` 初始化之前对齐语言。文件选择/保存等系统面板由独立服务渲染，
-/// 它沿用进程启动那一刻确定的语言；放到 App.init 里设已太晚。用 bundle 已按系统解析好、剥离地区
-/// 后缀的本地化（如把 zh-Hans-GB 归一为 zh-Hans）覆盖 AppleLanguages，让面板跟随系统语言。
 @main
-enum AppBootstrap {
-    static func main() {
-        let langs = Bundle.main.preferredLocalizations
-        if !langs.isEmpty { UserDefaults.standard.set(langs, forKey: "AppleLanguages") }
-        TermoApp.main()
-    }
-}
-
 struct TermoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @ObservedObject private var lock = AppLockManager.shared  // 启动锁状态
+    @ObservedObject private var settings = AppSettings.shared
 
     var body: some Scene {
         // 单窗口场景（Window 而非 WindowGroup）：全进程只允许一个窗口实例，从根上杜绝
@@ -31,6 +21,9 @@ struct TermoApp: App {
                     }
                 }
                 .animation(.easeOut(duration: 0.2), value: lock.isLocked)
+                // Keep this outermost so root overlays such as the lock screen receive the
+                // same live language as the workspace rather than falling back to macOS.
+                .environment(\.locale, settings.effectiveLocale)
         }
         .windowStyle(.hiddenTitleBar)
         // 首次打开的默认尺寸（仅初始值，最小限制不变；用户拖动后由系统记忆）：给三栏 + 工作区更宽裕的空间。
@@ -41,17 +34,21 @@ struct TermoApp: App {
         .commands {
             // 应用菜单：关于（自定义窗口）
             CommandGroup(replacing: .appInfo) {
-                Button("关于 Termo") { appDelegate.showAbout() }
+                Button(appString("关于 Termo")) { appDelegate.showAbout() }
             }
             // 应用菜单：锁定（⌘L）+ 退出（走后台任务检查流程）
             CommandGroup(replacing: .appTermination) {
-                Button("锁定 Termo") { AppLockManager.shared.lock() }
+                Button(appString("锁定 Termo")) { AppLockManager.shared.lock() }
                     .keyboardShortcut("l", modifiers: .command)
                 Divider()
-                Button("退出 Termo") { appDelegate.requestQuit() }
+                Button(appString("退出 Termo")) { appDelegate.requestQuit() }
                     .keyboardShortcut("q", modifiers: .command)
             }
         }
+    }
+
+    private func appString(_ key: String.LocalizationValue) -> String {
+        String(localized: key, bundle: AppSettings.localizationBundle, locale: settings.effectiveLocale)
     }
 }
 
@@ -171,12 +168,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// 关窗 / 菜单退出（⌘Q）入口。本方法为自定义（非协议方法，故不自动 @MainActor），访问 @MainActor 的
     /// AppModel 需显式跳主线程；从 AppKit 主线程回调进来，跳转即时，不影响交互。
+    /// - 锁屏中：确认弹窗会被锁屏盖住、无法交互——有后台任务则隐藏保活，无任务直接退出。
     /// - 开启「关闭隐藏到菜单栏」：有后台任务 → 直接隐藏保活（不再弹确认）；无任务 → 直接退出。
     /// - 未开启：弹自定义确认（含「隐藏到菜单栏」选项；有任务时优先展示任务警告与列表）。
     /// 真正彻底退出走托盘菜单的「退出 Termo」（forceQuit），不受本设置影响。
     @objc func requestQuit() {
         Task { @MainActor in
             AppModel.shared.dismissAllSheets()  // 先关掉打开的 sheet：否则退出确认弹窗被盖住、或 sheet 模态阻塞退出
+            if AppLockManager.shared.isLocked {
+                if AppModel.shared.hasRunningBackground {
+                    self.hideToTray()
+                } else {
+                    NSApp.terminate(nil)
+                }
+                return
+            }
             if AppSettings.shared.closeToTray {
                 if AppModel.shared.hasRunningBackground {
                     self.hideToTray()  // 有后台任务：隐藏保活，不打断、不弹窗
@@ -193,9 +199,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// 托盘「退出 Termo」：显式彻底退出，忽略「关闭隐藏到菜单栏」设置。
     /// 有后台任务则弹「停止任务并退出」确认（确认即停任务退出，不再变成隐藏），无任务直接退出。
+    /// 锁屏中无法交互确认弹窗：退出是用户的明确意图且锁屏已保护内容，直接退出。
     @objc func forceQuit() {
         Task { @MainActor in
             AppModel.shared.dismissAllSheets()  // 同上：避免退出确认弹窗被 sheet 盖住
+            if AppLockManager.shared.isLocked {
+                NSApp.terminate(nil)
+                return
+            }
             if AppModel.shared.hasRunningBackground {
                 self.showMainWindow()
                 AppModel.shared.pendingQuitForce = true  // 彻底退出模式：确认即退出
@@ -229,19 +240,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc func showAbout() {
+        let title = String(localized: "关于 Termo", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         if aboutWindow == nil {
-            let hosting = NSHostingView(rootView: AboutWindow())
+            let hosting = NSHostingView(
+                rootView: AboutWindow().environment(\.locale, AppSettings.shared.effectiveLocale))
             let w = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 460, height: 260),
                 styleMask: [.titled, .closable],
                 backing: .buffered, defer: false)
-            w.title = String(localized: "关于 Termo")
+            w.title = title
             w.isReleasedWhenClosed = false
             w.contentView = hosting
             w.setContentSize(NSSize(width: 460, height: hosting.fittingSize.height))
             w.center()
             aboutWindow = w
         }
+        aboutWindow?.title = title
         aboutWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         installEditKeyFallback()

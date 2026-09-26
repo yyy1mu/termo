@@ -106,13 +106,13 @@ final class ExtractTask: ObservableObject {
             let r = await fs.run(cmd, timeout: 1800)
             if r.code == 0 {
                 phase = .done
-                Notifier.notify(title: String(localized: "解压完成"), body: "\(archive.name) → \(destDir)")
+                Notifier.notify(title: String(localized: "解压完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), body: "\(archive.name) → \(destDir)")
                 onDone()
             } else {
                 let err = String(data: r.stderr, encoding: .utf8)?
                     .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                phase = .failed(err.isEmpty ? String(localized: "解压失败（退出码 \(r.code)）") : err)
-                Notifier.notify(title: String(localized: "解压失败"), body: archive.name)
+                phase = .failed(err.isEmpty ? String(localized: "解压失败（退出码 \(r.code)）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : err)
+                Notifier.notify(title: String(localized: "解压失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), body: archive.name)
             }
         }
     }
@@ -170,26 +170,26 @@ struct ExtractDialog: View {
 
     private var status: (text: String, color: Color) {
         switch task.phase {
-        case .ready: return (String(localized: "待解压"), Pal.overlay)
-        case .running: return (String(localized: "解压中"), Pal.mauve)
-        case .done: return (String(localized: "已完成"), Pal.green)
-        case .failed: return (String(localized: "解压失败"), Pal.red)
+        case .ready: return (String(localized: "待解压", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.overlay)
+        case .running: return (String(localized: "解压中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.mauve)
+        case .done: return (String(localized: "已完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.green)
+        case .failed: return (String(localized: "解压失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), Pal.red)
         }
     }
 
     var body: some View {
         FileTaskDetailSurface {
-            FileTaskDetailHeader(title: String(localized: "解压文件"), hostName: task.hostName,
+            FileTaskDetailHeader(title: String(localized: "解压文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), hostName: task.hostName,
                                  icon: "doc.zipper", status: status.text, color: status.color, onHide: onHide)
         } content: {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 20) {
-                    FileTaskPathRow(title: String(localized: "压缩文件"), path: task.archive.path).frame(width: 250)
+                    FileTaskPathRow(title: String(localized: "压缩文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), path: task.archive.path).frame(width: 250)
                     stage.frame(minWidth: 260, idealWidth: 300, maxWidth: .infinity, alignment: .leading)
                 }
                 VStack(alignment: .leading, spacing: 16) {
                     stage
-                    FileTaskPathRow(title: String(localized: "压缩文件"), path: task.archive.path)
+                    FileTaskPathRow(title: String(localized: "压缩文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), path: task.archive.path)
                 }
             }
         } footer: {
@@ -206,7 +206,7 @@ struct ExtractDialog: View {
             if task.phase == .ready {
                 destinationPicker
             } else {
-                FileTaskPathRow(title: String(localized: "解压到"), path: task.destDir)
+                FileTaskPathRow(title: String(localized: "解压到", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), path: task.destDir)
                 switch task.phase {
                 case .running:
                     HStack(alignment: .top, spacing: 10) {
@@ -225,7 +225,7 @@ struct ExtractDialog: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Label("解压未完成", systemImage: "exclamationmark.circle.fill")
                             .font(.system(size: 12, weight: .medium)).foregroundStyle(Pal.red)
-                        Text(message.isEmpty ? String(localized: "远端未返回详细原因，请检查目标目录和解压工具。") : message)
+                        Text(message.isEmpty ? String(localized: "远端未返回详细原因，请检查目标目录和解压工具。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : message)
                             .font(.system(size: 11, design: .monospaced)).foregroundStyle(Pal.subtext)
                             .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                     }
@@ -241,14 +241,14 @@ struct ExtractDialog: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("解压位置").font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.overlay)
             VStack(spacing: 6) {
-                destinationOption(String(localized: "同名新文件夹"), detail: task.folderName, selected: task.toSubfolder) {
+                destinationOption(String(localized: "同名新文件夹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), detail: task.folderName, selected: task.toSubfolder) {
                     task.toSubfolder = true
                 }
-                destinationOption(String(localized: "当前目录"), detail: task.parentDir, selected: !task.toSubfolder) {
+                destinationOption(String(localized: "当前目录", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), detail: task.parentDir, selected: !task.toSubfolder) {
                     task.toSubfolder = false
                 }
             }
-            FileTaskPathRow(title: String(localized: "实际目标"), path: task.destDir)
+            FileTaskPathRow(title: String(localized: "实际目标", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), path: task.destDir)
             Text("目标位置已有的同名文件可能被覆盖。")
                 .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                 .fixedSize(horizontal: false, vertical: true)
@@ -278,16 +278,16 @@ struct ExtractDialog: View {
     @ViewBuilder private var buttons: some View {
         switch task.phase {
         case .ready:
-            FileTaskAction(title: String(localized: "取消"), action: onClose)
-            FileTaskAction(title: String(localized: "开始解压"), prominent: true) { task.begin() }
+            FileTaskAction(title: String(localized: "取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onClose)
+            FileTaskAction(title: String(localized: "开始解压", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), prominent: true) { task.begin() }
         case .running:
-            FileTaskAction(title: String(localized: "收起并继续工作"), prominent: true, action: onHide)
+            FileTaskAction(title: String(localized: "收起并继续工作", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), prominent: true, action: onHide)
         case .done:
-            FileTaskAction(title: String(localized: "清除记录"), action: onClose)
-            FileTaskAction(title: String(localized: "关闭详情"), prominent: true, action: onHide)
+            FileTaskAction(title: String(localized: "清除记录", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onClose)
+            FileTaskAction(title: String(localized: "关闭详情", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), prominent: true, action: onHide)
         case .failed:
-            FileTaskAction(title: String(localized: "关闭详情"), action: onHide)
-            FileTaskAction(title: String(localized: "重试解压"), prominent: true) { task.retry() }
+            FileTaskAction(title: String(localized: "关闭详情", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), action: onHide)
+            FileTaskAction(title: String(localized: "重试解压", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), prominent: true) { task.retry() }
         }
     }
 }

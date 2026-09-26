@@ -1,7 +1,9 @@
 import SwiftUI
+import TermoCore
 
 /// 设置中的全局同步与备份页面；连接配置与单向覆盖按需展开。
 struct SyncPanel: View {
+    @Environment(\.locale) private var locale
     @ObservedObject var model: AppModel
     @ObservedObject private var sync = SyncModel.shared
     @ObservedObject private var lock = AppLockManager.shared
@@ -18,6 +20,7 @@ struct SyncPanel: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     overview
+                    scopeSection
                     disclosure(
                         title: "WebDAV 连接", symbol: "externaldrive.connected.to.line.below",
                         expanded: showConfiguration
@@ -74,8 +77,9 @@ struct SyncPanel: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("加密同步")
                         .font(.system(size: 15, weight: .semibold)).foregroundStyle(Pal.textBright)
-                    Text(sync.credentialReadError != nil ? "WebDAV 密码不可用" :
-                            (sync.config.isComplete ? "已填写 WebDAV 连接信息" : "先配置 WebDAV 连接"))
+                    Text(sync.credentialReadError != nil ? String(localized: "WebDAV 密码不可用", bundle: AppSettings.localizationBundle, locale: locale) :
+                            (sync.config.isComplete ? String(localized: "已填写 WebDAV 连接信息", bundle: AppSettings.localizationBundle, locale: locale)
+                             : String(localized: "先配置 WebDAV 连接", bundle: AppSettings.localizationBundle, locale: locale)))
                         .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                 }
                 Spacer(minLength: 0)
@@ -83,7 +87,7 @@ struct SyncPanel: View {
                     .fill(sync.config.isComplete && sync.credentialReadError == nil ? Pal.mauve : Pal.yellow)
                     .frame(width: 7, height: 7)
             }
-            Text("在设备间合并主机与设置。远端备份始终使用主密码加密。")
+            Text("在设备间合并主机、密钥、AI 配置、应用设置与信任记录。远端备份始终使用主密码加密。")
                 .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                 .fixedSize(horizontal: false, vertical: true)
             if let last = sync.lastSyncAt {
@@ -95,6 +99,40 @@ struct SyncPanel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Pal.card, in: RoundedRectangle(cornerRadius: 11))
         .overlay(RoundedRectangle(cornerRadius: 11).stroke(Pal.border, lineWidth: 1))
+    }
+
+    /// 同步内容清单：静态展示参与同步的数据类别。
+    private var scopeSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("同步内容", systemImage: "checklist")
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pal.text)
+            scopeRow("server.rack", name: "主机与密码", detail: "主机配置与已保存的 SSH 密码")
+            scopeRow("key", name: "SSH 密钥（含私钥）", detail: "密钥库中的密钥与私钥")
+            scopeRow("chevron.left.forwardslash.chevron.right", name: "代码片段", detail: "常用命令片段")
+            scopeRow("arrow.left.arrow.right", name: "端口转发", detail: "本地、远程与动态转发规则")
+            scopeRow("sparkles", name: "AI 配置（含 API Key）", detail: "模型服务配置与 API Key")
+            scopeRow("gearshape", name: "应用设置", detail: "外观、终端、传输等偏好设置")
+            scopeRow("checkmark.shield", name: "设备信任记录（known_hosts）", detail: "已信任的主机密钥指纹，并集合并、不删除")
+            Text("以上内容全部经主密码加密后同步。")
+                .font(.system(size: 10)).foregroundStyle(Pal.overlay)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func scopeRow(_ symbol: String, name: LocalizedStringKey, detail: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 12)).foregroundStyle(Pal.mauve)
+                .frame(width: 18).padding(.top, 1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).font(.system(size: 11, weight: .medium)).foregroundStyle(Pal.text)
+                Text(detail).font(.system(size: 10)).foregroundStyle(Pal.subtext)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     private var masterSection: some View {
@@ -137,7 +175,7 @@ struct SyncPanel: View {
         let candidate = enteredMaster
         Task {
             if !(await lock.verifyPassword(candidate)) {
-                masterError = lock.credentialError ?? String(localized: "主密码不正确")
+                masterError = lock.credentialError ?? String(localized: "主密码不正确", bundle: AppSettings.localizationBundle, locale: locale)
             }
             enteredMaster = ""
             verifyingMaster = false
@@ -233,7 +271,7 @@ struct SyncPanel: View {
                 SecondaryButton(title: "保存配置") {
                     do {
                         try sync.saveConfig()
-                        sync.statusText = String(localized: "配置已保存")
+                        sync.statusText = String(localized: "配置已保存", bundle: AppSettings.localizationBundle, locale: locale)
                         sync.statusIsError = false
                     } catch {
                         sync.statusText = error.localizedDescription
@@ -358,6 +396,7 @@ struct SyncPanel: View {
 
 /// 只持有凭证是否存在；与备份负载共用读取入口，避免把内存中的临时密码计入同步。
 private struct HostSyncInventory: View {
+    @Environment(\.locale) private var locale
     let hosts: [Host]
     let lastSyncAt: Date?
     let isLocked: Bool
@@ -413,7 +452,8 @@ private struct HostSyncInventory: View {
                 if let savedHostIDs {
                     Text("\(savedHostIDs.count) 份已保存凭证").foregroundStyle(Pal.green)
                 } else {
-                    Text(isLocked ? "解锁后查看凭证状态" : readError == nil ? "读取凭证状态…" : "凭证状态不可用")
+                    Text(isLocked ? String(localized: "解锁后查看凭证状态", bundle: AppSettings.localizationBundle, locale: locale)
+                         : readError == nil ? String(localized: "读取凭证状态…", bundle: AppSettings.localizationBundle, locale: locale) : String(localized: "凭证状态不可用", bundle: AppSettings.localizationBundle, locale: locale))
                         .foregroundStyle(Pal.overlay)
                 }
             }
@@ -441,7 +481,9 @@ private struct HostSyncInventory: View {
                         showsAllHosts.toggle()
                     } label: {
                         HStack(spacing: 5) {
-                            Text(showsAllHosts ? "收起主机列表" : "查看全部 \(sshHosts.count) 台主机")
+                            Text(showsAllHosts
+                                 ? String(localized: "收起主机列表", bundle: AppSettings.localizationBundle, locale: locale)
+                                 : String(localized: "查看全部 \(sshHosts.count) 台主机", bundle: AppSettings.localizationBundle, locale: locale))
                             Image(systemName: showsAllHosts ? "chevron.up" : "chevron.down")
                         }
                         .font(.system(size: 11, weight: .medium))
@@ -463,10 +505,10 @@ private struct HostSyncInventory: View {
     private func credentialRow(_ host: Host) -> some View {
         let saved = savedHostIDs?.contains(host.id) == true
         let temporary = host.ssh?.authMethod == .ask
-        let title = host.ssh?.authMethod == .key ? String(localized: "私钥口令") : String(localized: "SSH 密码")
-        let status = temporary ? String(localized: "每次询问 · 不备份密码")
-            : savedHostIDs == nil ? String(localized: "保存状态待确认")
-            : saved ? String(localized: "已保存 · 将加密同步") : String(localized: "未保存凭证")
+        let title = host.ssh?.authMethod == .key ? String(localized: "私钥口令", bundle: AppSettings.localizationBundle, locale: locale) : String(localized: "SSH 密码", bundle: AppSettings.localizationBundle, locale: locale)
+        let status = temporary ? String(localized: "每次询问 · 不备份密码", bundle: AppSettings.localizationBundle, locale: locale)
+            : savedHostIDs == nil ? String(localized: "保存状态待确认", bundle: AppSettings.localizationBundle, locale: locale)
+            : saved ? String(localized: "已保存 · 将加密同步", bundle: AppSettings.localizationBundle, locale: locale) : String(localized: "未保存凭证", bundle: AppSettings.localizationBundle, locale: locale)
         return HStack(alignment: .top, spacing: 10) {
             Image(systemName: saved ? "lock.shield.fill" : "key")
                 .font(.system(size: 13)).foregroundStyle(saved ? Pal.green : Pal.overlay)
@@ -502,13 +544,14 @@ private struct HostSyncInventory: View {
             savedHostIDs = ids
         } catch {
             guard !Task.isCancelled else { return }
-            readError = String(localized: "无法读取已保存凭证：\(error.localizedDescription)")
+            readError = String(localized: "无法读取已保存凭证：\(error.localizedDescription)", bundle: AppSettings.localizationBundle, locale: locale)
         }
     }
 }
 
 /// 在整个设置窗口上显示；包含只读规模，确认前不修改业务数据。
 private struct SyncPreviewDialog: View {
+    @Environment(\.locale) private var locale
     let p: SyncModel.SyncPreview
     let onConfirm: () -> Void
     let onCancel: () -> Void
@@ -521,7 +564,9 @@ private struct SyncPreviewDialog: View {
                     VStack(alignment: .leading, spacing: 5) {
                         Label("同步前预览", systemImage: "arrow.triangle.2.circlepath")
                             .font(.system(size: 16, weight: .semibold)).foregroundStyle(Pal.text)
-                        Text(p.uploadAfter ? "合并后将更新本机与远端备份。" : "合并后仅更新本机，不回传远端。")
+                        Text(p.uploadAfter
+                             ? String(localized: "合并后将更新本机与远端备份。", bundle: AppSettings.localizationBundle, locale: locale)
+                             : String(localized: "合并后仅更新本机，不回传远端。", bundle: AppSettings.localizationBundle, locale: locale))
                             .font(.system(size: 12)).foregroundStyle(Pal.subtext)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading).padding(18)
@@ -538,6 +583,9 @@ private struct SyncPreviewDialog: View {
                             metric("主机", local: p.localHosts, remote: p.remoteHosts, merged: p.mergedHosts)
                             metric("密钥", local: p.localKeys, remote: p.remoteKeys, merged: p.mergedKeys)
                             metric("片段", local: p.localSnippets, remote: p.remoteSnippets, merged: p.mergedSnippets)
+                            metric("端口转发", local: p.localForwards, remote: p.remoteForwards, merged: p.mergedForwards)
+                            metric("信任记录", local: p.localKnownHosts, remote: p.remoteKnownHosts, merged: p.mergedKnownHosts)
+                            metricText("AI 配置", local: p.localAI, remote: p.remoteAI, merged: p.mergedAI)
                             Divider().overlay(Pal.border)
                             Text("已保存 SSH 密码：本机 \(p.localPasswords) 份 · 远端 \(p.remotePasswords) 份")
                                 .font(.system(size: 11)).foregroundStyle(Pal.subtext)
@@ -546,7 +594,7 @@ private struct SyncPreviewDialog: View {
                                     .font(.system(size: 12)).foregroundStyle(Pal.yellow)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
-                            Text("同步范围包括主机、已保存的密码、密钥与私钥、片段、端口转发和参与同步的设置。合并会保留两边独有项，不会同步删除。")
+                            Text("同步范围包括主机、已保存的密码、密钥与私钥、片段、端口转发、AI 配置、参与同步的设置和设备信任记录。合并会保留两边独有项，不会同步删除。")
                                 .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -576,6 +624,17 @@ private struct SyncPreviewDialog: View {
             Text(local.formatted()).frame(width: 55)
             Text(remote.formatted()).frame(width: 55)
             Text(merged.formatted()).frame(width: 55)
+        }
+        .font(.system(size: 12)).foregroundStyle(Pal.text)
+    }
+
+    /// AI 配置这类 0/1 语义的内容：显示「有/无」而非数量。
+    private func metricText(_ label: LocalizedStringKey, local: Bool, remote: Bool, merged: Bool) -> some View {
+        HStack(spacing: 5) {
+            Text(label).frame(maxWidth: .infinity, alignment: .leading)
+            Text(local ? String(localized: "有", bundle: AppSettings.localizationBundle, locale: locale) : String(localized: "无", bundle: AppSettings.localizationBundle, locale: locale)).frame(width: 55)
+            Text(remote ? String(localized: "有", bundle: AppSettings.localizationBundle, locale: locale) : String(localized: "无", bundle: AppSettings.localizationBundle, locale: locale)).frame(width: 55)
+            Text(merged ? String(localized: "有", bundle: AppSettings.localizationBundle, locale: locale) : String(localized: "无", bundle: AppSettings.localizationBundle, locale: locale)).frame(width: 55)
         }
         .font(.system(size: 12)).foregroundStyle(Pal.text)
     }

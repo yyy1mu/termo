@@ -15,7 +15,7 @@ struct RightBar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView(.vertical, showsIndicators: false) {
+            ScrollView(.vertical) {
                 VStack(spacing: 10) {
                     ForEach(groups, id: \.self) { group in
                         VStack(spacing: 3) {
@@ -30,10 +30,11 @@ struct RightBar: View {
                 }
                 .padding(.vertical, 9)
             }
+            .scrollIndicators(.automatic)
             Rectangle().fill(Pal.border).frame(height: 1)
             BackgroundCenterButton(model: model, arrowEdge: .leading)
                 .frame(height: 48)
-                .help(String(localized: "后台传输与隧道"))
+                .help(String(localized: "后台传输与隧道", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         .frame(width: Self.width)
         .frame(maxHeight: .infinity)
@@ -53,7 +54,10 @@ private struct RightBarButton: View {
             VStack(spacing: 4) {
                 Image(systemName: panel.symbol).font(
                     .system(size: 15, weight: selected ? .semibold : .regular))
-                Text(panel.shortTitle).font(.system(size: 9, weight: selected ? .semibold : .medium))
+                Text(verbatim: panel.shortTitle)
+                    .font(.system(size: 9, weight: selected ? .semibold : .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
             }
             .foregroundStyle(selected ? Pal.mauve : (hover ? Pal.text : Pal.subtext))
             .frame(width: 48, height: 42)
@@ -118,7 +122,7 @@ struct CompanionPanel: View {
                             }
                             .onEnded { _ in dragBaseWidth = nil }
                     )
-                    .help(String(localized: "拖动调整功能面板宽度"))
+                    .help(String(localized: "拖动调整功能面板宽度", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
             .overlay(alignment: .leading) {
                 Rectangle().fill(Pal.border).frame(width: 1)
@@ -138,8 +142,8 @@ struct CompanionPanel: View {
                     Text(host.name).font(.system(size: 11)).foregroundStyle(Pal.subtext)
                         .lineLimit(1).truncationMode(.middle).help(host.name)
                 } else {
-                    Text(panel == .snippets ? "跨主机复用常用命令"
-                         : (context.scope == .empty ? "未选择工作区" : "本地终端"))
+                    Text(panel == .snippets ? String(localized: "跨主机复用常用命令", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                         : (context.scope == .empty ? String(localized: "未选择工作区", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "本地终端", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)))
                         .font(.system(size: 11)).foregroundStyle(Pal.subtext)
                 }
             }
@@ -151,7 +155,7 @@ struct CompanionPanel: View {
                     .foregroundStyle(Pal.subtext).frame(width: 28, height: 28)
                     .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.plain).pointerCursor().help(String(localized: "收起面板"))
+            .buttonStyle(.plain).pointerCursor().help(String(localized: "收起面板", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             .accessibilityLabel("收起面板")
         }
         .padding(.horizontal, 11).padding(.vertical, 9)
@@ -163,7 +167,7 @@ struct CompanionPanel: View {
         if panel.needsHost && host == nil {
             CompanionPlaceholder(
                 symbol: panel.symbol,
-                message: String(localized: "请先在终端或概览页选中一台 SSH 主机")
+                message: String(localized: "请先在终端或概览页选中一台 SSH 主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             )
         } else {
             switch panel {
@@ -222,6 +226,6 @@ private struct CompanionPlaceholder: View {
     let message: String
 
     var body: some View {
-        PanelEmptyState(symbol: symbol, title: String(localized: "选择一台主机"), detail: message)
+        PanelEmptyState(symbol: symbol, title: String(localized: "选择一台主机", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), detail: message)
     }
 }

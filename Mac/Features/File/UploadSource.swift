@@ -109,13 +109,13 @@ final class UploadSource: UploadInput, @unchecked Sendable {
         var info = stat()
         guard fstat(descriptor, &info) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         guard info.st_mode & S_IFMT == S_IFREG, info.st_size >= 0 else {
-            throw RemoteFSError(message: String(localized: "上传源必须是可读取的普通文件。"))
+            throw RemoteFSError(message: String(localized: "上传源必须是可读取的普通文件。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         return Snapshot(info)
     }
 
     static func changed() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "本地文件已变化或续传位置无效，请选择从头重传。"))
+        RemoteFSError(message: String(localized: "本地文件已变化或续传位置无效，请选择从头重传。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 
     deinit { close() }

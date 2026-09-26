@@ -1,5 +1,6 @@
 import XCTest
 @testable import Termo
+import TermoCore
 
 /// 同步合并语义：主机按稳定 id/自然键/回退键三级匹配，冲突默认保留本机，
 /// 远端转发规则的 hostId 经主机映射表归一。
@@ -18,10 +19,12 @@ final class SyncEngineTests: XCTestCase {
 
     private func payload(hosts: [Termo.Host], passwords: [String: String] = [:],
                          snippets: [Snippet] = [], forwards: [ForwardRule] = [],
-                         settings: SyncedSettings = SyncedSettings()) -> SyncPayload {
+                         settings: SyncedSettings = SyncedSettings(),
+                         ai: SyncedAI? = nil, knownHosts: [String] = []) -> SyncPayload {
         SyncPayload(exportedAt: Date(), deviceName: "test", hosts: hosts,
                     hostPasswords: passwords, keys: [], privateKeys: [:],
-                    snippets: snippets, forwards: forwards, settings: settings)
+                    snippets: snippets, forwards: forwards, settings: settings,
+                    ai: ai, knownHosts: knownHosts)
     }
 
     func testHostMonitoringLegacyDefaultsAndDraftRoundTrip() throws {
@@ -142,9 +145,145 @@ final class SyncEngineTests: XCTestCase {
             local: payload(hosts: [], snippets: [local]),
             remote: payload(hosts: [], snippets: [remote]))
         XCTAssertEqual(result.conflicts.count, 1)
-        let field = result.conflicts[0].fields.first { $0.label == "内容" }
+        let field = result.conflicts[0].fields.first {
+            $0.label == String(
+                localized: "内容",
+                bundle: AppSettings.localizationBundle,
+                locale: AppSettings.activeLocale)
+        }
         XCTAssertEqual(field?.local, local.content)
         XCTAssertEqual(field?.remote, remote.content)
         XCTAssertEqual(field?.isDifferent, true)
+    }
+
+    // MARK: - 全量同步扩展（AI 配置 / 新设置字段 / known_hosts）
+
+    func test_newFields_payloadRoundTrip() throws {
+        var settings = SyncedSettings()
+        settings.closeToTray = true
+        settings.monitorNoticeHidden = true
+        settings.downloadDir = "/tmp/downloads"
+        settings.downloadAskEachTime = true
+        settings.maxConcurrentTransfers = 5
+        settings.pausedReleasesSlot = false
+        settings.showDownloadDialog = false
+        var ai = SyncedAI()
+        ai.baseURL = "https://api.moonshot.cn"
+        ai.model = "kimi-k2"
+        ai.temperature = 0.7
+        ai.contextWindow = 128_000
+        ai.systemPrompt = "自定义提示"
+        ai.apiKey = "sk-secret"
+        let p = payload(hosts: [host("A")], settings: settings, ai: ai,
+                        knownHosts: ["1.2.3.4 ssh-ed25519 AAAA", "[h]:22 ssh-rsa BBBB"])
+        let restored = try JSONDecoder().decode(SyncPayload.self, from: JSONEncoder().encode(p))
+        XCTAssertEqual(restored.settings, settings)
+        XCTAssertEqual(restored.ai, ai)
+        XCTAssertEqual(restored.knownHosts, p.knownHosts)
+    }
+
+    func test_legacyPayload_withoutNewKeys_decodes() throws {
+        let encoded = try JSONEncoder().encode(payload(hosts: [host("A")]))
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        json.removeValue(forKey: "ai")
+        json.removeValue(forKey: "knownHosts")
+        var settings = try XCTUnwrap(json["settings"] as? [String: Any])
+        for key in ["closeToTray", "monitorNoticeHidden", "downloadDir", "downloadAskEachTime",
+                    "maxConcurrentTransfers", "pausedReleasesSlot", "showDownloadDialog"] {
+            settings.removeValue(forKey: key)
+        }
+        json["settings"] = settings
+        let legacy = try JSONDecoder().decode(SyncPayload.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertNil(legacy.ai)
+        XCTAssertEqual(legacy.knownHosts, [])
+        XCTAssertEqual(legacy.hosts.map(\.id), ["A"])
+        XCTAssertFalse(legacy.settings.closeToTray)
+        XCTAssertFalse(legacy.settings.monitorNoticeHidden)
+        XCTAssertEqual(legacy.settings.downloadDir, "")
+        XCTAssertFalse(legacy.settings.downloadAskEachTime)
+        XCTAssertEqual(legacy.settings.maxConcurrentTransfers, 2)
+        XCTAssertTrue(legacy.settings.pausedReleasesSlot)
+        XCTAssertTrue(legacy.settings.showDownloadDialog)
+    }
+
+    func test_knownHosts_unionMerge_noConflict() {
+        let l = payload(hosts: [], knownHosts: ["a ssh-ed25519 A", "b ssh-rsa B"])
+        let r = payload(hosts: [], knownHosts: ["b ssh-rsa B", "c ssh-ed25519 C"])
+        let m = SyncEngine.merge(local: l, remote: r)
+        XCTAssertEqual(m.merged.knownHosts, ["a ssh-ed25519 A", "b ssh-rsa B", "c ssh-ed25519 C"])
+        XCTAssertTrue(m.conflicts.isEmpty)
+    }
+
+    func test_knownHosts_remoteOnly_adopted() {
+        let m = SyncEngine.merge(local: payload(hosts: []),
+                                 remote: payload(hosts: [], knownHosts: ["r ssh-ed25519 R"]))
+        XCTAssertEqual(m.merged.knownHosts, ["r ssh-ed25519 R"])
+    }
+
+    func test_aiDifference_producesConflict_apiKeyMasked() {
+        var la = SyncedAI()
+        la.model = "local-model"
+        var ra = la
+        ra.model = "remote-model"
+        ra.apiKey = "sk-remote-secret"
+        let m = SyncEngine.merge(local: payload(hosts: [], ai: la),
+                                 remote: payload(hosts: [], ai: ra))
+        let conflict = m.conflicts.first { $0.id == "ai" }
+        guard let conflict, case .ai = conflict.item else {
+            return XCTFail("AI 配置不同应产生 .ai 冲突")
+        }
+        let keyField = conflict.fields.first { $0.label == "API Key" }
+        XCTAssertEqual(keyField?.isDifferent, true)
+        XCTAssertFalse(conflict.fields.contains { $0.local.contains("sk-remote-secret") || $0.remote.contains("sk-remote-secret") })
+        XCTAssertEqual(m.merged.ai, la)  // 默认保留本机
+    }
+
+    func test_aiConflict_resolveRemote() {
+        var la = SyncedAI()
+        la.model = "local-model"
+        var ra = la
+        ra.model = "remote-model"
+        ra.apiKey = "sk-remote-secret"
+        let m = SyncEngine.merge(local: payload(hosts: [], ai: la),
+                                 remote: payload(hosts: [], ai: ra))
+        let resolved = SyncEngine.resolve(result: m, choices: ["ai": false])
+        XCTAssertEqual(resolved.ai, ra)
+        let kept = SyncEngine.resolve(result: m, choices: ["ai": true])
+        XCTAssertEqual(kept.ai, la)
+    }
+
+    func test_ai_remoteOnly_adopted() {
+        var ra = SyncedAI()
+        ra.model = "remote-model"
+        let m = SyncEngine.merge(local: payload(hosts: []), remote: payload(hosts: [], ai: ra))
+        XCTAssertEqual(m.merged.ai, ra)
+        XCTAssertTrue(m.conflicts.isEmpty)
+    }
+
+    func test_appendKnownHosts_appendsMissingOnly() throws {
+        let path = NSTemporaryDirectory() + "termo-test-\(UUID().uuidString)/session_known_hosts"
+        SyncEngine.appendKnownHosts(["a ssh-ed25519 A"], path: path)
+        SyncEngine.appendKnownHosts(["a ssh-ed25519 A", "b ssh-rsa B"], path: path)
+        XCTAssertEqual(SyncEngine.readKnownHosts(path: path), ["a ssh-ed25519 A", "b ssh-rsa B"])
+    }
+
+    func test_newSettingsFields_produceSettingsConflict() {
+        var s = SyncedSettings()
+        s.maxConcurrentTransfers = 5
+        s.closeToTray = true
+        let m = SyncEngine.merge(local: payload(hosts: []), remote: payload(hosts: [], settings: s))
+        XCTAssertEqual(m.conflicts.count, 1)
+        let labels = m.conflicts[0].fields.map(\.label)
+        XCTAssertTrue(labels.contains(String(
+            localized: "并发传输数",
+            bundle: AppSettings.localizationBundle,
+            locale: AppSettings.activeLocale)))
+        XCTAssertTrue(labels.contains(String(
+            localized: "关闭时隐藏到菜单栏",
+            bundle: AppSettings.localizationBundle,
+            locale: AppSettings.activeLocale)))
+        let resolved = SyncEngine.resolve(result: m, choices: ["settings": false])
+        XCTAssertEqual(resolved.settings.maxConcurrentTransfers, 5)
+        XCTAssertTrue(resolved.settings.closeToTray)
     }
 }

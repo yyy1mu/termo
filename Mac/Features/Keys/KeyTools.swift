@@ -1,4 +1,5 @@
 import Foundation
+import CTermoSSH
 
 /// 把密钥库（钥匙串）里的私钥落成 ssh 可用的工作文件（0600，等同 ~/.ssh/id_* 的安全姿态）。
 /// 幂等：文件已存在则直接复用，避免每次连接重写。删除密钥时清理对应文件。
@@ -10,9 +11,9 @@ enum KeyMaterializer {
         var errorDescription: String? {
             switch self {
             case .invalidKeyID:
-                return String(localized: "密钥工作文件名称无效，无法安全清理旧私钥")
+                return String(localized: "密钥工作文件名称无效，无法安全清理旧私钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             case .cleanup(let detail):
-                return String(localized: "旧私钥工作文件未能清理，新私钥尚未保存：\(detail)")
+                return String(localized: "旧私钥工作文件未能清理，新私钥尚未保存：\(detail)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             }
         }
     }
@@ -61,8 +62,8 @@ enum KeyError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .generate(let m): return String(localized: "生成密钥失败：\(m)")
-        case .importFail(let m): return String(localized: "导入密钥失败：\(m)")
+        case .generate(let m): return String(localized: "生成密钥失败：\(m)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        case .importFail(let m): return String(localized: "导入密钥失败：\(m)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }
@@ -80,13 +81,13 @@ enum KeyTools {
         let publicKeys = urls.filter { $0.lastPathComponent.hasSuffix(".pub") }
         guard privateKeys.count == 1, publicKeys.count <= 1,
               urls.count == privateKeys.count + publicKeys.count else {
-            throw KeyError.importFail(String(localized: "请选择一份私钥；加密私钥可再选同名 .pub 公钥"))
+            throw KeyError.importFail(String(localized: "请选择一份私钥；加密私钥可再选同名 .pub 公钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         let key = privateKeys[0]
         if let publicKey = publicKeys.first,
            (publicKey.lastPathComponent != key.lastPathComponent + ".pub"
                 || publicKey.deletingLastPathComponent() != key.deletingLastPathComponent()) {
-            throw KeyError.importFail(String(localized: "公钥文件需与私钥同名，并以 .pub 结尾"))
+            throw KeyError.importFail(String(localized: "公钥文件需与私钥同名，并以 .pub 结尾", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         return (key, publicKeys.first)
     }
@@ -100,10 +101,38 @@ enum KeyTools {
         let t: Int32 = type == .ed25519 ? 0 : 1
         let rc = termo_key_generate(t, comment, passphrase, &priv, Int32(priv.count),
                                     &pub, Int32(pub.count), &fp, 256, &err, 256)
-        guard rc == 0 else { throw KeyError.generate(String(cString: err)) }
+        guard rc == 0 else { throw KeyError.generate(localizedGenerationFailure(String(cString: err))) }
         return Generated(publicKey: String(cString: pub),
                          privateKey: String(cString: priv),
                          fingerprint: String(cString: fp))
+    }
+
+    /// The Rust FFI currently returns human-readable Chinese diagnostics. Keep that engine
+    /// detail out of the English key workflow until the transport adopts stable error codes.
+    private static func localizedGenerationFailure(_ raw: String) -> String {
+        func detail(after prefix: String) -> String? {
+            guard raw.hasPrefix(prefix) else { return nil }
+            return String(raw.dropFirst(prefix.count))
+        }
+        if let value = detail(after: "公钥编码失败: ") {
+            return String(localized: "公钥编码失败：\(value)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        }
+        if let value = detail(after: "生成失败: ") {
+            return String(localized: "密钥生成引擎失败：\(value)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        }
+        if let value = detail(after: "私钥加密失败: ") {
+            return String(localized: "私钥加密失败：\(value)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        }
+        if let value = detail(after: "私钥编码失败: ") {
+            return String(localized: "私钥编码失败：\(value)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        }
+        if let value = detail(after: "类型须为 0/1，收到 ") {
+            return String(localized: "不支持的密钥类型：\(value)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        }
+        if raw == "内部 panic（已被 FFI 边界拦截）" {
+            return String(localized: "密钥生成引擎发生内部错误。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        }
+        return raw
     }
 
     /// 从私钥文件导入：派生公钥、指纹、类型、是否加密。
@@ -115,7 +144,7 @@ enum KeyTools {
             pubLine = try String(contentsOf: publicKeyURL, encoding: .utf8)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             guard !pubLine.isEmpty else {
-                throw KeyError.importFail(String(localized: "所选 .pub 公钥文件为空"))
+                throw KeyError.importFail(String(localized: "所选 .pub 公钥文件为空", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
         } else if let s = try? String(contentsOfFile: siblingPub, encoding: .utf8) {
             pubLine = s.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -131,23 +160,23 @@ enum KeyTools {
             let supplied = pubLine.split(separator: " ").prefix(2)
             let derived = String(cString: outPub).split(separator: " ").prefix(2)
             guard supplied.count == 2, supplied.elementsEqual(derived) else {
-                throw KeyError.importFail(String(localized: "所选 .pub 公钥与私钥不匹配"))
+                throw KeyError.importFail(String(localized: "所选 .pub 公钥与私钥不匹配", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
         }
 
         if pubLine.isEmpty {
             guard rc == 0 else {
                 throw KeyError.importFail(rc == 1
-                    ? String(localized: "私钥已加密且无同名 .pub 文件，无法派生公钥；请连同 .pub 一起导入")
-                    : String(localized: "无法读取私钥"))
+                    ? String(localized: "私钥已加密且无同名 .pub 文件，无法派生公钥；请连同 .pub 一起导入", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                    : String(localized: "无法读取私钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
             pubLine = String(cString: outPub)
         }
-        guard !pubLine.isEmpty else { throw KeyError.importFail(String(localized: "无法读取公钥")) }
+        guard !pubLine.isEmpty else { throw KeyError.importFail(String(localized: "无法读取公钥", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) }
 
         var fp = [CChar](repeating: 0, count: 256)
         guard termo_key_fingerprint(pubLine, &fp, 256) == 0 else {
-            throw KeyError.importFail(String(localized: "所选 .pub 公钥格式无效"))
+            throw KeyError.importFail(String(localized: "所选 .pub 公钥格式无效", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         let fingerprint = String(cString: fp)
 

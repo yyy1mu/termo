@@ -70,6 +70,6 @@ enum UploadStream {
     }
 
     static func changedDestination() -> RemoteFSError {
-        RemoteFSError(message: String(localized: "远端残留文件大小或类型已变化，请重新检查后重试。"))
+        RemoteFSError(message: String(localized: "远端残留文件大小或类型已变化，请重新检查后重试。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
     }
 }

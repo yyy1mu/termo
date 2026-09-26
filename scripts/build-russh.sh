@@ -2,34 +2,31 @@
 set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-OUT_DIR="$ROOT/build/russh/universal"
+TARGET="aarch64-apple-darwin"
+OUT_DIR="$ROOT/build/russh/$TARGET"
 mkdir -p "$OUT_DIR"
 
-# 锁定 rustup 工具链：交叉 target（x86_64-apple-darwin 等）由 rustup 管理。
-# 注意：cargo 解析 rustc 靠 PATH——必须把 rustup 的 bin 前置，否则会误用
-# Homebrew 的独立 rustc（不含交叉 target，报 E0463 can't find crate for core）。
+# 锁定 rustup 工具链：stable 1.97.1 在 macOS 上会生成无法加载的 proc-macro dylib（E0463），
+# 1.95.0 已验证可用；调用方可显式覆盖。必须把 rustup 的 bin 前置，否则误用 Homebrew 的 rustc。
 if [ -x "$HOME/.cargo/bin/cargo" ]; then
     CARGO="$HOME/.cargo/bin/cargo"
     export PATH="$HOME/.cargo/bin:$PATH"
-    # 1.95.0 已验证能从空缓存构建双架构库；当前 stable 1.97.1 在 macOS 上
-    # 生成无法加载的 proc-macro dylib（E0463）。调用方仍可显式覆盖工具链。
     export RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.95.0}"
 else
     CARGO="$(command -v cargo)"
 fi
 
-# 双架构编译（Intel + Apple Silicon），产出一个通用静态库。
-for TARGET in aarch64-apple-darwin x86_64-apple-darwin; do
-    "$CARGO" build --manifest-path "$ROOT/TermoSSH/Cargo.toml" \
-        --target "$TARGET" \
-        --release \
-        --target-dir "$ROOT/build/russh/target"
-done
+# 必须剥掉 Xcode 导出的 MACOSX_DEPLOYMENT_TARGET（与版本值无关）：实测 14.0 和 27.0 都会让
+# Xcode 27 链接器产出损坏的 proc-macro dylib（dlopen: mis-aligned LINKEDIT string pool），
+# cargo 报 E0463 can't find crate for *_macro。此 workaround 不可删除。
+unset MACOSX_DEPLOYMENT_TARGET
 
-lipo -create \
-    "$ROOT/build/russh/target/aarch64-apple-darwin/release/libtermo_ssh.a" \
-    "$ROOT/build/russh/target/x86_64-apple-darwin/release/libtermo_ssh.a" \
-    -output "$OUT_DIR/libtermo_ssh.a"
+# 仅 Apple Silicon（macOS 27 起系统本身不再支持 Intel，无需 x86_64 切片）。
+"$CARGO" build --manifest-path "$ROOT/TermoSSH/Cargo.toml" \
+    --target "$TARGET" \
+    --release \
+    --target-dir "$ROOT/build/russh/target"
 
+cp "$ROOT/build/russh/target/$TARGET/release/libtermo_ssh.a" "$OUT_DIR/libtermo_ssh.a"
 nm -gU "$OUT_DIR/libtermo_ssh.a" | grep -q "_termo_russh_backend_version"
-printf '%s\n' "Built Rust SSH static library (universal): $OUT_DIR/libtermo_ssh.a"
+printf '%s\n' "Built Rust SSH static library: $OUT_DIR/libtermo_ssh.a"

@@ -1,4 +1,6 @@
 import Foundation
+import TermoEngine
+import TermoCore
 
 /// A credential-free snapshot. Changing connection identity or cwd invalidates approval.
 struct AIExecutionTarget: Equatable {
@@ -190,20 +192,20 @@ final class AICommandService {
         guard var request = requests[id], request.version == expectedVersion,
               request.decision == .pending, AIToolRequest.valid(request.command),
               (1...300).contains(request.timeout) else {
-            throw ApprovalError(message: String(localized: "这条请求已处理，请重新提出命令。"))
+            throw ApprovalError(message: String(localized: "这条请求已处理，请重新提出命令。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         guard request.expiresAt > now, currentTarget() == request.target else {
             invalidate(id)
-            throw ApprovalError(message: String(localized: "请求已过期或主机配置已改变，请重新提出命令。"))
+            throw ApprovalError(message: String(localized: "请求已过期或主机配置已改变，请重新提出命令。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
-        guard unlocked() else { throw ApprovalError(message: String(localized: "请先解锁 Termo。")) }
+        guard unlocked() else { throw ApprovalError(message: String(localized: "请先解锁 Termo。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) }
         let ssh = try connection()
         guard ssh.host == request.target.host, ssh.port == request.target.port,
               ssh.user == request.target.user, ssh.authMethod == request.target.authMethod,
               ssh.keyId == request.target.keyID, ssh.keyPath == request.target.keyPath,
               (ssh.defaultPath.isEmpty ? "~" : ssh.defaultPath) == request.target.cwd else {
             invalidate(id)
-            throw ApprovalError(message: String(localized: "执行连接与批准的主机不一致。"))
+            throw ApprovalError(message: String(localized: "执行连接与批准的主机不一致。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
         try saveReceipt(request, state: "approved")
         // No suspension between validation and consume: duplicate clicks cannot dispatch twice.
@@ -232,7 +234,7 @@ final class AICommandService {
             io.detach()
             await Task.detached { operation.close() }.value
             run.finish(io.isCancelled ? .stopped : .failed,
-                       detail: String(localized: "执行前校验未通过，命令没有发送。"))
+                       detail: String(localized: "执行前校验未通过，命令没有发送。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             return
         }
         run.didDispatch()

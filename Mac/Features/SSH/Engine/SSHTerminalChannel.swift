@@ -1,4 +1,7 @@
 import Foundation
+import CTermoSSH
+import TermoEngine
+import TermoCore
 
 /// Owns the FFI shell and its borrowed session together. The controller releases this resource off-main.
 final class SSHTerminalChannel: TerminalChannel, @unchecked Sendable {

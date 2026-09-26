@@ -1,4 +1,5 @@
 import SwiftUI
+import TermoCore
 
 //  扩展伴随面板（P3）：tmux / 系统服务 / 进程 / 网络连接 / Docker。
 //  共同模式：经 RemoteFS 借暖连接执行一条远端命令，把输出解析成卡片列表；
@@ -40,7 +41,7 @@ final class ExecPanelState: ObservableObject {
         let out = String(decoding: r.data, as: UTF8.self)
         if r.code != 0 {
             let msg = String(decoding: r.stderr, as: UTF8.self)
-            phase = .failed(msg.isEmpty ? String(localized: "命令执行失败") : msg)
+            phase = .failed(msg.isEmpty ? String(localized: "命令执行失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : msg)
             return
         }
         // 面板脚本用哨兵串标记「不支持」（工具未安装），不当作硬错误。
@@ -68,7 +69,7 @@ final class ExecPanelState: ObservableObject {
     /// 动作命令失败时把 stderr 反馈为错误状态（骨架顶部刷新按钮可重试恢复）。
     func reportFailure(_ stderr: Data) {
         let msg = String(decoding: stderr, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-        phase = .failed(msg.isEmpty ? String(localized: "命令执行失败") : msg)
+        phase = .failed(msg.isEmpty ? String(localized: "命令执行失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : msg)
     }
 }
 
@@ -77,7 +78,7 @@ final class ExecPanelState: ObservableObject {
 /// 通用骨架：搜索框 + 刷新按钮 + 按阶段渲染（加载/失败/不支持/列表/空态）。
 private struct ExecPanelScaffold<Item: Identifiable, Row: View>: View {
     @ObservedObject var state: ExecPanelState
-    var searchPlaceholder = String(localized: "搜索…")
+    var searchPlaceholder = String(localized: "搜索…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
     var extraHeader: (() -> AnyView)? = nil
     let items: [Item]
     @ViewBuilder let row: (Item) -> Row
@@ -114,7 +115,7 @@ private struct ExecPanelScaffold<Item: Identifiable, Row: View>: View {
                         .background(Pal.fill(0.04), in: RoundedRectangle(cornerRadius: 9))
                     }
                     .buttonStyle(.plain).pointerCursor().disabled(state.isRefreshing || state.isActing)
-                    .help(String(localized: "刷新列表")).accessibilityLabel("刷新列表")
+                    .help(String(localized: "刷新列表", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)).accessibilityLabel("刷新列表")
                 }
                 if state.phase == .loaded, let extraHeader { extraHeader() }
             }.padding(14)
@@ -128,23 +129,23 @@ private struct ExecPanelScaffold<Item: Identifiable, Row: View>: View {
             case .failed(let message):
                 ScrollView {
                     PanelEmptyState(
-                        symbol: "exclamationmark.triangle", title: String(localized: "读取失败"),
-                        detail: message, actionTitle: String(localized: "重新加载"),
+                        symbol: "exclamationmark.triangle", title: String(localized: "读取失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                        detail: message, actionTitle: String(localized: "重新加载", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                         action: { state.refresh() }, symbolColor: Pal.yellow
                     )
                     .padding(.vertical, 32)
                 }
             case .unsupported(let message):
                 PanelEmptyState(
-                    symbol: "shippingbox", title: String(localized: "此主机暂不支持"),
+                    symbol: "shippingbox", title: String(localized: "此主机暂不支持", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                     detail: message, symbolColor: Pal.overlay)
             case .loaded:
                 if items.isEmpty {
                     PanelEmptyState(
                         symbol: state.query.isEmpty ? "tray" : "magnifyingglass",
-                        title: state.query.isEmpty ? String(localized: "暂无项目") : String(localized: "没有匹配结果"),
+                        title: state.query.isEmpty ? String(localized: "暂无项目", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "没有匹配结果", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                         detail: state.query.isEmpty
-                            ? String(localized: "刷新列表，查看最新状态。") : String(localized: "试试其他名称、地址或关键词。"))
+                            ? String(localized: "刷新列表，查看最新状态。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "试试其他名称、地址或关键词。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 6) {
@@ -156,7 +157,7 @@ private struct ExecPanelScaffold<Item: Identifiable, Row: View>: View {
             if let updatedAt = state.updatedAt {
                 HStack(spacing: 6) {
                     if state.isActing { ProgressView().controlSize(.mini) }
-                    Text(state.isActing ? "正在执行操作…" : "最近更新")
+                    Text(state.isActing ? String(localized: "正在执行操作…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "最近更新", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     if !state.isActing { Text(updatedAt, style: .time).monospacedDigit() }
                     Spacer(minLength: 0)
                     Text("\(items.count) 项")
@@ -178,7 +179,14 @@ private struct PanelCard<Content: View>: View {
         content()
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(hover ? Pal.card : Pal.base, in: RoundedRectangle(cornerRadius: 10))
+            // 右栏容器是 Pal.mantle：卡片用更亮的 Pal.card 浮起（原先 idle 用更深的 Pal.base，像凹陷）；
+            // hover 用主题感知的半透明覆盖层微提亮，而非跳档到 surface0。
+            .background(Pal.card, in: RoundedRectangle(cornerRadius: 10))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(hover ? Pal.fill(0.06) : Color.clear)
+                    .allowsHitTesting(false)
+            }
             .onHover { hover = $0 }
     }
 }
@@ -275,7 +283,7 @@ struct TmuxPanel: View {
         }
         ExecPanelScaffold(
             state: state,
-            searchPlaceholder: String(localized: "搜索会话…"),
+            searchPlaceholder: String(localized: "搜索会话…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
             extraHeader: {
                 AnyView(
                     HStack {
@@ -303,18 +311,18 @@ struct TmuxPanel: View {
                             .lineLimit(2).help(s.name)
                         HStack(spacing: 6) {
                             PanelBadge(
-                                text: s.attached ? String(localized: "已连接") : String(localized: "未连接"),
+                                text: s.attached ? String(localized: "已连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "未连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
                                 color: s.attached ? Pal.green : Pal.overlay)
                             Text("\(s.windows) 窗口").font(.system(size: 10)).foregroundStyle(Pal.overlay)
                         }
                     }
                     Spacer()
                     PanelActionButton(
-                        symbol: "terminal", accent: Pal.mauve, help: String(localized: "在新标签接入会话")
+                        symbol: "terminal", accent: Pal.mauve, help: String(localized: "在新标签接入会话", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
                     ) {
                         model.openTmuxSessionTab(host: host, sessionName: s.name)
                     }
-                    PanelActionButton(symbol: "trash", accent: Pal.red, help: String(localized: "删除会话")) {
+                    PanelActionButton(symbol: "trash", accent: Pal.red, help: String(localized: "删除会话", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)) {
                         pendingKill = s
                     }
                 }
@@ -367,12 +375,12 @@ struct ServicesPanel: View {
         var running: Bool { active == "active" && sub == "running" }
         var failed: Bool { active == "failed" || sub == "failed" }
         var statusTitle: String {
-            if running { return String(localized: "运行中") }
-            if failed { return String(localized: "失败") }
-            if active == "active" && sub == "exited" { return String(localized: "已完成") }
-            if active == "inactive" { return String(localized: "未运行") }
-            if active == "activating" { return String(localized: "启动中") }
-            if active == "deactivating" { return String(localized: "停止中") }
+            if running { return String(localized: "运行中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+            if failed { return String(localized: "失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+            if active == "active" && sub == "exited" { return String(localized: "已完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+            if active == "inactive" { return String(localized: "未运行", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+            if active == "activating" { return String(localized: "启动中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+            if active == "deactivating" { return String(localized: "停止中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
             return active + " · " + sub
         }
     }
@@ -399,14 +407,14 @@ struct ServicesPanel: View {
                 || $0.description.localizedCaseInsensitiveContains(state.query)
         }
         ExecPanelScaffold(
-            state: state, searchPlaceholder: String(localized: "搜索服务名称或描述…"),
+            state: state, searchPlaceholder: String(localized: "搜索服务名称或描述…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
             extraHeader: {
                 AnyView(
                     HStack(spacing: 8) {
                         PanelBadge(
-                            text: String(localized: "运行 \(all.filter(\.running).count)"), color: Pal.green)
+                            text: String(localized: "运行 \(all.filter(\.running).count)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), color: Pal.green)
                         PanelBadge(
-                            text: String(localized: "失败 \(all.filter(\.failed).count)"), color: Pal.red)
+                            text: String(localized: "失败 \(all.filter(\.failed).count)", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), color: Pal.red)
                         Spacer()
                         Text("前 150 项").font(.system(size: 10)).foregroundStyle(Pal.overlay)
                     })
@@ -430,7 +438,7 @@ struct ServicesPanel: View {
                             Image(systemName: "ellipsis").frame(width: 28, height: 24)
                         }
                         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help(
-                            String(localized: "服务操作"))
+                            String(localized: "服务操作", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     }
                     if !service.description.isEmpty {
                         Text(service.description).font(.system(size: 11)).foregroundStyle(Pal.subtext)
@@ -499,7 +507,7 @@ struct ProcessesPanel: View {
                 || String($0.pid).contains(state.query)
         }
         ExecPanelScaffold(
-            state: state, searchPlaceholder: String(localized: "进程、PID 或用户…"),
+            state: state, searchPlaceholder: String(localized: "进程、PID 或用户…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
             extraHeader: {
                 AnyView(
                     HStack {
@@ -521,14 +529,14 @@ struct ProcessesPanel: View {
                             Image(systemName: "ellipsis").frame(width: 28, height: 24)
                         }
                         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help(
-                            String(localized: "进程操作"))
+                            String(localized: "进程操作", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                     }
                     Text("PID \(String(process.pid)) · \(process.user) · \(process.etime)")
                         .font(.system(size: 10, design: .monospaced)).foregroundStyle(Pal.subtext)
                         .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         metric("CPU", String(format: "%.1f%%", process.cpu), color: Pal.yellow)
-                            .help(String(localized: "单个 CPU 核为 100%，多核进程可超过 100%"))
+                            .help(String(localized: "单个 CPU 核为 100%，多核进程可超过 100%", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                         metric(
                             "内存 · \(String(format: "%.1f", process.mem))%", formatSizeKB(process.rssKB),
                             color: Pal.mauve)
@@ -624,14 +632,14 @@ struct NetworkPanel: View {
         }
         ExecPanelScaffold(
             state: state,
-            searchPlaceholder: String(localized: "搜索地址、端口、进程…"),
+            searchPlaceholder: String(localized: "搜索地址、端口、进程…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
             extraHeader: {
                 AnyView(
                     VStack(alignment: .leading, spacing: 8) {
                         SegmentedControl(
                             options: [
-                                (0, String(localized: "全部")), (1, String(localized: "监听")),
-                                (2, String(localized: "已连接")),
+                                (0, String(localized: "全部", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)), (1, String(localized: "监听", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)),
+                                (2, String(localized: "已连接", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)),
                             ],
                             selection: $stateFilter
                         )
@@ -648,7 +656,7 @@ struct NetworkPanel: View {
                         HStack(spacing: 6) {
                             PanelBadge(text: c.proto, color: Pal.mauve)
                             PanelBadge(
-                                text: c.isListen ? String(localized: "监听") : c.state,
+                                text: c.isListen ? String(localized: "监听", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : c.state,
                                 color: c.isListen ? Pal.green : Pal.mauve)
                         }
                         Text("本地 \(c.local)").font(.system(size: 11, design: .monospaced)).foregroundStyle(
@@ -698,12 +706,12 @@ struct DockerPanel: View {
         var paused: Bool { status.contains("(Paused)") }
         var running: Bool { status.hasPrefix("Up") && !paused }
         var statusTitle: String {
-            if paused { return String(localized: "已暂停") }
-            if running { return String(localized: "运行中") }
-            if status.hasPrefix("Restarting") { return String(localized: "重启中") }
-            if status.hasPrefix("Created") { return String(localized: "未启动") }
-            if status.hasPrefix("Dead") { return String(localized: "异常") }
-            return String(localized: "已停止")
+            if paused { return String(localized: "已暂停", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+            if running { return String(localized: "运行中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+            if status.hasPrefix("Restarting") { return String(localized: "重启中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+            if status.hasPrefix("Created") { return String(localized: "未启动", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+            if status.hasPrefix("Dead") { return String(localized: "异常", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+            return String(localized: "已停止", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
     private struct Named: Identifiable {
@@ -761,14 +769,14 @@ struct DockerPanel: View {
                 || $0.detail.localizedCaseInsensitiveContains(state.query)
         }
         ExecPanelScaffold(
-            state: state, searchPlaceholder: String(localized: "搜索资源名称…"),
+            state: state, searchPlaceholder: String(localized: "搜索资源名称…", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
             extraHeader: {
                 AnyView(
                     VStack(alignment: .leading, spacing: 8) {
                         SegmentedControl(
                             options: [
-                                (0, String(localized: "容器")), (1, String(localized: "镜像")),
-                                (2, String(localized: "卷")), (3, String(localized: "网络")),
+                                (0, String(localized: "容器", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)), (1, String(localized: "镜像", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)),
+                                (2, String(localized: "卷", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)), (3, String(localized: "网络", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)),
                             ], selection: $tab)
                         Text("\(resources.count) 项资源").font(.system(size: 10)).foregroundStyle(Pal.subtext)
                     })
@@ -795,7 +803,7 @@ struct DockerPanel: View {
                                 Image(systemName: "ellipsis").frame(width: 28, height: 24)
                             }
                             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help(
-                                String(localized: "容器操作"))
+                                String(localized: "容器操作", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                         }
                     }
                     if !resource.detail.isEmpty {

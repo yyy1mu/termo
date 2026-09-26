@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import TermoCore
 
 extension AppModel {
     // ---------- 传输队列 ----------
@@ -56,8 +57,8 @@ extension AppModel {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
-        panel.prompt = String(localized: "上传")
-        panel.message = String(localized: "选择要上传到「\(folder.name)」的文件")
+        panel.prompt = String(localized: "上传", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+        panel.message = String(localized: "选择要上传到「\(folder.name)」的文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
         startUpload(files: panel.urls, destDir: folder.path, host: host)
     }
@@ -73,7 +74,7 @@ extension AppModel {
         }
         guard !files.isEmpty else {
             pendingFileInfo = FileInfoContext(
-                title: String(localized: "无法上传"), message: String(localized: "暂不支持拖拽文件夹，请拖入文件。"))
+                title: String(localized: "无法上传", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), message: String(localized: "暂不支持拖拽文件夹，请拖入文件。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             return
         }
         Task { @MainActor in
@@ -91,7 +92,7 @@ extension AppModel {
         }
         guard !files.isEmpty else {
             pendingFileInfo = FileInfoContext(
-                title: String(localized: "无法上传"), message: String(localized: "暂不支持拖拽文件夹，请拖入文件。"))
+                title: String(localized: "无法上传", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), message: String(localized: "暂不支持拖拽文件夹，请拖入文件。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             return
         }
         startUpload(files: files, destDir: dir, host: host)
@@ -124,8 +125,8 @@ extension AppModel {
             panel.canChooseFiles = false
             panel.canChooseDirectories = true
             panel.allowsMultipleSelection = false
-            panel.prompt = String(localized: "下载到此处")
-            panel.message = String(localized: "选择下载保存到的文件夹")
+            panel.prompt = String(localized: "下载到此处", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+            panel.message = String(localized: "选择下载保存到的文件夹", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             panel.directoryURL = AppSettings.shared.resolvedDownloadDir
             guard panel.runModal() == .OK, let u = panel.url else { return }
             dir = u
@@ -185,8 +186,8 @@ extension AppModel {
         else { return }
         if let t = extractTask, t.phase == .running {
             pendingFileInfo = FileInfoContext(
-                title: String(localized: "已有解压进行中"),
-                message: String(localized: "请等当前解压结束后再开始新的解压。"))
+                title: String(localized: "已有解压进行中", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale),
+                message: String(localized: "请等当前解压结束后再开始新的解压。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             return
         }
         let parent = (file.path as NSString).deletingLastPathComponent

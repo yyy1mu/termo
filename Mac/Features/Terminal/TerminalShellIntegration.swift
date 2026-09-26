@@ -1,21 +1,28 @@
 import Foundation
+import TermoCore
 
-/// Interactive shell setup only. Agent commands use their own exec channel and require no prompt hooks.
+/// Builds the optional PTY+exec command used before the interactive login shell starts.
+/// Nothing returned here is written to the interactive shell's stdin, so it cannot enter shell history.
 enum TerminalShellIntegration {
-    private static let directoryHook =
-        "__t7(){ printf '\\033]7;file://%s%s\\033\\\\' \"${HOSTNAME:-h}\" \"$PWD\"; }; " +
-        "if [ -n \"$ZSH_VERSION\" ]; then precmd_functions+=(__t7); " +
-        "else PROMPT_COMMAND=\"__t7;${PROMPT_COMMAND}\"; fi; __t7"
+    static func startupCommand(for connection: SSHConnection) -> String? {
+        let path = connection.defaultPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        let command = connection.initialCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        var actions: [String] = []
+        if !path.isEmpty && path != "~" { actions.append("cd -- \(shellPath(path))") }
+        if !command.isEmpty { actions.append(command) }
+        guard !actions.isEmpty else { return nil }
 
-    /// Preserve cwd reporting, clear the setup echo, then apply the user's startup configuration.
-    static func initialLine(for connection: SSHConnection) -> String {
-        let path = connection.defaultPath.trimmingCharacters(in: .whitespaces)
-        let command = connection.initialCommand.trimmingCharacters(in: .whitespaces)
-        var tail = ""
-        if !path.isEmpty && path != "~" { tail += "cd \(path)" }
-        if !command.isEmpty { tail += (tail.isEmpty ? "" : " && ") + command }
-        var line = directoryHook + "; printf '\\033[2J\\033[H'"
-        if !tail.isEmpty { line += "; " + tail }
-        return line + "\n"
+        // sshd executes this wrapper outside the interactive shell. After the configured actions finish,
+        // replace the wrapper with the user's login shell on the same PTY.
+        return actions.joined(separator: " && ") + "; exec \"${SHELL:-/bin/sh}\" -l"
+    }
+
+    private static func shellQuote(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
+    }
+
+    private static func shellPath(_ value: String) -> String {
+        guard value.hasPrefix("~/") else { return shellQuote(value) }
+        return "\"$HOME\"/" + shellQuote(String(value.dropFirst(2)))
     }
 }

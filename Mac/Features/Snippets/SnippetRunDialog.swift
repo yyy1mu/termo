@@ -23,7 +23,7 @@ struct SnippetRunDialog: View {
                 Color.black.opacity(0.35).ignoresSafeArea().onTapGesture(perform: onCancel)
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 7) {
-                        Label(request.run ? "运行片段" : "插入片段", systemImage: "curlybraces")
+                        Label(request.run ? String(localized: "运行片段", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "插入片段", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), systemImage: "curlybraces")
                             .font(.system(size: 16, weight: .semibold)).foregroundStyle(Pal.text)
                         Text(request.snippet.name).font(.system(size: 12)).foregroundStyle(Pal.subtext)
                             .lineLimit(2)
@@ -58,7 +58,9 @@ struct SnippetRunDialog: View {
                     }
                     Divider().overlay(Pal.border)
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(request.run ? "确认后立即在终端执行。" : "仅输入到终端，由你回车执行。")
+                        Text(request.run
+                             ? String(localized: "确认后立即在终端执行。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
+                             : String(localized: "仅输入到终端，由你回车执行。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                             .font(.system(size: 11)).foregroundStyle(Pal.overlay)
                         HStack(spacing: 10) {
                             Text("\(values.values.filter { !$0.isEmpty }.count) / \(request.variables.count) 已填写")

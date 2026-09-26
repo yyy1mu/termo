@@ -105,11 +105,11 @@ final class UploadTask: ObservableObject, ScheduledTransfer {
 
     var schedulingStatus: String? {
         guard !phase.isFinished else { return nil }
-        if isCancelling { return String(localized: "正在取消") }
-        if phase == .paused, isPerformingIO { return String(localized: "正在暂停") }
+        if isCancelling { return String(localized: "正在取消", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        if phase == .paused, isPerformingIO { return String(localized: "正在暂停", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
         if phase == .paused, !awaitingSlot { return nil }
-        if isWaitingForPath { return String(localized: "等待同名文件") }
-        if awaitingSlot { return String(localized: "等待名额") }
+        if isWaitingForPath { return String(localized: "等待同名文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
+        if awaitingSlot { return String(localized: "等待名额", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) }
         return nil
     }
 
@@ -477,7 +477,7 @@ final class UploadTask: ObservableObject, ScheduledTransfer {
                 let removed = destination.discard()
                 item.downloadDestination = nil
                 item.interrupted = false
-                item.state = .failed(removed ? message : message + "\n" + String(localized: "下载临时文件未能清理，请检查保存目录。"))
+                item.state = .failed(removed ? message : message + "\n" + String(localized: "下载临时文件未能清理，请检查保存目录。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
                 index += 1
             }
             if control.signal == .cancel { break }
@@ -530,13 +530,13 @@ final class UploadTask: ObservableObject, ScheduledTransfer {
     }
 
     private func postCompletionNotification() {
-        let verb = String(localized: direction == .upload ? "上传" : "下载")
+        let verb = direction == .upload ? String(localized: "上传", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : String(localized: "下载", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         let done = items.filter { $0.state == .done }.count
         if hasFailures {
-            notify(String(localized: "\(verb)部分失败"), String(localized: "成功 \(done)/\(items.count) 个文件"))
+            notify(String(localized: "\(verb)部分失败", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), String(localized: "成功 \(done)/\(items.count) 个文件", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         } else {
             notify(
-                String(localized: "\(verb)完成"), String(localized: "\(done) 个文件 · \(humanSize(totalBytes))"))
+                String(localized: "\(verb)完成", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale), String(localized: "\(done) 个文件 · \(humanSize(totalBytes))", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         }
     }
 

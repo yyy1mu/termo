@@ -43,9 +43,9 @@ enum SyncCredentialError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .read(let status):
-            return String(localized: "无法读取已保存的 WebDAV 密码（钥匙串错误 \(status)）。请重试读取或重新填写。")
+            return String(localized: "无法读取已保存的 WebDAV 密码（钥匙串错误 \(status)）。请重试读取或重新填写。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         case .write(let status):
-            return String(localized: "WebDAV 密码未能写入系统钥匙串（错误 \(status)），连接配置未保存。")
+            return String(localized: "WebDAV 密码未能写入系统钥匙串（错误 \(status)），连接配置未保存。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
         }
     }
 }

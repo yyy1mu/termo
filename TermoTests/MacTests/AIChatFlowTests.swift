@@ -1,6 +1,7 @@
 import AI
 import XCTest
 @testable import Termo
+import TermoCore
 
 @MainActor
 final class AIChatFlowTests: XCTestCase {

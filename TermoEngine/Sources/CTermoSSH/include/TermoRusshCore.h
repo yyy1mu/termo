@@ -1,8 +1,8 @@
-//  Rust SSH 引擎（russh 0.63.3）的 C 接口——与 libssh2 版 TermoSSHCore.h 语义逐一对齐。
+//  Rust SSH 引擎（russh 0.63.3）的 C 接口——与 TermoSSHCore.h 语义逐一对齐。
 //  由 Engine/TermoSSH staticlib（libtermo_ssh.a）导出；构建见 scripts/build-russh.sh。
 //  Swift 侧不直接调用本头；经 TermoSSHDispatch.c 按后端开关分发（termo_ssh_* 不变）。
 //
-//  约定（与 libssh2 版一致）：
+//  约定（与 TermoSSHCore.h 一致）：
 //  - 返回 int 的 SFTP 函数：0=成功；>0 且 <0xF000 = SFTP 状态码；≥0xF000 = 传输/内部错误
 //  - 字符串缓冲超长截断且 NUL 结尾（exec2 的 out/errout 为二进制安全，按 *out_len 取用）
 //  - known_hosts 校验：仅明确匹配才允许认证；未知/变更/撤销/读取失败均拒绝（HOSTKEY_*）
@@ -84,7 +84,7 @@ TermoRusshConnectionCancellation *termo_russh_connection_cancellation_new(void);
 void termo_russh_connection_cancellation_cancel(TermoRusshConnectionCancellation *token);
 void termo_russh_connection_cancellation_free(TermoRusshConnectionCancellation *token);
 
-/// 主机密钥扫描结果（与 libssh2 版 TermoHostKeyScan 字段一一对应）。
+/// 主机密钥扫描结果（与 TermoSSHCore.h 的 TermoHostKeyScan 字段一一对应）。
 typedef struct {
     int status;          // 0=匹配 1=未知 2=不匹配 3=读取/解析失败 4=撤销 5=不支持 -1=握手失败
     char sha256[80];     // "SHA256:base64"

@@ -1,6 +1,8 @@
 import XCTest
 
 @testable import Termo
+import TermoEngine
+import TermoCore
 
 private final class LockedValue<Value>: @unchecked Sendable {
     private let lock = NSLock()
@@ -19,7 +21,7 @@ final class ConnectionTesterTests: XCTestCase {
         let captured = LockedValue<SSHConnectionCancellation?>(nil)
         let tester = ConnectionTester(
             preflight: { _, _ in .known },
-            runTest: { _, _, cancellation, _ in
+            runTest: { _, _, cancellation, _, _ in
                 captured.update { $0 = cancellation }
                 started.fulfill()
             })
@@ -39,7 +41,7 @@ final class ConnectionTesterTests: XCTestCase {
         let callbacks = LockedValue<[SSHConnectionDiagnostic.Stage]>([])
         let tester = ConnectionTester(
             preflight: { _, _ in .known },
-            runTest: { _, _, _, report in
+            runTest: { _, _, _, _, report in
                 callbacks.update {
                     $0.append(report)
                     ($0.count == 1 ? firstStarted : secondStarted).fulfill()
@@ -74,7 +76,7 @@ final class ConnectionTesterTests: XCTestCase {
                 preflightCount.update { $0 += 1 }
                 return .known
             },
-            runTest: { _, _, _, _ in
+            runTest: { _, _, _, _, _ in
                 diagnosticCount.update { $0 += 1 }
             })
 

@@ -34,7 +34,7 @@ final class RemoteFileMutationTests: XCTestCase {
                 },
                 didLoseSFTP: { XCTFail("Business failure invalidated SFTP") })
             guard case .failure(let error) = result else { return XCTFail("False success") }
-            XCTAssertEqual(error.message, code == 3 ? String(localized: "没有删除权限") : "server fixture")
+            XCTAssertEqual(error.message, code == 3 ? String(localized: "没有删除权限", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale) : "server fixture")
             XCTAssertEqual(session.mutations, 1)
         }
     }
@@ -61,7 +61,7 @@ final class RemoteFileMutationTests: XCTestCase {
                     XCTFail("Target conflict invoked shell"); return Self.reply()
                 }, didLoseSFTP: {})
             guard case .failure(let error) = result else { return XCTFail("Replaced existing target") }
-            XCTAssertEqual(error.message, String(localized: "目标名称已存在"))
+            XCTAssertEqual(error.message, String(localized: "目标名称已存在", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             XCTAssertEqual(session.mutations, 0)
         }
     }
@@ -91,7 +91,7 @@ final class RemoteFileMutationTests: XCTestCase {
                 XCTFail("Missing source invoked shell"); return Self.reply()
             }, didLoseSFTP: {})
         guard case .failure(let error) = result else { return XCTFail("Missing source accepted") }
-        XCTAssertEqual(error.message, String(localized: "文件或目录不存在"))
+        XCTAssertEqual(error.message, String(localized: "文件或目录不存在", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
         XCTAssertEqual(session.mutations, 1)
     }
 

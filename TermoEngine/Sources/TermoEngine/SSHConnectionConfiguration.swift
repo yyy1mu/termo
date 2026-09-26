@@ -1,14 +1,16 @@
+import CTermoSSH
 import CryptoKit
 import Foundation
+import TermoCore
 
-struct SSHProxyConfiguration: Equatable {
-    enum Kind: Int32 { case socks5 = 1, httpConnect = 2 }
+public struct SSHProxyConfiguration: Equatable {
+    public enum Kind: Int32 { case socks5 = 1, httpConnect = 2 }
 
-    let kind: Kind
-    let host: String
-    let port: Int32
+    public let kind: Kind
+    public let host: String
+    public let port: Int32
 
-    init(url value: String) throws {
+    public init(url value: String) throws {
         guard let components = URLComponents(string: value) else {
             throw SSHSession.SSHError(message: String(localized: "代理地址格式无效。"))
         }
@@ -35,15 +37,15 @@ struct SSHProxyConfiguration: Equatable {
 }
 
 /// Validated settings used by every network entry point for a host.
-struct SSHTransportOptions: Equatable {
-    let timeoutMs: Int32
-    let heartbeatMs: Int32
-    let proxy: SSHProxyConfiguration?
-    let hostKeyAlgorithms: String
-    let ciphers: String
-    let keyExchangeAlgorithms: String
+public struct SSHTransportOptions: Equatable {
+    public let timeoutMs: Int32
+    public let heartbeatMs: Int32
+    public let proxy: SSHProxyConfiguration?
+    public let hostKeyAlgorithms: String
+    public let ciphers: String
+    public let keyExchangeAlgorithms: String
 
-    init(_ connection: SSHConnection) throws {
+    public init(_ connection: SSHConnection) throws {
         guard (1_000...300_000).contains(connection.timeoutMs) else {
             throw SSHSession.SSHError(message: String(localized: "连接超时需为 1000–300000 毫秒。"))
         }
@@ -59,7 +61,7 @@ struct SSHTransportOptions: Equatable {
         keyExchangeAlgorithms = connection.kexAlgos
     }
 
-    func withRawOptions<Result>(
+    public func withRawOptions<Result>(
         _ body: (UnsafePointer<TermoConnectionOptions>) throws -> Result
     ) rethrows -> Result {
         let proxyHost = proxy?.host ?? ""
@@ -85,14 +87,29 @@ struct SSHTransportOptions: Equatable {
     }
 }
 
+/// 平台连接环境：known_hosts 双文件路径与密钥落盘属平台职责（macOS 由 HostKeyVerifier/KeyMaterializer 提供），
+/// 由 App 侧装配注入；引擎自身不引用任何平台单例或全局状态。
+public struct SSHConnectionEnvironment: Sendable {
+    public let realKnownHosts: String
+    public let sessionKnownHosts: String
+    public let materializeKey: @Sendable (String) -> String?
+
+    public init(realKnownHosts: String, sessionKnownHosts: String,
+                materializeKey: @escaping @Sendable (String) -> String?) {
+        self.realKnownHosts = realKnownHosts
+        self.sessionKnownHosts = sessionKnownHosts
+        self.materializeKey = materializeKey
+    }
+}
+
 /// Resolved credentials for one connection attempt. Password and key authentication cannot be mixed.
-enum SSHAuthentication: Equatable {
+public enum SSHAuthentication: Equatable {
     case password(String?)
     case privateKey(path: String, passphrase: String?)
 
-    init(
+    public init(
         _ connection: SSHConnection,
-        materializeKey: (String) -> String? = { KeyMaterializer.path(forKeyId: $0) }
+        materializeKey: (String) -> String?
     ) throws {
         let secret = connection.password.isEmpty ? nil : connection.password
         guard connection.authMethod == .key else {
@@ -110,30 +127,35 @@ enum SSHAuthentication: Equatable {
 }
 
 extension SSHSession {
-    static func connect(_ connection: SSHConnection) throws -> SSHSession {
+    public static func connect(_ connection: SSHConnection,
+                               environment: SSHConnectionEnvironment) throws -> SSHSession {
         let options = try SSHTransportOptions(connection)
-        switch try SSHAuthentication(connection) {
+        switch try SSHAuthentication(connection, materializeKey: environment.materializeKey) {
         case .password(let password):
             return try connect(
                 host: connection.host, port: connection.port, user: connection.user,
-                password: password, keyPath: nil, keyPassphrase: nil, options: options)
+                password: password, keyPath: nil, keyPassphrase: nil, options: options,
+                realKnownHosts: environment.realKnownHosts,
+                sessionKnownHosts: environment.sessionKnownHosts)
         case .privateKey(let path, let passphrase):
             return try connect(
                 host: connection.host, port: connection.port, user: connection.user,
-                password: nil, keyPath: path, keyPassphrase: passphrase, options: options)
+                password: nil, keyPath: path, keyPassphrase: passphrase, options: options,
+                realKnownHosts: environment.realKnownHosts,
+                sessionKnownHosts: environment.sessionKnownHosts)
         }
     }
 }
 
 /// 连接身份必须包含认证信息，防止相同地址下不同密码/密钥串用旧连接。
 /// 只保留认证摘要，不在缓存键中长期保留密码明文。
-struct SSHConnectionReuseKey: Hashable {
+public struct SSHConnectionReuseKey: Hashable {
     let host: String
     let port: Int
     let user: String
     private let auth: Data
 
-    init(_ connection: SSHConnection) {
+    public init(_ connection: SSHConnection) {
         host = connection.host; port = connection.port; user = connection.user
         let fields: [String] = [
             connection.authMethod == .key ? "key" : "password",

@@ -56,36 +56,4 @@ final class TranscriptTests: XCTestCase {
         XCTAssertFalse(tail.contains("line-1\n"))           // 最旧的被裁掉
     }
 
-    func test_hookEchoFilterArmsAtInjectionAndHandlesWrappedChunks() {
-        var filter = TerminalHookEchoFilter()
-        let started = Date(timeIntervalSince1970: 100)
-        XCTAssertEqual(String(decoding: filter.filter(Array("Welcome\n".utf8), now: started), as: UTF8.self), "Welcome\n")
-        // 模拟连接耗时很久：发送前才武装，不能让建连时间消耗过滤窗口。
-        let injected = started.addingTimeInterval(40)
-        filter.arm("internal-long-command\n", now: injected)
-        let first = filter.filter(Array("user@host$ internal-l".utf8), now: injected)
-        let second = filter.filter(Array("ong\r\n-command\r\nready".utf8), now: injected.addingTimeInterval(1))
-        XCTAssertEqual(String(decoding: first + second, as: UTF8.self), "user@host$ \r\nready")
-    }
-
-    func test_hookEchoFilterPreservesUnrelatedOutputAndExpires() {
-        var filter = TerminalHookEchoFilter()
-        let now = Date(timeIntervalSince1970: 100)
-        filter.arm("hook-command\n", now: now)
-        let unrelated = filter.filter(Array("normal output\n".utf8), now: now)
-        XCTAssertEqual(String(decoding: unrelated, as: UTF8.self), "normal output\n")
-        let expired = filter.filter(Array("hook-command\n".utf8), now: now.addingTimeInterval(31))
-        XCTAssertEqual(String(decoding: expired, as: UTF8.self), "hook-command\n")
-    }
-
-    func test_hookEchoFilterPreservesFragmentedUnicodeAndTerminalControlBytes() {
-        // The terminal receives bytes directly; splitting a Chinese/emoji scalar must not create replacement characters.
-        let bytes = Array("中文 🖥️\u{1B}]7;file://host/tmp\u{1B}\\\u{1B}[31m完成\u{1B}[0m\n".utf8)
-        for split in 0...bytes.count {
-            var filter = TerminalHookEchoFilter()
-            filter.arm("internal-setup-command\n")
-            let output = filter.filter(Array(bytes[..<split])) + filter.filter(Array(bytes[split...]))
-            XCTAssertEqual(output, bytes, "split at byte \(split)")
-        }
-    }
 }

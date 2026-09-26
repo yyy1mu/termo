@@ -135,7 +135,7 @@ enum LLMSettingsStore {
         }
         guard status == errSecSuccess else {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [
-                NSLocalizedDescriptionKey: String(localized: "API Key 未能保存到系统钥匙串，配置尚未保存。")
+                NSLocalizedDescriptionKey: String(localized: "API Key 未能保存到系统钥匙串，配置尚未保存。", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale)
             ])
         }
     }

@@ -1,4 +1,5 @@
 import Foundation
+import TermoEngine
 
 /// Adapts the same checked local source to the synchronous SSH stdin callback.
 enum UploadShellStream {
@@ -50,7 +51,7 @@ enum UploadShellStream {
             if let stopped = stopped ?? UploadStream.interruption(control) { return stopped }
             if result.exitCode == 9 { throw UploadStream.changedDestination() }
             guard result.rc == 0, result.exitCode == 0 else {
-                return .failed(String(localized: "上传中断（退出码 \(result.exitCode)）"))
+                return .failed(String(localized: "上传中断（退出码 \(result.exitCode)）", bundle: AppSettings.localizationBundle, locale: AppSettings.activeLocale))
             }
             guard reachedEOF, sent == size else { throw UploadSource.changed() }
             try source.validate()

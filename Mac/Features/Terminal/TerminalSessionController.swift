@@ -26,7 +26,6 @@ final class TerminalSessionController {
     private var channel: (any TerminalChannel)?
     private var exitCode: Int32?
     private var openingTask: Task<Void, Never>?
-    private var initialTask: Task<Void, Never>?
     private let stream: OutputStream
 
     var onOutput: (([UInt8]) -> Void)?
@@ -36,10 +35,7 @@ final class TerminalSessionController {
 
     init(transcript: TerminalTranscript? = nil) { stream = OutputStream(transcript: transcript) }
 
-    func start(
-        initialLine: String? = nil, initialDelay: Duration = .milliseconds(1500),
-        open: @escaping @Sendable (Callbacks) throws -> any TerminalChannel
-    ) {
+    func start(open: @escaping @Sendable (Callbacks) throws -> any TerminalChannel) {
         guard phase == .idle else { return }
         phase = .opening
         stream.beginSession()
@@ -79,14 +75,6 @@ final class TerminalSessionController {
                 self.channel = channel
                 self.phase = .active
                 self.onReady?()
-                guard self.isActive, let initialLine, !initialLine.isEmpty else { return }
-                self.initialTask = Task { [weak self] in
-                    do { try await Task.sleep(for: initialDelay) } catch { return }
-                    guard let self, self.isActive, !Task.isCancelled else { return }
-                    self.stream.arm(initialLine)
-                    if !self.send(Array(initialLine.utf8)) { self.stream.disarm() }
-                    self.initialTask = nil
-                }
             case .failure:
                 self.finish(255)
             }
@@ -99,7 +87,6 @@ final class TerminalSessionController {
         phase = .closed
         stream.close()
         openingTask?.cancel()
-        initialTask?.cancel(); initialTask = nil
         releaseChannel(reportingDisconnect: false)
     }
 
@@ -120,7 +107,6 @@ final class TerminalSessionController {
         phase = .ended
         exitCode = code
         stream.close()
-        initialTask?.cancel(); initialTask = nil
         releaseChannel(reportingDisconnect: code == 255)
         onTerminated?(code)
     }
@@ -134,7 +120,6 @@ final class TerminalSessionController {
     deinit {
         stream.close()
         openingTask?.cancel()
-        initialTask?.cancel()
         if let channel { releaseTerminalChannel(channel, reportingDisconnect: false) }
     }
 
@@ -142,7 +127,6 @@ final class TerminalSessionController {
     private final class OutputStream: @unchecked Sendable {
         private let lock = NSLock()
         private var active = true
-        private var filter = TerminalHookEchoFilter()
         private let transcript: TerminalTranscript?
 
         init(transcript: TerminalTranscript?) { self.transcript = transcript }
@@ -154,13 +138,10 @@ final class TerminalSessionController {
         func receive(_ bytes: [UInt8]) -> [UInt8] {
             lock.lock(); defer { lock.unlock() }
             guard active else { return [] }
-            let clean = filter.filter(bytes)
-            if !clean.isEmpty { transcript?.appendOutput(clean) }
-            return clean
+            if !bytes.isEmpty { transcript?.appendOutput(bytes) }
+            return bytes
         }
 
         func recordInput(_ bytes: [UInt8]) { transcript?.appendInput(bytes) }
-        func arm(_ line: String) { lock.lock(); filter.arm(line); lock.unlock() }
-        func disarm() { lock.lock(); filter.disarm(); lock.unlock() }
     }
 }
